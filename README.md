@@ -1,1 +1,1 @@
-# imxrt-video-player
+# imxrt-media-player
