@@ -17,6 +17,7 @@
 *.bin
 */*/*/*/*/settings/
 */*/*/*/*/sdram_debug/
+*/*/*/*/*/sdram_release/
 
 # IAR temp files
 EW*.tmp

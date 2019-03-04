@@ -12,6 +12,7 @@
 #include "fsl_common.h"
 #include "fsl_gpio.h"
 #include "fsl_clock.h"
+#include "fsl_iomuxc.h"
 
 /*******************************************************************************
  * Definitions
@@ -148,7 +149,7 @@
 #define BOARD_SD_HOST_SUPPORT_SDR104_FREQ (200000000U)
 #define BOARD_SD_HOST_SUPPORT_HS200_FREQ (180000000U)
 /* define for SD/MMC config IO driver strength dynamic */
-#define BOARD_SD_PIN_CONFIG(speed, strength)                                                      \
+#define BOARD_SD_Pin_Config(speed, strength)                                                      \
     {                                                                                             \
         IOMUXC_SetPinConfig(IOMUXC_GPIO_SD_B0_00_USDHC1_CMD,                                      \
                             IOMUXC_SW_PAD_CTL_PAD_SPEED(speed) | IOMUXC_SW_PAD_CTL_PAD_SRE_MASK | \
