@@ -368,7 +368,8 @@ static void APP_InitLcdif(void)
 //--------------------- decoder ------------------------
 
 AT_NONCACHEABLE_SECTION(static FIL inputFil);
-AT_NONCACHEABLE_SECTION(static FIL outputFil);
+AT_NONCACHEABLE_SECTION(static FIL aoutputFil);
+AT_NONCACHEABLE_SECTION(static FIL voutputFil);
 #include "libavcodec/avcodec.h"
 #include "libavformat/avformat.h"
 #include "libavformat/url.h"
@@ -443,27 +444,27 @@ static void LCD_display(unsigned char *buf[], int xsize,int ysize)
 //	return 0;
 //}
 
-static void h264_video_decode(const char *infilename, const char *outfilename)
+static void h264_video_decode(const char *infilename, const char *aoutfilename, const char *voutfilename)
 {
-    printf("Decode file '%s' to '%s'\n", infilename, outfilename);
+    printf("Decode file '%s' to '%s' and '%s'\n", infilename, aoutfilename, voutfilename);
     // Check input/output media file
-    FRESULT c = f_open(&inputFil, infilename, FA_READ | FA_OPEN_EXISTING);
+    FRESULT c;
+    c = f_open(&inputFil, infilename, FA_READ | FA_OPEN_EXISTING);
     if (c != FR_OK)
     {
         printf("Could not open '%s', erro = %d\n", infilename, c);
     }
-    c = f_open(&outputFil, outfilename, FA_CREATE_ALWAYS | FA_WRITE);
+    c = f_open(&aoutputFil, aoutfilename, FA_CREATE_ALWAYS | FA_WRITE);
     if (c != FR_OK)
     {
-        printf("Could not open '%s'\n", outfilename);
+        printf("Could not open '%s', erro = %d\n", aoutfilename, c);
     }
-//    c = f_open(&f, yuvfilename, FA_CREATE_ALWAYS | FA_WRITE);
-//    if (c != FR_OK)
-//    {
-//        printf("Could not open '%s'\n", yuvfilename);
-//    }
+    c = f_open(&voutputFil, voutfilename, FA_CREATE_ALWAYS | FA_WRITE);
+    if (c != FR_OK)
+    {
+        printf("Could not open '%s', erro = %d\n", voutfilename, c);
+    }
 
-    int error;
     // Define user format conext var
     AVFormatContext *pInFmtCtx=NULL;
     // Register several FFmpeg own var
@@ -474,7 +475,7 @@ static void h264_video_decode(const char *infilename, const char *outfilename)
     // Init user format conext var
     pInFmtCtx = avformat_alloc_context();
     // Open input media file (mp4) from SD Card
-    error =avformat_open_input(&pInFmtCtx, infilename, NULL, NULL);
+    int error =avformat_open_input(&pInFmtCtx, infilename, NULL, NULL);
     if (error != 0)
     {
         printf("Couldn't open file: error :%d\n",error);
@@ -518,13 +519,12 @@ static void h264_video_decode(const char *infilename, const char *outfilename)
 
     }
     AVPacket packet;
-    int kk=0;
     UINT *bw_wh;
     AVFrame *frame = av_frame_alloc();
     AVFrame *frameyuv = av_frame_alloc();
-    while(av_read_frame(pInFmtCtx, &packet) >= 0)
+    while (av_read_frame(pInFmtCtx, &packet) >= 0)
     {
-        if(packet.stream_index == audioStream)
+        if (packet.stream_index == audioStream)
         {
             uint8_t *pktdata = packet.data;
             int pktsize = packet.size;
@@ -536,42 +536,38 @@ static void h264_video_decode(const char *infilename, const char *outfilename)
                 len =avcodec_decode_audio4(pInCodecCtx_audio, frame, &out_size, &packet);
                 if (len < 0)
                 {
-                    printf("Errorwhile decoding.\n");
+                    printf("Error while decoding audio.\n");
                     break;
                 }
-//                    if(out_size>0)
-//                    {
-//
-//                      if (pInCodecCtx_audio->sample_fmt==AV_SAMPLE_FMT_S16P)
-//                      { // Audacity: 16bit PCM little endian stereo
-//                      int16_t* ptr_l = (int16_t*)frame->extended_data[0];
-//                      int16_t* ptr_r = (int16_t*)frame->extended_data[1];
-//                      for (int i=0; i<frame->nb_samples; i++)
-//                      {
-//                       f_write(&outputFil, ptr_l++, sizeof(int16_t), &bw_wh);
-//                       f_write(&outputFil, ptr_r++, sizeof(int16_t), &bw_wh);
-//                      }
-//                     }
-//                   else if (pInCodecCtx_audio->sample_fmt==AV_SAMPLE_FMT_FLTP)
-//                   { //Audacity: big endian 32bit stereo start offset 7 (but has noise)
-//                     float* ptr_l = (float*)frame->extended_data[0];
-//                     float* ptr_r = (float*)frame->extended_data[1];
-//                     for (int i=0; i<frame->nb_samples; i++)
-//                     {
-//                       //;
-//                      // f_write(&outputFil, ptr_l++, sizeof(float), &bw_wh);
-//                      // f_write(&outputFil, ptr_r++, sizeof(float), &bw_wh);
-//                     }
-//                    }
-//
-//                   }
+                if (out_size > 0)
+                {
+                    if (pInCodecCtx_audio->sample_fmt == AV_SAMPLE_FMT_S16P)
+                    { // Audacity: 16bit PCM little endian stereo
+                        int16_t* ptr_l = (int16_t*)frame->extended_data[0];
+                        int16_t* ptr_r = (int16_t*)frame->extended_data[1];
+                        for (int i = 0; i < frame->nb_samples; i++)
+                        {
+                            f_write(&aoutputFil, ptr_l++, sizeof(int16_t), &bw_wh);
+                            f_write(&aoutputFil, ptr_r++, sizeof(int16_t), &bw_wh);
+                        }
+                    }
+                    else if (pInCodecCtx_audio->sample_fmt == AV_SAMPLE_FMT_FLTP)
+                    { //Audacity: big endian 32bit stereo start offset 7 (but has noise)
+                        float* ptr_l = (float*)frame->extended_data[0];
+                        float* ptr_r = (float*)frame->extended_data[1];
+                        for (int i = 0; i < frame->nb_samples; i++)
+                        {
+                            f_write(&aoutputFil, ptr_l++, sizeof(float), &bw_wh);
+                            f_write(&aoutputFil, ptr_r++, sizeof(float), &bw_wh);
+                        }
+                    }
+                }
                 pktsize -= len;
                 pktdata += len;
             }
         }
-        if(packet.stream_index == videoStream)
+        if (packet.stream_index == videoStream)
         {
-
             uint8_t *pktdatayuv = packet.data;
             int pktsizeyuv = packet.size;
             int out_sizeyuv;
@@ -582,16 +578,18 @@ static void h264_video_decode(const char *infilename, const char *outfilename)
                 lenyuv =avcodec_decode_video2(pInCodecCtx_video, frameyuv, &out_sizeyuv, &packet);
                 if (lenyuv < 0)
                 {
-                    printf("Errorwhile decoding.\n");
+                    printf("Error while decoding video.\n");
                     break;
                 }
-                if(out_sizeyuv > 0)
+                if (out_sizeyuv > 0)
                 {
+                    // Show video (yuv444p) via LCD, note: PXP can only support YUV444->RGB24
                     LCD_display(frameyuv->data, frameyuv->width, frameyuv->height);
-        //                        int y_size = frameyuv->width * frameyuv->height;
-        //                        f_write(&f, frameyuv->data[0], y_size, &bw_wh);
-        //                        f_write(&f, frameyuv->data[1], y_size/4, &bw_wh);
-        //                        f_write(&f, frameyuv->data[2], y_size/4, &bw_wh);
+                    // Save YUV data (yuv420p) in file
+                    int y_size = frameyuv->width * frameyuv->height;
+                    f_write(&voutputFil, frameyuv->data[0], y_size, &bw_wh);
+                    f_write(&voutputFil, frameyuv->data[1], y_size/4, &bw_wh);
+                    f_write(&voutputFil, frameyuv->data[2], y_size/4, &bw_wh);
                 }
                 pktsizeyuv -= lenyuv;
                 pktdatayuv += lenyuv;
@@ -601,14 +599,14 @@ static void h264_video_decode(const char *infilename, const char *outfilename)
         av_packet_unref(&packet);
     }
 
- //  f_close(&f);
     f_close(&inputFil);
-    f_close(&outputFil);
+    f_close(&aoutputFil);
+    f_close(&voutputFil);
     avcodec_close(pInCodecCtx_video);
     avcodec_close(pInCodecCtx_audio);
     avformat_close_input(&pInFmtCtx);
     avformat_free_context(pInFmtCtx);
-    printf("Done\n");
+    printf("Decode Done\n");
 }
 
 
@@ -656,9 +654,10 @@ int main(void)
     //char *filepath_in="/1.h64";
     //char *filepath_out="/test-out.yuv";
     char *filepath_in="/tmall.mp4";
-    char *filepath_out="/tmall.pcm";
+    char *filepath_aout="/tmall.pcm";
+    char *filepath_vout="/tmall.yuv";
     //while(1)
-    h264_video_decode(filepath_in, filepath_out);
+    h264_video_decode(filepath_in, filepath_aout, filepath_vout);
 }
 
 static status_t sdcardWaitCardInsert(void)
