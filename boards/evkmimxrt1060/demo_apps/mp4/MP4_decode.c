@@ -225,7 +225,7 @@ static int MOUNT_SDCard(void)
 #endif
 
     // Open file to check
-/*    
+/*
     error = f_open(&jpgFil, _T("/pics/000.jpg"), FA_OPEN_EXISTING);
     if (error != FR_OK)
     {
@@ -377,11 +377,11 @@ AT_NONCACHEABLE_SECTION(static FIL outputFil);
 extern AVCodec ff_h264_decoder;
 extern AVCodec ff_aac_decoder;
 //extern AVCodecParser ff_h264_parser;
-extern AVInputFormat ff_mov_demuxer; 
+extern AVInputFormat ff_mov_demuxer;
 extern URLProtocol ff_file_protocol;
 
 #define AVCODEC_MAX_AUDIO_FRAME_SIZE 100
-#define AVCODEC_MAX_VIDEO_FRAME_SIZE 4096  
+#define AVCODEC_MAX_VIDEO_FRAME_SIZE 4096
 
 #define APP_PS_ULC_X 0U
 #define APP_PS_ULC_Y 0U
@@ -393,25 +393,25 @@ static void LCD_display(unsigned char *buf[], int xsize,int ysize)
     psBufferConfig.bufferAddr = (uint32_t)buf[0];
     psBufferConfig.bufferAddrU = (uint32_t)buf[1];
     psBufferConfig.bufferAddrV = (uint32_t)buf[2];
-    
+
     PXP_SetProcessSurfaceBufferConfig(APP_PXP, &psBufferConfig);
-   
+
     PXP_SetProcessSurfaceScaler(APP_PXP, xsize, ysize, APP_IMG_WIDTH, APP_IMG_HEIGHT);
     PXP_SetProcessSurfacePosition(APP_PXP, APP_PS_ULC_X, APP_PS_ULC_Y, APP_PS_ULC_X + APP_IMG_WIDTH - 1U,
                                           APP_PS_ULC_Y + APP_IMG_HEIGHT - 1U);
     outputBufferConfig.buffer0Addr = (uint32_t)s_psBufferLcd[curLcdBufferIdx];
     PXP_SetOutputBufferConfig(APP_PXP, &outputBufferConfig);
-	
+
 	if (isPxpOn) {
 	  // while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(APP_PXP))) {}
-		PXP_ClearStatusFlags(APP_PXP, kPXP_CompleteFlag);   
+		PXP_ClearStatusFlags(APP_PXP, kPXP_CompleteFlag);
 	}
     PXP_Start(APP_PXP);
 	isPxpOn = 1;
-   
+
    ELCDIF_SetNextBufferAddr(APP_ELCDIF, (uint32_t)s_psBufferLcd[curLcdBufferIdx]);
    ELCDIF_ClearInterruptStatus(APP_ELCDIF, kELCDIF_CurFrameDone);
-   
+
    /*
    while (!(kELCDIF_CurFrameDone & ELCDIF_GetInterruptStatus(APP_ELCDIF)))
    {
@@ -429,121 +429,116 @@ static void LCD_display(unsigned char *buf[], int xsize,int ysize)
 //                        printf("Error while decoding frame %d\n!", *frame_index);
 //			return len;
 //		}
-//             
+//
 //		if (got_frame) {
 //                       printf("%d\r\n", *frame_index);
 //
 //			if (file) {
-//                        
+//
 //                               LCD_display(frame->data, frame->linesize, frame->width, frame->height);
 //			}
-//                        (*frame_index)++;  
-//		}      
+//                        (*frame_index)++;
+//		}
 //	} while (flush && got_frame);
 //	return 0;
 //}
 
-static void h264_video_decode(const char *filename, const char *outfilename)
+static void h264_video_decode(const char *infilename, const char *outfilename)
 {
-    printf("Decode file '%s' to '%s'\n", filename, outfilename);
-       FRESULT c = f_open(&inputFil, filename, FA_READ | FA_OPEN_EXISTING);
-        if (c != FR_OK)
+    printf("Decode file '%s' to '%s'\n", infilename, outfilename);
+    // Check input/output media file
+    FRESULT c = f_open(&inputFil, infilename, FA_READ | FA_OPEN_EXISTING);
+    if (c != FR_OK)
+    {
+        printf("Could not open '%s', erro = %d\n", infilename, c);
+    }
+    c = f_open(&outputFil, outfilename, FA_CREATE_ALWAYS | FA_WRITE);
+    if (c != FR_OK)
+    {
+        printf("Could not open '%s'\n", outfilename);
+    }
+//    c = f_open(&f, yuvfilename, FA_CREATE_ALWAYS | FA_WRITE);
+//    if (c != FR_OK)
+//    {
+//        printf("Could not open '%s'\n", yuvfilename);
+//    }
+
+    int error;
+    // Define user format conext var
+    AVFormatContext *pInFmtCtx=NULL;
+    // Register several FFmpeg own var
+    av_register_input_format(&ff_mov_demuxer);
+    ffurl_register_protocol(&ff_file_protocol);
+    avcodec_register(&ff_h264_decoder);
+    avcodec_register(&ff_aac_decoder);
+    // Init user format conext var
+    pInFmtCtx = avformat_alloc_context();
+    // Open input media file (mp4) from SD Card
+    error =avformat_open_input(&pInFmtCtx, infilename, NULL, NULL);
+    if (error != 0)
+    {
+        printf("Couldn't open file: error :%d\n",error);
+    }
+    // Get steam info from input media file
+    error = avformat_find_stream_info(pInFmtCtx, NULL);
+    if (error < 0)
+    {
+        printf("Couldn't find stream information error :%d\n",error);
+    }
+    int audioStream = -1;
+    int videoStream = -1;
+    for (unsigned int j = 0; j < pInFmtCtx->nb_streams; j++)
+    {
+        // Find audio steam index
+        if(pInFmtCtx->streams[j]->codec->codec_type==AVMEDIA_TYPE_AUDIO)
         {
-            printf("Could not open '%s', erro = %d\n", filename, c);
+            audioStream = j;
         }
-	
-        c = f_open(&outputFil, outfilename, FA_CREATE_ALWAYS | FA_WRITE);
-        if (c != FR_OK)
+        // Find video steam index
+        if(pInFmtCtx->streams[j]->codec->codec_type==AVMEDIA_TYPE_VIDEO)
         {
-            printf("Could not open '%s'\n", outfilename);
+            videoStream = j;
         }
-//         c = f_open(&f, yuvfilename, FA_CREATE_ALWAYS | FA_WRITE);
-//        if (c != FR_OK)
-//        {
-//            printf("Could not open '%s'\n", yuvfilename);
-//        }
+    }
+    printf("audio stream num: %d\n",audioStream);
+    printf("video stream num: %d\n",videoStream);
+    //
+    AVCodecContext *pInCodecCtx_video = pInFmtCtx->streams[videoStream]->codec;
+    AVCodec *pInCodec_video = avcodec_find_decoder(AV_CODEC_ID_H264);
+    if(avcodec_open2(pInCodecCtx_video, pInCodec_video, NULL) < 0)
+    {
+        printf("error avcodec_open failed video.\n");
 
-       int error;
-       int  len, lenyuv;
-       AVCodec *pInCodec_video=NULL, *pInCodec_audio;
-       AVFormatContext *pInFmtCtx=NULL;//文件格式
-       AVCodecContext *pInCodecCtx_video=NULL, *pInCodecCtx_audio;//编码格式
- 
-        av_register_input_format(&ff_mov_demuxer); 
-        ffurl_register_protocol(&ff_file_protocol); 
-        avcodec_register(&ff_h264_decoder);
-        avcodec_register(&ff_aac_decoder);
-        pInFmtCtx = avformat_alloc_context();//初始化一个AVFormatContext 
-	error =avformat_open_input(&pInFmtCtx, filename, NULL, NULL);
-	if(error !=0)
-	{
-            //printf("Couldn't open file %s: %d(%s)", filename, error, bufxx);
-          printf("Couldn't open file: error :%d\n",error); 
-	}
-	error = avformat_find_stream_info(pInFmtCtx,NULL);
-	if( error <0)
-	{
-		printf("Couldn't find stream information error :%d\n",error);
-	} 
-      unsigned int j;
-      int    audioStream = -1;
-      int    videoStream = -1;
+    }
+    AVCodecContext *pInCodecCtx_audio = pInFmtCtx->streams[audioStream]->codec;
+    AVCodec *pInCodec_audio = avcodec_find_decoder(AV_CODEC_ID_AAC);
+    if(avcodec_open2(pInCodecCtx_audio, pInCodec_audio, NULL) < 0)
+    {
+        printf("error avcodec_open failed audio.\n");
 
-       for(j=0; j<pInFmtCtx->nb_streams; j++)
-      {//找到音频对应的stream
-
-       if(pInFmtCtx->streams[j]->codec->codec_type==AVMEDIA_TYPE_AUDIO)
-       {
-           audioStream=j;
-       }
-       if(pInFmtCtx->streams[j]->codec->codec_type==AVMEDIA_TYPE_VIDEO)
-       {
-           videoStream = j;
-       }
-       }      
-       printf("audio stream num: %d\n",audioStream);
-       printf("video stream num: %d\n",videoStream);
-
-       pInCodecCtx_video = pInFmtCtx->streams[videoStream]->codec;//音频的编码上下文
-       pInCodec_video = avcodec_find_decoder(AV_CODEC_ID_H264);
-       if(avcodec_open2(pInCodecCtx_video, pInCodec_video,NULL)<0)
-       {
-           printf("error avcodec_open failedvideo.\n");
-   
-       }
-       pInCodecCtx_audio = pInFmtCtx->streams[audioStream]->codec;//音频的编码上下文
-       pInCodec_audio = avcodec_find_decoder(AV_CODEC_ID_AAC);
-       if(avcodec_open2(pInCodecCtx_audio, pInCodec_audio,NULL)<0)
-       {
-           printf("error avcodec_open failedaudio.\n");
-   
-       }
-       AVPacket packet;
-       uint8_t *pktdata, *pktdatayuv;
-       int pktsize, pktyuv;
-       int out_size = AVCODEC_MAX_AUDIO_FRAME_SIZE*100;
-       int out_sizeyuv = AVCODEC_MAX_VIDEO_FRAME_SIZE*100;
-       int kk=0;
-       UINT *bw_wh;
-       AVFrame *frame = av_frame_alloc();
-       AVFrame *frameyuv = av_frame_alloc();
-       while(av_read_frame(pInFmtCtx, &packet)>=0)//pInFmtCtx?Dμ÷ó???ó???ê?μ?packet??è?oˉêy
-       {
-           if(packet.stream_index==audioStream)//è?1?ê?ò??μ
-           {
-                pktdata = packet.data;
-                pktsize = packet.size;
-                while(pktsize>0)
+    }
+    AVPacket packet;
+    int kk=0;
+    UINT *bw_wh;
+    AVFrame *frame = av_frame_alloc();
+    AVFrame *frameyuv = av_frame_alloc();
+    while(av_read_frame(pInFmtCtx, &packet) >= 0)
+    {
+        if(packet.stream_index == audioStream)
+        {
+            uint8_t *pktdata = packet.data;
+            int pktsize = packet.size;
+            int out_size;
+            int len;
+            while (pktsize > 0)
+            {
+                out_size = AVCODEC_MAX_AUDIO_FRAME_SIZE * 100;
+                len =avcodec_decode_audio4(pInCodecCtx_audio, frame, &out_size, &packet);
+                if (len < 0)
                 {
-                    out_size = AVCODEC_MAX_AUDIO_FRAME_SIZE*100;
-                    //解码
-                     len =avcodec_decode_audio4(pInCodecCtx_audio,frame,&out_size,&packet);
-                    if (len<0)
-                     {
-                        printf("Errorwhile decoding.\n");
-                        break;
-                    }
-
+                    printf("Errorwhile decoding.\n");
+                    break;
+                }
 //                    if(out_size>0)
 //                    {
 //
@@ -567,64 +562,53 @@ static void h264_video_decode(const char *filename, const char *outfilename)
 //                      // f_write(&outputFil, ptr_l++, sizeof(float), &bw_wh);
 //                      // f_write(&outputFil, ptr_r++, sizeof(float), &bw_wh);
 //                     }
-//                    } 
+//                    }
 //
 //                   }
+                pktsize -= len;
+                pktdata += len;
+            }
+        }
+        if(packet.stream_index == videoStream)
+        {
 
-                    pktsize -= len;
-
-                    pktdata += len;
-
-                }
-
-           }
-           if(packet.stream_index==videoStream)
-           {
-           
-               pktdatayuv = packet.data;
-                pktyuv = packet.size;
-                while(pktyuv>0)
+            uint8_t *pktdatayuv = packet.data;
+            int pktsizeyuv = packet.size;
+            int out_sizeyuv;
+            int lenyuv;
+            while (pktsizeyuv > 0)
+            {
+                out_sizeyuv = AVCODEC_MAX_VIDEO_FRAME_SIZE * 100;
+                lenyuv =avcodec_decode_video2(pInCodecCtx_video, frameyuv, &out_sizeyuv, &packet);
+                if (lenyuv < 0)
                 {
-                    out_sizeyuv = AVCODEC_MAX_VIDEO_FRAME_SIZE*100;
-                    //?a??
-                     lenyuv =avcodec_decode_video2(pInCodecCtx_video,frameyuv,&out_sizeyuv,&packet);
-                    if (lenyuv<0)
-                     {
-                        printf("Errorwhile decoding.\n");
-                        break;
-                     }
-                  
-                    if(out_sizeyuv>0)
-                    {
-                        int i;	
-                        LCD_display(frameyuv->data, frameyuv->width, frameyuv->height);
-//                        int y_size = frameyuv->width * frameyuv->height;
-//                        f_write(&f, frameyuv->data[0], y_size, &bw_wh);
-//                        f_write(&f, frameyuv->data[1], y_size/4, &bw_wh);
-//                        f_write(&f, frameyuv->data[2], y_size/4, &bw_wh);
-                        
-                    }
-                   pktyuv -= lenyuv;
-                   pktdatayuv += lenyuv;
-
+                    printf("Errorwhile decoding.\n");
+                    break;
                 }
-           }
+                if(out_sizeyuv > 0)
+                {
+                    LCD_display(frameyuv->data, frameyuv->width, frameyuv->height);
+        //                        int y_size = frameyuv->width * frameyuv->height;
+        //                        f_write(&f, frameyuv->data[0], y_size, &bw_wh);
+        //                        f_write(&f, frameyuv->data[1], y_size/4, &bw_wh);
+        //                        f_write(&f, frameyuv->data[2], y_size/4, &bw_wh);
+                }
+                pktsizeyuv -= lenyuv;
+                pktdatayuv += lenyuv;
+            }
+        }
+        //av_free_packet(&packet);
+        av_packet_unref(&packet);
+    }
 
-           //av_free_packet(&packet);
-           av_packet_unref(&packet);
-
-       }
- 
-     //  f_close(&f);
-       f_close(&inputFil);
-       f_close(&outputFil);
-       avcodec_close(pInCodecCtx_video);
-       avcodec_close(pInCodecCtx_audio);
-      
-       avformat_close_input(&pInFmtCtx);
-        avformat_free_context(pInFmtCtx);
-
-   printf("Done\n");
+ //  f_close(&f);
+    f_close(&inputFil);
+    f_close(&outputFil);
+    avcodec_close(pInCodecCtx_video);
+    avcodec_close(pInCodecCtx_audio);
+    avformat_close_input(&pInFmtCtx);
+    avformat_free_context(pInFmtCtx);
+    printf("Done\n");
 }
 
 
@@ -634,7 +618,6 @@ static void h264_video_decode(const char *filename, const char *outfilename)
 int sai_main(void);
 int main(void)
 {
-    
     FRESULT error;
     BOARD_ConfigMPU();
     BOARD_InitPins();
@@ -643,13 +626,8 @@ int main(void)
     BOARD_USDHCClockConfiguration();
     BOARD_InitDebugConsole();
     BOARD_InitLcd();
-    
 
-    
-    PRINTF("SD JPEG demo start:\r\n");
-
-    // APP_ELCDIF_Init();
-    // BOARD_EnableLcdInterrupt();
+    PRINTF("MP4 decode demo start:\r\n");
 
     // Init the SD card
     if (0 != MOUNT_SDCard())
@@ -657,40 +635,30 @@ int main(void)
         PRINTF("SD card mount error. Demo stopped!");
         return -1;
     }
-    
+
     sai_main();
-//
-//    error = f_open(&jpgFil,"/1.h64", FA_READ|FA_OPEN_EXISTING);
-//    if (error != FR_OK)
-//    {
-//      PRINTF("Test: Could not open 1.h64 %d\r\n", error);
-//      while(1);
-//    }
-//    f_close(&jpgFil);
-        
+
     // clear the framebuffer first
     memset(g_frameBuffer, 0, sizeof(g_frameBuffer));
 
     ELCDIF_EnableInterrupts(APP_ELCDIF, kELCDIF_CurFrameDoneInterruptEnable);
     ELCDIF_RgbModeStart(APP_ELCDIF);
-    
-    
-    
+
     APP_InitPxp();
     APP_InitLcdif();
     BOARD_EnableLcdInterrupt();
-    
+
     /*decoder*/
-    // char *filepath_in="/bigbuckbunny_480x272.h264";
-    // char *filepath_in="/clown_720x576.h264";
-    // char *filepath_in="/formen_352x288.h264";
-    // char *filepath_in="/test.h264";
-//    char *filepath_in="/1.h64";
-//    char *filepath_out="/test-out.yuv";    
+    //char *filepath_in="/bigbuckbunny_480x272.h264";
+    //char *filepath_in="/clown_720x576.h264";
+    //char *filepath_in="/formen_352x288.h264";
+    //char *filepath_in="/test.h264";
+    //char *filepath_in="/1.h64";
+    //char *filepath_out="/test-out.yuv";
     char *filepath_in="/tmall.mp4";
-    char *filepath_out="/ccc.pcm";
+    char *filepath_out="/tmall.pcm";
     //while(1)
-        h264_video_decode(filepath_in, filepath_out);
+    h264_video_decode(filepath_in, filepath_out);
 }
 
 static status_t sdcardWaitCardInsert(void)
