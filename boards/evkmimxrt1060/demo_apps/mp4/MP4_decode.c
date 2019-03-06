@@ -518,6 +518,7 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
         printf("error avcodec_open failed audio.\n");
 
     }
+
     AVPacket packet;
     UINT *bw_wh;
     AVFrame *frame = av_frame_alloc();
@@ -613,7 +614,7 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
 /*!
  * @brief Main function
  */
-int sai_main(void);
+int config_sai(void);
 int main(void)
 {
     FRESULT error;
@@ -634,7 +635,7 @@ int main(void)
         return -1;
     }
 
-    sai_main();
+    config_sai();
 
     // clear the framebuffer first
     memset(g_frameBuffer, 0, sizeof(g_frameBuffer));

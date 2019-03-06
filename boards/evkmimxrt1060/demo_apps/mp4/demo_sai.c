@@ -7,35 +7,14 @@
  */
 
 #include "board.h"
+#include "music.h"
+#if defined(FSL_FEATURE_SOC_DMAMUX_COUNT) && FSL_FEATURE_SOC_DMAMUX_COUNT
 #include "fsl_dmamux.h"
+#endif
 #include "fsl_sai_edma.h"
 #include "fsl_debug_console.h"
-
-/*******************************************************************************
- * Definitions
-// ******************************************************************************/
-#define OVER_SAMPLE_RATE (384U)
-//#define SAMPLE_RATE (kSAI_SampleRate16KHz)
-#define SAMPLE_RATE (kSAI_SampleRate48KHz)
-
-#define BUFFER_SIZE (512)
-#define BUFFER_NUM (4)
-#if defined BOARD_HAS_SDCARD && (BOARD_HAS_SDCARD != 0)
-#define DEMO_SDCARD (1U)
-#endif
-/*******************************************************************************
- * Prototypes
- ******************************************************************************/
-void PlaybackSine(I2S_Type *base, uint32_t SineWaveFreqHz, uint32_t time_s);
-void RecordSDCard(I2S_Type *base, uint32_t time_s);
-void RecordPlayback(I2S_Type *base, uint32_t time_s);
-/*******************************************************************************
- * Variables
- ******************************************************************************/
-
 #include "fsl_wm8960.h"
 #include "pin_mux.h"
-#include "board.h"
 #include "clock_config.h"
 /*******************************************************************************
  * Definitions
@@ -51,14 +30,6 @@ void RecordPlayback(I2S_Type *base, uint32_t time_s);
 /* IRQ */
 #define DEMO_SAI_TX_IRQ SAI1_IRQn
 #define DEMO_SAI_RX_IRQ SAI1_IRQn
-
-/* DMA */
-#define EXAMPLE_DMA DMA0
-#define EXAMPLE_DMAMUX DMAMUX
-#define EXAMPLE_TX_CHANNEL (0U)
-#define EXAMPLE_RX_CHANNEL (1U)
-#define EXAMPLE_SAI_TX_SOURCE kDmaRequestMuxSai1Tx
-#define EXAMPLE_SAI_RX_SOURCE kDmaRequestMuxSai1Rx
 
 /* Select Audio/Video PLL (786.48 MHz) as sai1 clock source */
 #define DEMO_SAI1_CLOCK_SOURCE_SELECT (2U)
@@ -80,6 +51,22 @@ void RecordPlayback(I2S_Type *base, uint32_t time_s);
 #define DEMO_LPI2C_CLOCK_SOURCE_DIVIDER (5U)
 /* Get frequency of lpi2c clock */
 #define DEMO_I2C_CLK_FREQ ((CLOCK_GetFreq(kCLOCK_Usb1PllClk) / 8) / (DEMO_LPI2C_CLOCK_SOURCE_DIVIDER + 1U))
+      
+/* DMA */
+#define EXAMPLE_DMA DMA0
+#define EXAMPLE_DMAMUX DMAMUX
+#define EXAMPLE_TX_CHANNEL (0U)
+#define EXAMPLE_RX_CHANNEL (1U)
+#define EXAMPLE_SAI_TX_SOURCE kDmaRequestMuxSai1Tx
+#define EXAMPLE_SAI_RX_SOURCE kDmaRequestMuxSai1Rx
+      
+#define OVER_SAMPLE_RATE (384U)
+
+#define BUFFER_SIZE (512)
+#define BUFFER_NUM (4)
+#if defined BOARD_HAS_SDCARD && (BOARD_HAS_SDCARD != 0)
+#define DEMO_SDCARD (1U)
+#endif
 
 /*******************************************************************************
  * Prototypes
@@ -155,8 +142,6 @@ void BOARD_EnableSaiMclkOutput(bool enable)
     }
 }
 
-
-
 //#define BLOCK_SIZE (2304*2)
 //#define BLOCK_NUM (2)
 //
@@ -227,7 +212,7 @@ static void rxCallback(I2S_Type *base, sai_edma_handle_t *handle, status_t statu
  * @brief Main function
  */
 #include "gpt.h"
-int sai_main(void)
+int config_sai(void)
 {
     sai_config_t config;
     uint32_t mclkSourceClockHz = 0U;
@@ -286,7 +271,7 @@ int sai_main(void)
     /* Configure the audio format */
     format.bitWidth = kSAI_WordWidth16bits;
     format.channel = 0U;
-    format.sampleRate_Hz = SAMPLE_RATE;
+    format.sampleRate_Hz = kSAI_SampleRate48KHz;
 #if (defined FSL_FEATURE_SAI_HAS_MCLKDIV_REGISTER && FSL_FEATURE_SAI_HAS_MCLKDIV_REGISTER) || \
     (defined FSL_FEATURE_PCC_HAS_SAI_DIVIDER && FSL_FEATURE_PCC_HAS_SAI_DIVIDER)
     format.masterClockHz = OVER_SAMPLE_RATE * format.sampleRate_Hz;
@@ -320,21 +305,9 @@ int sai_main(void)
     EnableIRQ(DEMO_SAI_TX_IRQ);
     EnableIRQ(DEMO_SAI_RX_IRQ);
 
-    PRINTF("\n\rPlease choose the option :\r\n");
-//
-//    char mp3_play_song(char* fname);
-//    
-//
-//    mp3_play_song("tma.mp3");
-//    tx_send_dummy();
-
-#if 0
-    // PlaybackSine(DEMO_SAI, 250, 5);
-    // CODEC_Deinit(&codecHandle);
-    // PRINTF("\n\r SAI demo finished!\n\r ");
-   // while (1)
-//        task_audio_tx();
-#endif
+    // mp3_play_song("tma.mp3");
+    // tx_send_dummy();
+    // task_audio_tx();
     
     return 0;
 }
