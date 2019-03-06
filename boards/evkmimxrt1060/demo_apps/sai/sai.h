@@ -27,6 +27,7 @@
  ******************************************************************************/
 void PlaybackSine(I2S_Type *base, uint32_t SineWaveFreqHz, uint32_t time_s);
 void RecordSDCard(I2S_Type *base, uint32_t time_s);
+void PlaySDCard(I2S_Type *base);
 void RecordPlayback(I2S_Type *base, uint32_t time_s);
 /*******************************************************************************
  * Variables

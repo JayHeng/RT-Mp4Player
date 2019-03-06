@@ -269,6 +269,39 @@ int SD_FatFsInit()
 }
 #endif /* DEMO_SDCARD */
 
+static int MOUNT_SDCard(void)
+{
+    // FRESULT error;
+    const TCHAR driverName[3U] = {SDDISK + '0', ':', '/'};
+
+    // clear FATFS manually
+    memset((void *)&g_fileSystem, 0, sizeof(g_fileSystem));
+
+    /* Wait for the card insert. */
+    if (sdcardWaitCardInsert() != kStatus_Success)
+    {
+        PRINTF("Card not inserted.\r\n");
+        return -1;
+    }
+
+    // Mount the driver
+    if (f_mount(&g_fileSystem, driverName, 0))
+    {
+        PRINTF("Mount volume failed.\r\n");
+        return -2;
+    }
+
+#if (FF_FS_RPATH >= 2U)
+    if (f_chdrive((char const *)&driverName[0U]))
+    {
+        PRINTF("Change drive failed.\r\n");
+        return -3;
+    }
+#endif
+
+    return 0;
+}
+
 /*!
  * @brief Main function
  */
@@ -373,10 +406,15 @@ int main(void)
 
 #if defined DEMO_SDCARD
     /* Init SDcard and FatFs */
-    if (SD_FatFsInit() != 0)
+    if (MOUNT_SDCard() != 0)
     {
-        PRINTF("SDCARD init failed !\r\n");
+        PRINTF("SDCARD mount error !\r\n");
+        return -1;
     }
+    //else if (SD_FatFsInit() != 0)
+    //{
+    //    PRINTF("SDCARD init failed !\r\n");
+    //}
 #endif /* DEMO_SDCARD */
 
     PRINTF("\n\rPlease choose the option :\r\n");
@@ -416,6 +454,9 @@ int main(void)
 #if defined DEMO_SDCARD
             case '3':
                 RecordSDCard(DEMO_SAI, 5);
+                break;
+            case '6':
+                PlaySDCard(DEMO_SAI);
                 break;
 #endif
 #if defined DIG_MIC
