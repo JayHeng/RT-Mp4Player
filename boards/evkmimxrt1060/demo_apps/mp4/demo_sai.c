@@ -34,7 +34,7 @@
 /* Select Audio/Video PLL (786.48 MHz) as sai1 clock source */
 #define DEMO_SAI1_CLOCK_SOURCE_SELECT (2U)
 /* Clock pre divider for sai1 clock source */
-#define DEMO_SAI1_CLOCK_SOURCE_PRE_DIVIDER (0U)
+#define DEMO_SAI1_CLOCK_SOURCE_PRE_DIVIDER (1U)
 /* Clock divider for sai1 clock source */
 #define DEMO_SAI1_CLOCK_SOURCE_DIVIDER (63U)
 /* Get frequency of sai1 clock */
@@ -63,7 +63,7 @@
 #define OVER_SAMPLE_RATE (384U)
 
 #define BUFFER_SIZE (512)
-#define BUFFER_NUM (4)
+#define BUFFER_NUM (1)
 #if defined BOARD_HAS_SDCARD && (BOARD_HAS_SDCARD != 0)
 #define DEMO_SDCARD (1U)
 #endif
@@ -208,6 +208,39 @@ static void rxCallback(I2S_Type *base, sai_edma_handle_t *handle, status_t statu
     }
 }
 
+void play_audio(uint8_t *audioData, uint32_t audioBytes)
+{
+    sai_transfer_t xfer = {0};
+    uint32_t totalNum = 0;
+
+    /* Clear the status */
+    istxFinished = false;
+    sendCount = 0;
+
+    /* Send times according to audio bytes need to play */
+    beginCount = audioBytes / BUFFER_SIZE;
+
+    /* Reset SAI Tx internal logic */
+    SAI_TxSoftwareReset(DEMO_SAI, kSAI_ResetTypeSoftware);
+    /* Do the play */
+    xfer.dataSize = BUFFER_SIZE;
+
+    while (totalNum < beginCount)
+    {
+        xfer.data = audioData + totalNum * BUFFER_SIZE;
+        /* Shall make sure the sai buffer queue is not full */
+        if (SAI_TransferSendEDMA(DEMO_SAI, &txHandle, &xfer) == kStatus_Success)
+        {
+            totalNum++;
+        }
+    }
+
+    /* Wait for the send finished */
+    while (istxFinished != true)
+    {
+    }
+}
+
 /*!
  * @brief Main function
  */
@@ -271,7 +304,7 @@ int config_sai(void)
     /* Configure the audio format */
     format.bitWidth = kSAI_WordWidth16bits;
     format.channel = 0U;
-    format.sampleRate_Hz = kSAI_SampleRate48KHz;
+    format.sampleRate_Hz = kSAI_SampleRate16KHz;
 #if (defined FSL_FEATURE_SAI_HAS_MCLKDIV_REGISTER && FSL_FEATURE_SAI_HAS_MCLKDIV_REGISTER) || \
     (defined FSL_FEATURE_PCC_HAS_SAI_DIVIDER && FSL_FEATURE_PCC_HAS_SAI_DIVIDER)
     format.masterClockHz = OVER_SAMPLE_RATE * format.sampleRate_Hz;
@@ -279,7 +312,7 @@ int config_sai(void)
     format.masterClockHz = DEMO_SAI_CLK_FREQ;
 #endif
     format.protocol = config.protocol;
-    format.stereo = kSAI_Stereo;
+    format.stereo = kSAI_Stereo;//kSAI_MonoRight;
     format.isFrameSyncCompact = true;
 #if defined(FSL_FEATURE_SAI_FIFO_COUNT) && (FSL_FEATURE_SAI_FIFO_COUNT > 1)
     format.watermark = FSL_FEATURE_SAI_FIFO_COUNT / 2U;
@@ -304,6 +337,8 @@ int config_sai(void)
     SAI_RxEnableInterrupts(DEMO_SAI, kSAI_FIFOErrorInterruptEnable);
     EnableIRQ(DEMO_SAI_TX_IRQ);
     EnableIRQ(DEMO_SAI_RX_IRQ);
+
+    play_audio(music, sizeof(music));
 
     // mp3_play_song("tma.mp3");
     // tx_send_dummy();
