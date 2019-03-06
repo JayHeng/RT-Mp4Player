@@ -16,6 +16,8 @@
 *.elf
 *.bin
 */*/*/*/*/settings/
+*/*/*/*/*/debug/
+*/*/*/*/*/release/
 */*/*/*/*/sdram_debug/
 */*/*/*/*/sdram_release/
 
