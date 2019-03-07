@@ -444,6 +444,8 @@ static void LCD_display(unsigned char *buf[], int xsize,int ysize)
 //	return 0;
 //}
 
+void play_audio(uint8_t *audioData, uint32_t audioBytes);
+
 static void h264_video_decode(const char *infilename, const char *aoutfilename, const char *voutfilename)
 {
     printf("Decode file '%s' to '%s' and '%s'\n", infilename, aoutfilename, voutfilename);
@@ -553,14 +555,16 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
                         }
                     }
                     else if (pInCodecCtx_audio->sample_fmt == AV_SAMPLE_FMT_FLTP)
-                    { //Audacity: big endian 32bit stereo start offset 7 (but has noise)
+                    { //Audacity: little endian 32bit stereo start offset 7 ()
                         float* ptr_l = (float*)frame->extended_data[0];
                         float* ptr_r = (float*)frame->extended_data[1];
-                        for (int i = 0; i < frame->nb_samples; i++)
-                        {
-                            f_write(&aoutputFil, ptr_l++, sizeof(float), &bw_wh);
-                            f_write(&aoutputFil, ptr_r++, sizeof(float), &bw_wh);
-                        }
+                        
+                        play_audio((uint8_t *)ptr_r, sizeof(float) * frame->nb_samples);
+                        //for (int i = 0; i < frame->nb_samples; i++)
+                        //{
+                        //    f_write(&aoutputFil, ptr_l++, sizeof(float), &bw_wh);
+                        //    f_write(&aoutputFil, ptr_r++, sizeof(float), &bw_wh);
+                        //}
                     }
                 }
                 pktsize -= len;
@@ -587,10 +591,10 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
                     // Show video (yuv444p) via LCD, note: PXP can only support YUV444->RGB24
                     LCD_display(frameyuv->data, frameyuv->width, frameyuv->height);
                     // Save YUV data (yuv420p) in file
-                    int y_size = frameyuv->width * frameyuv->height;
-                    f_write(&voutputFil, frameyuv->data[0], y_size, &bw_wh);
-                    f_write(&voutputFil, frameyuv->data[1], y_size/4, &bw_wh);
-                    f_write(&voutputFil, frameyuv->data[2], y_size/4, &bw_wh);
+                    //int y_size = frameyuv->width * frameyuv->height;
+                    //f_write(&voutputFil, frameyuv->data[0], y_size, &bw_wh);
+                    //f_write(&voutputFil, frameyuv->data[1], y_size/4, &bw_wh);
+                    //f_write(&voutputFil, frameyuv->data[2], y_size/4, &bw_wh);
                 }
                 pktsizeyuv -= lenyuv;
                 pktdatayuv += lenyuv;

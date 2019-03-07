@@ -7,7 +7,7 @@
  */
 
 #include "board.h"
-#include "music.h"
+//#include "music.h"
 #if defined(FSL_FEATURE_SOC_DMAMUX_COUNT) && FSL_FEATURE_SOC_DMAMUX_COUNT
 #include "fsl_dmamux.h"
 #endif
@@ -302,9 +302,9 @@ int config_sai(void)
     SAI_RxInit(DEMO_SAI, &config);
 
     /* Configure the audio format */
-    format.bitWidth = kSAI_WordWidth16bits;
+    format.bitWidth = kSAI_WordWidth32bits;
     format.channel = 0U;
-    format.sampleRate_Hz = kSAI_SampleRate16KHz;
+    format.sampleRate_Hz = kSAI_SampleRate44100Hz;
 #if (defined FSL_FEATURE_SAI_HAS_MCLKDIV_REGISTER && FSL_FEATURE_SAI_HAS_MCLKDIV_REGISTER) || \
     (defined FSL_FEATURE_PCC_HAS_SAI_DIVIDER && FSL_FEATURE_PCC_HAS_SAI_DIVIDER)
     format.masterClockHz = OVER_SAMPLE_RATE * format.sampleRate_Hz;
@@ -312,7 +312,7 @@ int config_sai(void)
     format.masterClockHz = DEMO_SAI_CLK_FREQ;
 #endif
     format.protocol = config.protocol;
-    format.stereo = kSAI_Stereo;//kSAI_MonoRight;
+    format.stereo = kSAI_MonoRight;
     format.isFrameSyncCompact = true;
 #if defined(FSL_FEATURE_SAI_FIFO_COUNT) && (FSL_FEATURE_SAI_FIFO_COUNT > 1)
     format.watermark = FSL_FEATURE_SAI_FIFO_COUNT / 2U;
@@ -338,7 +338,7 @@ int config_sai(void)
     EnableIRQ(DEMO_SAI_TX_IRQ);
     EnableIRQ(DEMO_SAI_RX_IRQ);
 
-    play_audio(music, sizeof(music));
+    //play_audio(music, sizeof(music));
 
     // mp3_play_song("tma.mp3");
     // tx_send_dummy();
