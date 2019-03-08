@@ -23,7 +23,6 @@
 #define DEMO_CODEC_WM8960
 #define DEMO_SAI SAI1
 #define DEMO_SAI_CHANNEL (0)
-#define DEMO_SAI_BITWIDTH (kSAI_WordWidth16bits)
 #define DEMO_SAI_IRQ SAI1_IRQn
 #define SAI_UserIRQHandler SAI1_IRQHandler
 
@@ -51,7 +50,7 @@
 #define DEMO_LPI2C_CLOCK_SOURCE_DIVIDER (5U)
 /* Get frequency of lpi2c clock */
 #define DEMO_I2C_CLK_FREQ ((CLOCK_GetFreq(kCLOCK_Usb1PllClk) / 8) / (DEMO_LPI2C_CLOCK_SOURCE_DIVIDER + 1U))
-      
+
 /* DMA */
 #define EXAMPLE_DMA DMA0
 #define EXAMPLE_DMAMUX DMAMUX
@@ -59,10 +58,10 @@
 #define EXAMPLE_RX_CHANNEL (1U)
 #define EXAMPLE_SAI_TX_SOURCE kDmaRequestMuxSai1Tx
 #define EXAMPLE_SAI_RX_SOURCE kDmaRequestMuxSai1Rx
-      
+
 #define OVER_SAMPLE_RATE (384U)
 
-#define BUFFER_SIZE (512)
+#define BUFFER_SIZE (4096)
 #define BUFFER_NUM (1)
 #if defined BOARD_HAS_SDCARD && (BOARD_HAS_SDCARD != 0)
 #define DEMO_SDCARD (1U)
@@ -92,7 +91,7 @@ sai_transfer_format_t format = {0};
 AT_NONCACHEABLE_SECTION_ALIGN(uint8_t audioBuff[BUFFER_SIZE * BUFFER_NUM], 4);
 codec_handle_t codecHandle = {0};
 extern codec_config_t boardCodecConfig;
-volatile bool istxFinished = false;
+volatile bool istxFinished = true;
 volatile bool isrxFinished = false;
 volatile uint32_t beginCount = 0;
 volatile uint32_t sendCount = 0;
@@ -213,31 +212,31 @@ void play_audio(uint8_t *audioData, uint32_t audioBytes)
     sai_transfer_t xfer = {0};
     uint32_t totalNum = 0;
 
+    /* Wait for the send finished */
+    while (istxFinished != true)
+    {
+    }
+
     /* Clear the status */
     istxFinished = false;
     sendCount = 0;
 
     /* Send times according to audio bytes need to play */
-    beginCount = audioBytes / BUFFER_SIZE;
+    beginCount = 1;
 
     /* Reset SAI Tx internal logic */
     SAI_TxSoftwareReset(DEMO_SAI, kSAI_ResetTypeSoftware);
     /* Do the play */
-    xfer.dataSize = BUFFER_SIZE;
+    xfer.dataSize = audioBytes;
 
     while (totalNum < beginCount)
     {
-        xfer.data = audioData + totalNum * BUFFER_SIZE;
+        xfer.data = audioData + totalNum * audioBytes;
         /* Shall make sure the sai buffer queue is not full */
         if (SAI_TransferSendEDMA(DEMO_SAI, &txHandle, &xfer) == kStatus_Success)
         {
             totalNum++;
         }
-    }
-
-    /* Wait for the send finished */
-    while (istxFinished != true)
-    {
     }
 }
 
@@ -245,7 +244,7 @@ void play_audio(uint8_t *audioData, uint32_t audioBytes)
  * @brief Main function
  */
 #include "gpt.h"
-int config_sai(void)
+void config_sai(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_stereo_t stereo)
 {
     sai_config_t config;
     uint32_t mclkSourceClockHz = 0U;
@@ -262,10 +261,10 @@ int config_sai(void)
     CLOCK_SetDiv(kCLOCK_Sai1Div, DEMO_SAI1_CLOCK_SOURCE_DIVIDER);
 
     /*Enable MCLK clock*/
-    BOARD_EnableSaiMclkOutput(true); 
+    BOARD_EnableSaiMclkOutput(true);
     BOARD_Codec_I2C_Init();
 
-    PRINTF("SAI Demo started!\n\r");
+    PRINTF("SAI Configuration started!\n\r");
     gp_timer_init();
 
     /* Create EDMA handle */
@@ -278,13 +277,10 @@ int config_sai(void)
     EDMA_GetDefaultConfig(&dmaConfig);
     EDMA_Init(EXAMPLE_DMA, &dmaConfig);
     EDMA_CreateHandle(&dmaTxHandle, EXAMPLE_DMA, EXAMPLE_TX_CHANNEL);
-    EDMA_CreateHandle(&dmaRxHandle, EXAMPLE_DMA, EXAMPLE_RX_CHANNEL);
 
     DMAMUX_Init(EXAMPLE_DMAMUX);
     DMAMUX_SetSource(EXAMPLE_DMAMUX, EXAMPLE_TX_CHANNEL, (uint8_t)EXAMPLE_SAI_TX_SOURCE);
     DMAMUX_EnableChannel(EXAMPLE_DMAMUX, EXAMPLE_TX_CHANNEL);
-    DMAMUX_SetSource(EXAMPLE_DMAMUX, EXAMPLE_RX_CHANNEL, (uint8_t)EXAMPLE_SAI_RX_SOURCE);
-    DMAMUX_EnableChannel(EXAMPLE_DMAMUX, EXAMPLE_RX_CHANNEL);
 
     /* Init SAI module */
     /*
@@ -297,14 +293,10 @@ int config_sai(void)
     SAI_TxGetDefaultConfig(&config);
     SAI_TxInit(DEMO_SAI, &config);
 
-    /* Initialize SAI Rx */
-    SAI_RxGetDefaultConfig(&config);
-    SAI_RxInit(DEMO_SAI, &config);
-
     /* Configure the audio format */
-    format.bitWidth = kSAI_WordWidth32bits;
+    format.bitWidth = bitWidth;
     format.channel = 0U;
-    format.sampleRate_Hz = kSAI_SampleRate44100Hz;
+    format.sampleRate_Hz = sampleRate_Hz;
 #if (defined FSL_FEATURE_SAI_HAS_MCLKDIV_REGISTER && FSL_FEATURE_SAI_HAS_MCLKDIV_REGISTER) || \
     (defined FSL_FEATURE_PCC_HAS_SAI_DIVIDER && FSL_FEATURE_PCC_HAS_SAI_DIVIDER)
     format.masterClockHz = OVER_SAMPLE_RATE * format.sampleRate_Hz;
@@ -312,7 +304,7 @@ int config_sai(void)
     format.masterClockHz = DEMO_SAI_CLK_FREQ;
 #endif
     format.protocol = config.protocol;
-    format.stereo = kSAI_MonoRight;
+    format.stereo = stereo;
     format.isFrameSyncCompact = true;
 #if defined(FSL_FEATURE_SAI_FIFO_COUNT) && (FSL_FEATURE_SAI_FIFO_COUNT > 1)
     format.watermark = FSL_FEATURE_SAI_FIFO_COUNT / 2U;
@@ -326,28 +318,20 @@ int config_sai(void)
 #endif
 
     SAI_TransferTxCreateHandleEDMA(DEMO_SAI, &txHandle, txCallback, NULL, &dmaTxHandle);
-    SAI_TransferRxCreateHandleEDMA(DEMO_SAI, &rxHandle, rxCallback, NULL, &dmaRxHandle);
 
     mclkSourceClockHz = DEMO_SAI_CLK_FREQ;
     SAI_TransferTxSetFormatEDMA(DEMO_SAI, &txHandle, &format, mclkSourceClockHz, format.masterClockHz);
-    SAI_TransferRxSetFormatEDMA(DEMO_SAI, &rxHandle, &format, mclkSourceClockHz, format.masterClockHz);
 
     /* Enable interrupt to handle FIFO error */
     SAI_TxEnableInterrupts(DEMO_SAI, kSAI_FIFOErrorInterruptEnable);
-    SAI_RxEnableInterrupts(DEMO_SAI, kSAI_FIFOErrorInterruptEnable);
     EnableIRQ(DEMO_SAI_TX_IRQ);
-    EnableIRQ(DEMO_SAI_RX_IRQ);
 
     //play_audio(music, sizeof(music));
 
     // mp3_play_song("tma.mp3");
     // tx_send_dummy();
     // task_audio_tx();
-    
-    return 0;
 }
-
-
 
 void SAI_UserTxIRQHandler(void)
 {

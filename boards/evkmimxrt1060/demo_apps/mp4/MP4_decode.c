@@ -17,8 +17,7 @@
 #include "fsl_sd_disk.h"
 #include "board.h"
 #include "fsl_pxp.h"
-
-
+#include "fsl_sai.h"
 #include "pin_mux.h"
 #include "fsl_gpio.h"
 #include "clock_config.h"
@@ -444,7 +443,52 @@ static void LCD_display(unsigned char *buf[], int xsize,int ysize)
 //	return 0;
 //}
 
+void config_sai(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_stereo_t stereo);
 void play_audio(uint8_t *audioData, uint32_t audioBytes);
+
+typedef enum _conv_audio_format
+{
+    kConvAudioFormat_Int16 = 0U,
+    kConvAudioFormat_Int24 = 1U,
+    kConvAudioFormat_Int32 = 2U,
+} conv_audio_format_t;
+
+void convert_audio_format(float *src,
+                          uint8_t *dest,
+                          uint32_t samples,
+                          conv_audio_format_t format)
+{
+    for (uint32_t i = 0; i < samples; i++)
+    {
+        if ((*src) > 1.0f)
+        {
+            *src = 1.0f;
+        }
+        else if ((*src) < -1.0f)
+        {
+            *src = -1.0f;
+        }
+        if (format == kConvAudioFormat_Int16)
+        {
+            int32_t temp = (*src) * ((int32_t)1 << 16);
+            *((int16_t *)dest) = (int16_t)temp;
+            dest +=sizeof(int16_t);
+        }
+        else if (format == kConvAudioFormat_Int24)
+        {
+            int32_t temp = (*src) * ((int32_t)1 << 24);
+            *((int32_t *)dest) = (int32_t)temp;
+            dest +=sizeof(int32_t);
+        }
+        else if (format == kConvAudioFormat_Int32)
+        {
+            int64_t temp = (double)(*src) * ((int64_t)1 << 32);
+            *((int32_t *)dest) = (int32_t)temp;
+            dest +=sizeof(int32_t);
+        }
+        src++;
+    }
+}
 
 static void h264_video_decode(const char *infilename, const char *aoutfilename, const char *voutfilename)
 {
@@ -525,6 +569,11 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
     UINT *bw_wh;
     AVFrame *frame = av_frame_alloc();
     AVFrame *frameyuv = av_frame_alloc();
+
+    uint8_t *pingAudioBuffer = (uint8_t *)av_malloc(4096);
+    uint8_t *pongAudioBuffer = (uint8_t *)av_malloc(4096);
+    bool isPingBufferAvail = true;
+
     while (av_read_frame(pInFmtCtx, &packet) >= 0)
     {
         if (packet.stream_index == audioStream)
@@ -558,8 +607,10 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
                     { //Audacity: little endian 32bit stereo start offset 7 ()
                         float* ptr_l = (float*)frame->extended_data[0];
                         float* ptr_r = (float*)frame->extended_data[1];
-                        
-                        play_audio((uint8_t *)ptr_r, sizeof(float) * frame->nb_samples);
+                        uint8_t *audioBuffer = isPingBufferAvail ? pingAudioBuffer : pongAudioBuffer;
+                        isPingBufferAvail = !isPingBufferAvail;
+                        convert_audio_format(ptr_r, audioBuffer, frame->nb_samples, kConvAudioFormat_Int24);
+                        play_audio(audioBuffer, sizeof(int32_t) * frame->nb_samples);
                         //for (int i = 0; i < frame->nb_samples; i++)
                         //{
                         //    f_write(&aoutputFil, ptr_l++, sizeof(float), &bw_wh);
@@ -618,7 +669,6 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
 /*!
  * @brief Main function
  */
-int config_sai(void);
 int main(void)
 {
     FRESULT error;
@@ -639,7 +689,7 @@ int main(void)
         return -1;
     }
 
-    config_sai();
+    config_sai(kSAI_WordWidth24bits, kSAI_SampleRate44100Hz, kSAI_MonoRight);
 
     // clear the framebuffer first
     memset(g_frameBuffer, 0, sizeof(g_frameBuffer));
