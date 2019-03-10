@@ -7,15 +7,15 @@
  */
 
 #include "board.h"
+#include "pin_mux.h"
+#include "clock_config.h"
+#include "fsl_debug_console.h"
 //#include "music.h"
 #if defined(FSL_FEATURE_SOC_DMAMUX_COUNT) && FSL_FEATURE_SOC_DMAMUX_COUNT
 #include "fsl_dmamux.h"
 #endif
 #include "fsl_sai_edma.h"
-#include "fsl_debug_console.h"
 #include "fsl_wm8960.h"
-#include "pin_mux.h"
-#include "clock_config.h"
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
@@ -60,26 +60,15 @@
 #define EXAMPLE_SAI_RX_SOURCE kDmaRequestMuxSai1Rx
 
 #define OVER_SAMPLE_RATE (384U)
-
 #define BUFFER_SIZE (4096)
 #define BUFFER_NUM (1)
-#if defined BOARD_HAS_SDCARD && (BOARD_HAS_SDCARD != 0)
-#define DEMO_SDCARD (1U)
-#endif
 
 /*******************************************************************************
  * Prototypes
  ******************************************************************************/
 static void txCallback(I2S_Type *base, sai_edma_handle_t *handle, status_t status, void *userData);
 static void rxCallback(I2S_Type *base, sai_edma_handle_t *handle, status_t status, void *userData);
-#if defined DEMO_SDCARD
-#include "fsl_sd.h"
-#include "ff.h"
-#include "diskio.h"
-/*!
-* @brief wait card insert function.
-*/
-#endif
+
 /*******************************************************************************
  * Variables
  ******************************************************************************/
@@ -96,22 +85,8 @@ volatile bool isrxFinished = false;
 volatile uint32_t beginCount = 0;
 volatile uint32_t sendCount = 0;
 volatile uint32_t receiveCount = 0;
-volatile bool sdcard = false;
 volatile uint32_t fullBlock = 0;
 volatile uint32_t emptyBlock = BUFFER_NUM;
-#if 0//defined DEMO_SDCARD
-/* static values for fatfs */
-AT_NONCACHEABLE_SECTION(FATFS g_fileSystem); /* File system object */
-AT_NONCACHEABLE_SECTION(FIL g_fileObject);   /* File object */
-AT_NONCACHEABLE_SECTION(BYTE work[FF_MAX_SS]);
-extern sd_card_t g_sd; /* sd card descriptor */
-/*! @brief SDMMC card power control configuration */
-#if defined DEMO_SDCARD_POWER_CTRL_FUNCTION_EXIST
-static const sdmmchost_pwr_card_t s_sdCardPwrCtrl = {
-    .powerOn = BOARD_PowerOnSDCARD, .powerOnDelay_ms = 500U, .powerOff = BOARD_PowerOffSDCARD, .powerOffDelay_ms = 0U,
-};
-#endif
-#endif
 
 /*******************************************************************************
  * Code
@@ -207,7 +182,7 @@ static void rxCallback(I2S_Type *base, sai_edma_handle_t *handle, status_t statu
     }
 }
 
-void play_audio(uint8_t *audioData, uint32_t audioBytes)
+void sai_audio_play(uint8_t *audioData, uint32_t audioBytes)
 {
     sai_transfer_t xfer = {0};
     uint32_t totalNum = 0;
@@ -241,9 +216,8 @@ void play_audio(uint8_t *audioData, uint32_t audioBytes)
 }
 
 /*!
- * @brief Main function
+ * @brief config_sai function
  */
-#include "gpt.h"
 void config_sai(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_stereo_t stereo)
 {
     sai_config_t config;
@@ -265,7 +239,6 @@ void config_sai(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_stereo_t ste
     BOARD_Codec_I2C_Init();
 
     PRINTF("SAI Configuration started!\n\r");
-    gp_timer_init();
 
     /* Create EDMA handle */
     /*
@@ -326,7 +299,7 @@ void config_sai(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_stereo_t ste
     SAI_TxEnableInterrupts(DEMO_SAI, kSAI_FIFOErrorInterruptEnable);
     EnableIRQ(DEMO_SAI_TX_IRQ);
 
-    //play_audio(music, sizeof(music));
+    //sai_audio_play(music, sizeof(music));
 
     // mp3_play_song("tma.mp3");
     // tx_send_dummy();

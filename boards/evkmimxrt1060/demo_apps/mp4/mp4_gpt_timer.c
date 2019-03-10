@@ -1,7 +1,13 @@
+/*
+ * Copyright (c) 2015, Freescale Semiconductor, Inc.
+ * Copyright 2016-2017 NXP
+ * All rights reserved.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
+ */
 
 #include "fsl_gpt.h"
 #include "fsl_debug_console.h"
-#include "gpt.h"
 
 #define EXAMPLE_GPT GPT2
 #define EXAMPLE_GPT_CLOCK_SOURCE_SELECT (0U)
@@ -10,27 +16,16 @@ uint32_t gptFreq;
 
 static uint32_t cnt1;
 
-
+uint32_t gp_timer_get_cnt(void)
+{
+    return GPT_GetCurrentTimerCount(EXAMPLE_GPT);
+}
 
 void gp_timer_measure_begin(void)
 {
     cnt1 = gp_timer_get_cnt();
 }
 
-uint32_t gp_timer_measure_end(void)
-{
-    uint32_t cnt2;    
-    uint32_t us = 0;
-    cnt2 = gp_timer_get_cnt();
-    us = gp_timer_compute_us(cnt2, cnt1);
-    PRINTF("us: %d\r\n", us);
-    return us;
-}
-
-uint32_t gp_timer_get_cnt(void)
-{
-    return GPT_GetCurrentTimerCount(EXAMPLE_GPT);
-}
 uint32_t gp_timer_compute_us(uint32_t cnt2, uint32_t cnt1)
 {
     int delta;
@@ -52,6 +47,16 @@ uint32_t gp_timer_compute_us(uint32_t cnt2, uint32_t cnt1)
     delta *= 2; // patch to adjust 43 to be 86
 
     return delta/working_frequency;
+}
+
+uint32_t gp_timer_measure_end(void)
+{
+    uint32_t cnt2;    
+    uint32_t us = 0;
+    cnt2 = gp_timer_get_cnt();
+    us = gp_timer_compute_us(cnt2, cnt1);
+    PRINTF("us: %d\r\n", us);
+    return us;
 }
 
 void gp_timer_delay(uint32_t us_delay)

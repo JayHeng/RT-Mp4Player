@@ -3498,22 +3498,22 @@
             </file>
         </group>
         <file>
-            <name>$PROJ_DIR$\..\demo_sai.c</name>
-        </file>
-        <file>
             <name>$PROJ_DIR$\..\ffconf.h</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\gpt.c</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\gpt.h</name>
         </file>
         <file>
             <name>$PROJ_DIR$\..\jconfig.h</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\MP4_decode.c</name>
+            <name>$PROJ_DIR$\..\mp4_gpt_timer.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\mp4_lcd_video.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\mp4_main.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\mp4_sai_audio.c</name>
         </file>
         <file>
             <name>$PROJ_DIR$\systick_asm.s</name>
