@@ -6,132 +6,113 @@
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
-#include "fsl_gpt.h"
+#include "board.h"
+#include "pin_mux.h"
+#include "clock_config.h"
 #include "fsl_debug_console.h"
+#include "fsl_gpt.h"
+/*******************************************************************************
+ * Definitions
+ ******************************************************************************/
+#define GPT_IRQ_ID GPT2_IRQn
+#define APP_GPT GPT2
+#define APP_GPT_CLK_FREQ (CLOCK_GetFreq(kCLOCK_PerClk))
+#define APP_GPT_IRQHandler GPT2_IRQHandler
 
-#define EXAMPLE_GPT GPT2
-#define EXAMPLE_GPT_CLOCK_SOURCE_SELECT (0U)
-#define EXAMPLE_GPT_CLK_FREQ (CLOCK_GetFreq(kCLOCK_IpgClk)) 
-uint32_t gptFreq;
+/*******************************************************************************
+ * Prototypes
+ ******************************************************************************/
 
-static uint32_t cnt1;
+/*******************************************************************************
+ * Variables
+ ******************************************************************************/
+static uint32_t s_gptFreq;
+const uint32_t s_gptCompareValue = 0xffffffff;
+volatile uint32_t s_highCounter;
 
-uint32_t gp_timer_get_cnt(void)
+/*******************************************************************************
+ * Code
+ ******************************************************************************/
+
+//! @brief Read back running tick count
+uint64_t gpt_get_ticks(void)
 {
-    return GPT_GetCurrentTimerCount(EXAMPLE_GPT);
-}
+    uint64_t retVal;
 
-void gp_timer_measure_begin(void)
-{
-    cnt1 = gp_timer_get_cnt();
-}
+    //! The rollover counter keeps track of increments higher than the 24 bit SysTick counter
+    //! to combine them shift rollover up 24 bits and add the current ticks
+    uint32_t high;
+    uint32_t low;
 
-uint32_t gp_timer_compute_us(uint32_t cnt2, uint32_t cnt1)
-{
-    int delta;
-    int working_frequency;
-
-    if(cnt2 < cnt1)
-        cnt2 += gptFreq;
-
-    delta = cnt2 - cnt1;
-
-    working_frequency = gptFreq/1000000;
-/*    
-    double t;
-    t = gptFreq;
-    t = 1/t;
-    t = delta * t;
-*/
-    
-    delta *= 2; // patch to adjust 43 to be 86
-
-    return delta/working_frequency;
-}
-
-uint32_t gp_timer_measure_end(void)
-{
-    uint32_t cnt2;    
-    uint32_t us = 0;
-    cnt2 = gp_timer_get_cnt();
-    us = gp_timer_compute_us(cnt2, cnt1);
-    PRINTF("us: %d\r\n", us);
-    return us;
-}
-
-void gp_timer_delay(uint32_t us_delay)
-{
-    uint32_t cnt1;
-    uint32_t cnt2;
-    uint32_t us = 0;
-
-    cnt1 = gp_timer_get_cnt();
-    
-    while(us < us_delay)
+    // Check for an overflow condition between the two reads above
+    do
     {
-        cnt2 = gp_timer_get_cnt();    
-        us = gp_timer_compute_us(cnt2, cnt1);
-    }
+        high = s_highCounter;
+        low = GPT_GetCurrentTimerCount(APP_GPT);
+    } while (high != s_highCounter);
+
+    retVal = ((uint64_t)high * s_gptCompareValue) + low;
+
+    return retVal;
 }
 
-void gp_timer_init(void)
+uint64_t gpt_convert_to_ns(uint64_t ticks)
+{
+    return ((ticks * 1000) / (s_gptFreq / 1000000));
+}
+
+void gpt_delay(uint32_t us)
+{
+    uint64_t currentTicks = gpt_get_ticks();
+
+    uint64_t ticksNeeded = ((uint64_t)us * s_gptFreq / 1000000) + currentTicks;
+    while (gpt_get_ticks() < ticksNeeded);
+}
+
+void config_gpt(void)
 {
     gpt_config_t gptConfig;
     
     /*Clock setting for GPT*/
-    CLOCK_SetMux(kCLOCK_PerclkMux, EXAMPLE_GPT_CLOCK_SOURCE_SELECT);
-
     GPT_GetDefaultConfig(&gptConfig);
 
     /* Initialize GPT module */
-    GPT_Init(EXAMPLE_GPT, &gptConfig);
+    GPT_Init(APP_GPT, &gptConfig);
 
-    /* Divide GPT clock source frequency by 3 inside GPT module */
-    GPT_SetClockDivider(EXAMPLE_GPT, 3);
+    /* Divide GPT clock source frequency by 1 inside GPT module */
+    GPT_SetClockDivider(APP_GPT, 1);
 
     /* Get GPT clock frequency */
-    gptFreq = EXAMPLE_GPT_CLK_FREQ;
+    s_gptFreq = APP_GPT_CLK_FREQ;
 
-    /* GPT frequency is divided by 3 inside module */
-    gptFreq /= 3;
+    /* GPT frequency is divided by 1 inside module */
+    s_gptFreq /= 1;
 
     /* Set both GPT modules to 1 second duration */
-    
-    // Working frequency is 44MHz
-    GPT_SetOutputCompareValue(EXAMPLE_GPT, kGPT_OutputCompare_Channel1, gptFreq);
-
-    PRINTF("gptFreq: %d\n\r", gptFreq);
+    GPT_SetOutputCompareValue(APP_GPT, kGPT_OutputCompare_Channel1, s_gptCompareValue);
 
     /* Enable GPT Output Compare1 interrupt */
-    //GPT_EnableInterrupts(EXAMPLE_GPT, kGPT_OutputCompare1InterruptEnable);
+    GPT_EnableInterrupts(APP_GPT, kGPT_OutputCompare1InterruptEnable);
 
     /* Enable at the Interrupt */
-    //EnableIRQ(GPT_IRQ_ID);
+    EnableIRQ(GPT_IRQ_ID);
 
     /* Start Timer */
     PRINTF("\r\nStarting GPT timer ...");
-    GPT_StartTimer(EXAMPLE_GPT);
-    
-    
+    s_highCounter = 0;
+    GPT_StartTimer(APP_GPT);
+}
 
-    uint32_t cnt1;
-    uint32_t cnt2;
-    uint32_t us;
+void APP_GPT_IRQHandler(void)
+{
+    /* Clear interrupt flag.*/
+    GPT_ClearStatusFlags(APP_GPT, kGPT_OutputCompare1Flag);
 
-    PRINTF("\r\n");
-    cnt1 = gp_timer_get_cnt();
-    PRINTF("a");
-    cnt2 = gp_timer_get_cnt();
-    
-    us = gp_timer_compute_us(cnt2, cnt1);
-    PRINTF("\r\nthe following value should be 8.6*10 bit = 86 us\r\n");
-    PRINTF("test uart - us: %d\r\n", us);
-    
-    gp_timer_delay(1000*1000);
-    PRINTF("-\r\n");
-    gp_timer_delay(1000*1000);
-    PRINTF("-\r\n");
-    gp_timer_delay(1000*1000);
-    PRINTF("-\r\n");
+    s_highCounter++;
+/* Add for ARM errata 838869, affects Cortex-M4, Cortex-M4F, Cortex-M7, Cortex-M7F Store immediate overlapping
+  exception return operation might vector to incorrect interrupt */
+#if defined __CORTEX_M && (__CORTEX_M == 4U || __CORTEX_M == 7U)
+    __DSB();
+#endif
 }
 

@@ -39,7 +39,9 @@ extern void config_sai(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_stere
 extern void sai_audio_play(uint8_t *audioData, uint32_t audioBytes);
 extern void config_lcd(void);
 extern void lcd_video_display(unsigned char *buf[], int xsize, int ysize);
-extern void gp_timer_init(void);
+extern void config_gpt(void);
+extern uint64_t gpt_convert_to_ns(uint64_t ticks);
+extern uint64_t gpt_get_ticks(void);
 
 /*******************************************************************************
  * Variables
@@ -399,7 +401,8 @@ int main(void)
     // Init LCD module
     config_lcd();
 
-    gp_timer_init();
+    // Init GPT module
+    config_gpt();
 
     //char *filepath_in="/bigbuckbunny_480x272.h264";
     //char *filepath_in="/clown_720x576.h264";
