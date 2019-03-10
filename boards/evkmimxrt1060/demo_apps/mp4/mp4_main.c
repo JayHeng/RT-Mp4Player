@@ -43,6 +43,12 @@ extern void config_gpt(void);
 extern void time_measure_start(void);
 extern uint64_t time_measure_done(void);
 
+#if MP4_WAV_ENABLE
+void wav_start(uint32_t bitWidth, uint32_t sampleRate_Hz, uint32_t channels, uint32_t fileSize);
+void wav_write(uint8_t *data, uint32_t bytes);
+void wav_close(void);
+#endif
+
 /*******************************************************************************
  * Variables
  ******************************************************************************/
@@ -297,6 +303,11 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
 
     s_timeMeasureIndex = 0;
     time_measure_start();
+
+#if MP4_WAV_ENABLE
+    wav_start(kSAI_WordWidth16bits, kSAI_SampleRate44100Hz, 1, 3874877);
+#endif
+
     while (av_read_frame(pInFmtCtx, &packet) >= 0)
     {
         s_timeMeasureContext[s_timeMeasureIndex].readFrame_ns = time_measure_done();
@@ -336,10 +347,14 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
                         float* ptr_r = (float*)frame->extended_data[1];
                         uint8_t *audioBuffer = isPingBufferAvail ? pingAudioBuffer : pongAudioBuffer;
                         isPingBufferAvail = !isPingBufferAvail;
-                        convert_audio_format(ptr_r, audioBuffer, frame->nb_samples, kConvAudioFormat_Int24);
+                        convert_audio_format(ptr_r, audioBuffer, frame->nb_samples, kConvAudioFormat_Int16);
                         time_measure_start();
-                        sai_audio_play(audioBuffer, sizeof(int32_t) * frame->nb_samples);
+                        sai_audio_play(audioBuffer, sizeof(int16_t) * frame->nb_samples);
                         s_timeMeasureContext[s_timeMeasureIndex].playAudio_ns = time_measure_done();
+
+#if MP4_WAV_ENABLE
+                        wav_write(audioBuffer, frame->nb_samples * sizeof(int16_t));
+#endif
                         //for (int i = 0; i < frame->nb_samples; i++)
                         //{
                         //    f_write(&aoutputFil, ptr_l++, sizeof(float), &bw_wh);
@@ -394,6 +409,10 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
         }
     }
 
+#if MP4_WAV_ENABLE
+    wav_close();
+#endif
+
     f_close(&inputFil);
     f_close(&aoutputFil);
     f_close(&voutputFil);
@@ -430,7 +449,7 @@ int main(void)
     }
 
     // Init SAI module
-    config_sai(kSAI_WordWidth24bits, kSAI_SampleRate44100Hz, kSAI_MonoRight);
+    config_sai(kSAI_WordWidth16bits, kSAI_SampleRate44100Hz, kSAI_MonoRight);
     
     // Init LCD module
     config_lcd();
