@@ -29,6 +29,7 @@
 static uint32_t s_gptFreq;
 const uint32_t s_gptCompareValue = 0xffffffff;
 volatile uint32_t s_highCounter;
+static uint64_t s_gptLastTicks = 0;
 
 /*******************************************************************************
  * Code
@@ -67,6 +68,16 @@ void gpt_delay(uint32_t us)
 
     uint64_t ticksNeeded = ((uint64_t)us * s_gptFreq / 1000000) + currentTicks;
     while (gpt_get_ticks() < ticksNeeded);
+}
+
+void time_measure_start(void)
+{
+    s_gptLastTicks = gpt_get_ticks();
+}
+
+uint64_t time_measure_done(void)
+{
+    return gpt_convert_to_ns(gpt_get_ticks() - s_gptLastTicks);
 }
 
 void config_gpt(void)

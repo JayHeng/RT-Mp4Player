@@ -40,8 +40,8 @@ extern void sai_audio_play(uint8_t *audioData, uint32_t audioBytes);
 extern void config_lcd(void);
 extern void lcd_video_display(unsigned char *buf[], int xsize, int ysize);
 extern void config_gpt(void);
-extern uint64_t gpt_convert_to_ns(uint64_t ticks);
-extern uint64_t gpt_get_ticks(void);
+extern void time_measure_start(void);
+extern uint64_t time_measure_done(void);
 
 /*******************************************************************************
  * Variables
@@ -68,6 +68,22 @@ static const sdmmchost_pwr_card_t s_sdCardPwrCtrl = {
     .powerOffDelay_ms = 0U,
 };
 #endif
+
+typedef struct _time_measure_context
+{
+    uint64_t readFrame_ns;
+    uint64_t decodeAudio_ns;
+    uint64_t convAudio_ns;
+    uint64_t playAudio_ns;
+    uint64_t decodeVideo_ns;
+    uint64_t playVideo_ns;
+    bool isAudioStream;
+} time_measure_context_t;
+
+#define TIME_MEASURE_CNT 20
+static time_measure_context_t s_timeMeasureContext[TIME_MEASURE_CNT];
+static uint32_t s_timeMeasureIndex = 0;
+
 /*******************************************************************************
  * Code
  ******************************************************************************/
@@ -279,10 +295,14 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
     uint8_t *pongAudioBuffer = (uint8_t *)av_malloc(4096);
     bool isPingBufferAvail = true;
 
+    s_timeMeasureIndex = 0;
+    time_measure_start();
     while (av_read_frame(pInFmtCtx, &packet) >= 0)
     {
+        s_timeMeasureContext[s_timeMeasureIndex].readFrame_ns = time_measure_done();
         if (packet.stream_index == audioStream)
         {
+            s_timeMeasureContext[s_timeMeasureIndex].isAudioStream = true;
             uint8_t *pktdata = packet.data;
             int pktsize = packet.size;
             int out_size;
@@ -290,7 +310,9 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
             while (pktsize > 0)
             {
                 out_size = AVCODEC_MAX_AUDIO_FRAME_SIZE * 100;
+                time_measure_start();
                 len =avcodec_decode_audio4(pInCodecCtx_audio, frame, &out_size, &packet);
+                s_timeMeasureContext[s_timeMeasureIndex].decodeAudio_ns = time_measure_done();
                 if (len < 0)
                 {
                     printf("Error while decoding audio.\n");
@@ -315,7 +337,9 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
                         uint8_t *audioBuffer = isPingBufferAvail ? pingAudioBuffer : pongAudioBuffer;
                         isPingBufferAvail = !isPingBufferAvail;
                         convert_audio_format(ptr_r, audioBuffer, frame->nb_samples, kConvAudioFormat_Int24);
+                        time_measure_start();
                         sai_audio_play(audioBuffer, sizeof(int32_t) * frame->nb_samples);
+                        s_timeMeasureContext[s_timeMeasureIndex].playAudio_ns = time_measure_done();
                         //for (int i = 0; i < frame->nb_samples; i++)
                         //{
                         //    f_write(&aoutputFil, ptr_l++, sizeof(float), &bw_wh);
@@ -329,6 +353,7 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
         }
         if (packet.stream_index == videoStream)
         {
+            s_timeMeasureContext[s_timeMeasureIndex].isAudioStream = false;
             uint8_t *pktdatayuv = packet.data;
             int pktsizeyuv = packet.size;
             int out_sizeyuv;
@@ -336,7 +361,9 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
             while (pktsizeyuv > 0)
             {
                 out_sizeyuv = AVCODEC_MAX_VIDEO_FRAME_SIZE * 100;
+                time_measure_start();
                 lenyuv =avcodec_decode_video2(pInCodecCtx_video, frameyuv, &out_sizeyuv, &packet);
+                s_timeMeasureContext[s_timeMeasureIndex].decodeVideo_ns = time_measure_done();
                 if (lenyuv < 0)
                 {
                     printf("Error while decoding video.\n");
@@ -345,7 +372,9 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
                 if (out_sizeyuv > 0)
                 {
                     // Show video (yuv444p) via LCD, note: PXP can only support YUV444->RGB24
+                    time_measure_start();
                     lcd_video_display(frameyuv->data, frameyuv->width, frameyuv->height);
+                    s_timeMeasureContext[s_timeMeasureIndex].playVideo_ns = time_measure_done();
                     // Save YUV data (yuv420p) in file
                     //int y_size = frameyuv->width * frameyuv->height;
                     //f_write(&voutputFil, frameyuv->data[0], y_size, &bw_wh);
@@ -358,6 +387,11 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
         }
         //av_free_packet(&packet);
         av_packet_unref(&packet);
+        time_measure_start();
+        if (s_timeMeasureIndex < TIME_MEASURE_CNT)
+        {
+            s_timeMeasureIndex++;
+        }
     }
 
     f_close(&inputFil);
