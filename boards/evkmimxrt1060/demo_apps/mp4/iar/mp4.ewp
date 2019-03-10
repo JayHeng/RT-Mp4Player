@@ -229,6 +229,7 @@
                     <state>SDK_I2C_BASED_COMPONENT_USED=1</state>
                     <state>FSL_SDK_ENABLE_DRIVER_CACHE_CONTROL=1</state>
                     <state>BOARD_USE_CODEC=1</state>
+                    <state>MP4_WAV_ENABLE=0</state>
                 </option>
                 <option>
                     <name>CCPreprocFile</name>
@@ -369,6 +370,7 @@
                     <state>$PROJ_DIR$/../../../../../middleware/sdmmc/src</state>
                     <state>$PROJ_DIR$/../../../../../middleware/sdmmc/inc</state>
                     <state>$PROJ_DIR$/../../../../../middleware/sdmmc/port</state>
+                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/port/interrupt</state>
                     <state>$PROJ_DIR$/../../../../../middleware/fatfs/source/fsl_sd_disk</state>
                     <state>$PROJ_DIR$/../../../../../middleware/fatfs/source</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/compat</state>
@@ -376,6 +378,8 @@
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/libavutil</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/libavformat</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg</state>
+                    <state>$PROJ_DIR$/../../../../../components/codec</state>
+                    <state>$PROJ_DIR$/../../../../../components/codec/wm8960</state>
                     <state>$PROJ_DIR$/../../../../../components/serial_manager</state>
                     <state>$PROJ_DIR$/../../../../../components/uart</state>
                 </option>
@@ -1437,6 +1441,7 @@
                     <state>$PROJ_DIR$/../../../../../middleware/sdmmc/src</state>
                     <state>$PROJ_DIR$/../../../../../middleware/sdmmc/inc</state>
                     <state>$PROJ_DIR$/../../../../../middleware/sdmmc/port</state>
+                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/port/interrupt</state>
                     <state>$PROJ_DIR$/../../../../../middleware/fatfs/source/fsl_sd_disk</state>
                     <state>$PROJ_DIR$/../../../../../middleware/fatfs/source</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/compat</state>
@@ -1444,6 +1449,8 @@
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/libavutil</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/libavformat</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg</state>
+                    <state>$PROJ_DIR$/../../../../../components/codec</state>
+                    <state>$PROJ_DIR$/../../../../../components/codec/wm8960</state>
                     <state>$PROJ_DIR$/../../../../../components/serial_manager</state>
                     <state>$PROJ_DIR$/../../../../../components/uart</state>
                 </option>
@@ -2162,6 +2169,51 @@
         </file>
     </group>
     <group>
+        <name>component</name>
+        <group>
+            <name>codec</name>
+            <group>
+                <name>wm8960</name>
+                <file>
+                    <name>$PROJ_DIR$\..\..\..\..\..\components\codec\wm8960\fsl_wm8960.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\..\..\..\..\components\codec\wm8960\fsl_wm8960.h</name>
+                </file>
+            </group>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\components\codec\fsl_codec_common.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\components\codec\fsl_codec_common.h</name>
+            </file>
+        </group>
+        <group>
+            <name>serial_manager</name>
+            <excluded>
+                <configuration>sdram_debug</configuration>
+            </excluded>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\components\uart\lpuart_adapter.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\components\serial_manager\serial_manager.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\components\serial_manager\serial_manager.h</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\components\serial_manager\serial_port_uart.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\components\serial_manager\serial_port_uart.h</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\components\uart\uart.h</name>
+            </file>
+        </group>
+    </group>
+    <group>
         <name>doc</name>
         <file>
             <name>$PROJ_DIR$\..\readme.txt</name>
@@ -2258,120 +2310,42 @@
         </file>
     </group>
     <group>
-        <name>fatfs</name>
+        <name>middleware</name>
         <group>
-            <name>fatfs_include</name>
-            <file>
-                <name>$PROJ_DIR$\..\..\..\..\..\middleware\fatfs\source\diskio.h</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\..\..\..\..\middleware\fatfs\source\ff.h</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\..\..\..\..\middleware\fatfs\source\fsl_sd_disk\fsl_sd_disk.h</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\..\..\..\..\middleware\fatfs\source\integer.h</name>
-            </file>
-        </group>
-        <group>
-            <name>fatfs_source</name>
-            <file>
-                <name>$PROJ_DIR$\..\..\..\..\..\middleware\fatfs\source\diskio.c</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\..\..\..\..\middleware\fatfs\source\ff.c</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\..\..\..\..\middleware\fatfs\source\ffsystem.c</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\..\..\..\..\middleware\fatfs\source\ffunicode.c</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\..\..\..\..\middleware\fatfs\source\fsl_sd_disk\fsl_sd_disk.c</name>
-            </file>
-        </group>
-    </group>
-    <group>
-        <name>sdmmc</name>
-        <group>
-            <name>inc</name>
-            <file>
-                <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\inc\fsl_sd.h</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\inc\fsl_sdmmc_common.h</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\inc\fsl_sdmmc_host.h</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\inc\fsl_sdmmc_spec.h</name>
-            </file>
-        </group>
-        <group>
-            <name>port</name>
-            <file>
-                <name>$PROJ_DIR$\..\fsl_sdmmc_event.c</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\fsl_sdmmc_event.h</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\fsl_sdmmc_host.c</name>
-            </file>
-        </group>
-        <group>
-            <name>src</name>
-            <file>
-                <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\src\fsl_sd.c</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\src\fsl_sdmmc_common.c</name>
-            </file>
-        </group>
-    </group>
-    <group>
-        <name>serial_manager</name>
-        <excluded>
-            <configuration>sdram_debug</configuration>
-        </excluded>
-        <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\components\uart\lpuart_adapter.c</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\components\serial_manager\serial_manager.c</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\components\serial_manager\serial_manager.h</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\components\serial_manager\serial_port_uart.c</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\components\serial_manager\serial_port_uart.h</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\components\uart\uart.h</name>
-        </file>
-    </group>
-    <group>
-        <name>source</name>
-        <group>
-            <name>codec</name>
-            <file>
-                <name>$PROJ_DIR$\..\fsl_codec_common.c</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\fsl_codec_common.h</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\fsl_wm8960.c</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\fsl_wm8960.h</name>
-            </file>
+            <name>fatfs</name>
+            <group>
+                <name>fatfs_include</name>
+                <file>
+                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\fatfs\source\diskio.h</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\fatfs\source\ff.h</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\fatfs\source\fsl_sd_disk\fsl_sd_disk.h</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\fatfs\source\integer.h</name>
+                </file>
+            </group>
+            <group>
+                <name>fatfs_source</name>
+                <file>
+                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\fatfs\source\diskio.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\fatfs\source\ff.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\fatfs\source\ffsystem.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\fatfs\source\ffunicode.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\fatfs\source\fsl_sd_disk\fsl_sd_disk.c</name>
+                </file>
+            </group>
         </group>
         <group>
             <name>ffmpeg</name>
@@ -3498,6 +3472,51 @@
                 <name>$PROJ_DIR$\..\..\..\..\..\middleware\ffmpeg\config.h</name>
             </file>
         </group>
+        <group>
+            <name>sdmmc</name>
+            <group>
+                <name>inc</name>
+                <file>
+                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\inc\fsl_sd.h</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\inc\fsl_sdmmc_common.h</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\inc\fsl_sdmmc_host.h</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\inc\fsl_sdmmc_spec.h</name>
+                </file>
+            </group>
+            <group>
+                <name>port</name>
+                <group>
+                    <name>interrupt</name>
+                    <file>
+                        <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\port\usdhc\interrupt\fsl_sdmmc_event.c</name>
+                    </file>
+                    <file>
+                        <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\port\usdhc\interrupt\fsl_sdmmc_host.c</name>
+                    </file>
+                </group>
+                <file>
+                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\port\fsl_sdmmc_event.h</name>
+                </file>
+            </group>
+            <group>
+                <name>src</name>
+                <file>
+                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\src\fsl_sd.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\src\fsl_sdmmc_common.c</name>
+                </file>
+            </group>
+        </group>
+    </group>
+    <group>
+        <name>source</name>
         <file>
             <name>$PROJ_DIR$\..\ffconf.h</name>
         </file>
@@ -3517,7 +3536,7 @@
             <name>$PROJ_DIR$\..\mp4_sai_audio.c</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\systick_asm.s</name>
+            <name>$PROJ_DIR$\..\music.h</name>
         </file>
         <file>
             <name>$PROJ_DIR$\..\wav.c</name>
