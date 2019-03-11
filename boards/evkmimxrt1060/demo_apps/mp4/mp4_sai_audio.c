@@ -32,14 +32,11 @@
 
 /* Select Audio/Video PLL (786.48 MHz) as sai1 clock source */
 #define DEMO_SAI1_CLOCK_SOURCE_SELECT (2U)
-/* Clock pre divider for sai1 clock source */
-#define DEMO_SAI1_CLOCK_SOURCE_PRE_DIVIDER (1U)
-/* Clock divider for sai1 clock source */
-#define DEMO_SAI1_CLOCK_SOURCE_DIVIDER (63U)
-/* Get frequency of sai1 clock */
-#define DEMO_SAI_CLK_FREQ                                                        \
-    (CLOCK_GetFreq(kCLOCK_AudioPllClk) / (DEMO_SAI1_CLOCK_SOURCE_DIVIDER + 1U) / \
-     (DEMO_SAI1_CLOCK_SOURCE_PRE_DIVIDER + 1U))
+
+#define MAX_SAI_CLK_SRC_PRE_DIV (7)
+#define MAX_SAI_CLK_SRC_DIV (63)
+
+#define MAX_SAI_BIT_CLK_DIV (7)
 
 /* I2C instance and clock */
 #define DEMO_I2C LPI2C1
@@ -69,6 +66,9 @@
 static void txCallback(I2S_Type *base, sai_edma_handle_t *handle, status_t status, void *userData);
 static void rxCallback(I2S_Type *base, sai_edma_handle_t *handle, status_t status, void *userData);
 
+static uint32_t get_sai_clock_freq(void);
+static void set_sai_clock_dividers(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_stereo_t stereo);
+
 /*******************************************************************************
  * Variables
  ******************************************************************************/
@@ -87,6 +87,9 @@ volatile uint32_t sendCount = 0;
 volatile uint32_t receiveCount = 0;
 volatile uint32_t fullBlock = 0;
 volatile uint32_t emptyBlock = BUFFER_NUM;
+
+static uint32_t s_clockSourcePreDivider = 0;
+static uint32_t s_clockSourceDivider = 0;
 
 /*******************************************************************************
  * Code
@@ -215,6 +218,66 @@ void sai_audio_play(uint8_t *audioData, uint32_t audioBytes)
     }
 }
 
+void set_sai_clock_dividers(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_stereo_t stereo)
+{
+    uint32_t destBitClockHz = sampleRate_Hz;
+    // It is the root cause of workaround in config_sai()
+    destBitClockHz *= (stereo == kSAI_Stereo) ? 2 : 1;
+    if (bitWidth <= kSAI_WordWidth8bits)
+    {
+        destBitClockHz *= 16;
+    }
+    else if (bitWidth <= kSAI_WordWidth16bits)
+    {
+        destBitClockHz *= 32;
+    }
+    else if (bitWidth <= kSAI_WordWidth32bits)
+    {
+        destBitClockHz *= 64;
+    }
+
+    uint32_t bestPreDivider = 0;
+    uint32_t bestDivider = 0;
+    double minError = 1;
+
+    for (s_clockSourcePreDivider = 0; s_clockSourcePreDivider <= MAX_SAI_CLK_SRC_PRE_DIV; s_clockSourcePreDivider++)
+    {
+        for (s_clockSourceDivider = 0; s_clockSourceDivider <= MAX_SAI_CLK_SRC_DIV; s_clockSourceDivider++)
+        {
+            uint32_t masterClockHz = get_sai_clock_freq();
+            for (uint32_t bitDiv = 0; bitDiv <= MAX_SAI_BIT_CLK_DIV; bitDiv++)
+            {
+                uint32_t srcBitClockHz = masterClockHz / 2 / bitDiv;
+                if (destBitClockHz == srcBitClockHz)
+                {
+                    bestPreDivider = s_clockSourcePreDivider;
+                    bestDivider = s_clockSourceDivider;
+                    break;
+                }
+                else
+                {
+                    double error = (destBitClockHz > srcBitClockHz) ? (destBitClockHz - srcBitClockHz) : (srcBitClockHz - destBitClockHz);
+                    error /= destBitClockHz;
+                    if (error < minError)
+                    {
+                        minError = error;
+                        bestPreDivider = s_clockSourcePreDivider;
+                        bestDivider = s_clockSourceDivider;
+                    }
+                }
+            }
+        }
+    }
+
+    s_clockSourcePreDivider = bestPreDivider;
+    s_clockSourceDivider = bestDivider;
+}
+
+uint32_t get_sai_clock_freq(void)
+{
+    return (CLOCK_GetFreq(kCLOCK_AudioPllClk) / (s_clockSourceDivider + 1U) / (s_clockSourcePreDivider + 1U));
+}
+
 /*!
  * @brief config_sai function
  */
@@ -229,10 +292,13 @@ void config_sai(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_stereo_t ste
     CLOCK_SetMux(kCLOCK_Lpi2cMux, DEMO_LPI2C_CLOCK_SOURCE_SELECT);
     CLOCK_SetDiv(kCLOCK_Lpi2cDiv, DEMO_LPI2C_CLOCK_SOURCE_DIVIDER);
 
+    // Find best dividers for SAI clock setting
+    set_sai_clock_dividers(bitWidth, sampleRate_Hz, stereo);
+
     /*Clock setting for SAI1*/
     CLOCK_SetMux(kCLOCK_Sai1Mux, DEMO_SAI1_CLOCK_SOURCE_SELECT);
-    CLOCK_SetDiv(kCLOCK_Sai1PreDiv, DEMO_SAI1_CLOCK_SOURCE_PRE_DIVIDER);
-    CLOCK_SetDiv(kCLOCK_Sai1Div, DEMO_SAI1_CLOCK_SOURCE_DIVIDER);
+    CLOCK_SetDiv(kCLOCK_Sai1PreDiv, s_clockSourcePreDivider);
+    CLOCK_SetDiv(kCLOCK_Sai1Div, s_clockSourceDivider);
 
     /*Enable MCLK clock*/
     BOARD_EnableSaiMclkOutput(true);
@@ -269,12 +335,20 @@ void config_sai(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_stereo_t ste
     /* Configure the audio format */
     format.bitWidth = bitWidth;
     format.channel = 0U;
-    format.sampleRate_Hz = sampleRate_Hz;
+    // Note: this is workaround for SDK SAI driver
+    if (stereo == kSAI_Stereo)
+    {
+        format.sampleRate_Hz = sampleRate_Hz;
+    }
+    else
+    {
+        format.sampleRate_Hz = sampleRate_Hz * 2;
+    }
 #if (defined FSL_FEATURE_SAI_HAS_MCLKDIV_REGISTER && FSL_FEATURE_SAI_HAS_MCLKDIV_REGISTER) || \
     (defined FSL_FEATURE_PCC_HAS_SAI_DIVIDER && FSL_FEATURE_PCC_HAS_SAI_DIVIDER)
     format.masterClockHz = OVER_SAMPLE_RATE * format.sampleRate_Hz;
 #else
-    format.masterClockHz = DEMO_SAI_CLK_FREQ;
+    format.masterClockHz = get_sai_clock_freq();
 #endif
     format.protocol = config.protocol;
     format.stereo = stereo;
@@ -292,7 +366,7 @@ void config_sai(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_stereo_t ste
 
     SAI_TransferTxCreateHandleEDMA(DEMO_SAI, &txHandle, txCallback, NULL, &dmaTxHandle);
 
-    mclkSourceClockHz = DEMO_SAI_CLK_FREQ;
+    mclkSourceClockHz = get_sai_clock_freq();
     SAI_TransferTxSetFormatEDMA(DEMO_SAI, &txHandle, &format, mclkSourceClockHz, format.masterClockHz);
 
     /* Enable interrupt to handle FIFO error */
