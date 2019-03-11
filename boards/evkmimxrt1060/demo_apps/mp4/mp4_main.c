@@ -180,40 +180,90 @@ extern URLProtocol ff_file_protocol;
 #define AVCODEC_MAX_AUDIO_FRAME_SIZE 100
 #define AVCODEC_MAX_VIDEO_FRAME_SIZE 4096
 
-void convert_audio_format(float *src,
+void convert_audio_format(float *src_l,
+                          float *src_r,
                           uint8_t *dest,
                           uint32_t samples,
                           conv_audio_format_t format)
 {
+    bool hasCh_l = src_l != 0;
+    bool hasCh_r = src_r != 0;
+    if ((!hasCh_l) && (!hasCh_r))
+    {
+        return;
+    }
     for (uint32_t i = 0; i < samples; i++)
     {
-        if ((*src) > 1.0f)
+        float data_l, data_r;
+        if (hasCh_l)
         {
-            *src = 1.0f;
+            if ((*src_l) > 1.0f)
+            {
+                data_l = 1.0f;
+            }
+            else if ((*src_l) < -1.0f)
+            {
+                data_l = -1.0f;
+            }
+            else
+            {
+                data_l = *src_l;
+            }
+            if (format == kConvAudioFormat_Int16)
+            {
+                int32_t temp = data_l * ((int32_t)1 << 16);
+                *((int16_t *)dest) = (int16_t)temp;
+                dest +=sizeof(int16_t);
+            }
+            else if (format == kConvAudioFormat_Int24)
+            {
+                int32_t temp = data_l * ((int32_t)1 << 24);
+                *((int32_t *)dest) = (int32_t)temp;
+                dest +=sizeof(int32_t);
+            }
+            else if (format == kConvAudioFormat_Int32)
+            {
+                int64_t temp = (double)data_l * ((int64_t)1 << 32);
+                *((int32_t *)dest) = (int32_t)temp;
+                dest +=sizeof(int32_t);
+
+            }
         }
-        else if ((*src) < -1.0f)
+        if (hasCh_r)
         {
-            *src = -1.0f;
+            if ((*src_r) > 1.0f)
+            {
+                data_r = 1.0f;
+            }
+            else if ((*src_r) < -1.0f)
+            {
+                data_r = -1.0f;
+            }
+            else
+            {
+                data_r = *src_r;
+            }
+            if (format == kConvAudioFormat_Int16)
+            {
+                int32_t temp = data_r * ((int32_t)1 << 16);
+                *((int16_t *)dest) = (int16_t)temp;
+                dest +=sizeof(int16_t);
+            }
+            else if (format == kConvAudioFormat_Int24)
+            {
+                int32_t temp = data_r * ((int32_t)1 << 24);
+                *((int32_t *)dest) = (int32_t)temp;
+                dest +=sizeof(int32_t);
+            }
+            else if (format == kConvAudioFormat_Int32)
+            {
+                int64_t temp = (double)data_r * ((int64_t)1 << 32);
+                *((int32_t *)dest) = (int32_t)temp;
+                dest +=sizeof(int32_t);
+            }
         }
-        if (format == kConvAudioFormat_Int16)
-        {
-            int32_t temp = (*src) * ((int32_t)1 << 16);
-            *((int16_t *)dest) = (int16_t)temp;
-            dest +=sizeof(int16_t);
-        }
-        else if (format == kConvAudioFormat_Int24)
-        {
-            int32_t temp = (*src) * ((int32_t)1 << 24);
-            *((int32_t *)dest) = (int32_t)temp;
-            dest +=sizeof(int32_t);
-        }
-        else if (format == kConvAudioFormat_Int32)
-        {
-            int64_t temp = (double)(*src) * ((int64_t)1 << 32);
-            *((int32_t *)dest) = (int32_t)temp;
-            dest +=sizeof(int32_t);
-        }
-        src++;
+        src_l++;
+        src_r++;
     }
 }
 
@@ -297,8 +347,8 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
     AVFrame *frame = av_frame_alloc();
     AVFrame *frameyuv = av_frame_alloc();
 
-    uint8_t *pingAudioBuffer = (uint8_t *)av_malloc(4096);
-    uint8_t *pongAudioBuffer = (uint8_t *)av_malloc(4096);
+    uint8_t *pingAudioBuffer = (uint8_t *)av_malloc(8192);
+    uint8_t *pongAudioBuffer = (uint8_t *)av_malloc(8192);
     bool isPingBufferAvail = true;
 
     s_timeMeasureIndex = 0;
@@ -347,9 +397,9 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
                         float* ptr_r = (float*)frame->extended_data[1];
                         uint8_t *audioBuffer = isPingBufferAvail ? pingAudioBuffer : pongAudioBuffer;
                         isPingBufferAvail = !isPingBufferAvail;
-                        convert_audio_format(ptr_r, audioBuffer, frame->nb_samples, kConvAudioFormat_Int16);
+                        convert_audio_format(ptr_l, ptr_r, audioBuffer, frame->nb_samples, kConvAudioFormat_Int24);
                         time_measure_start();
-                        sai_audio_play(audioBuffer, sizeof(int16_t) * frame->nb_samples);
+                        sai_audio_play(audioBuffer, sizeof(int32_t) * frame->nb_samples * 2);
                         s_timeMeasureContext[s_timeMeasureIndex].playAudio_ns = time_measure_done();
 
 #if MP4_WAV_ENABLE
@@ -408,6 +458,7 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
             s_timeMeasureIndex++;
         }
     }
+    //s_timeMeasureContext[s_timeMeasureIndex].readFrame_ns = time_measure_done();
 
 #if MP4_WAV_ENABLE
     wav_close();
@@ -449,8 +500,8 @@ int main(void)
     }
 
     // Init SAI module
-    config_sai(kSAI_WordWidth16bits, kSAI_SampleRate44100Hz, kSAI_MonoRight);
-    
+    config_sai(kSAI_WordWidth24bits, kSAI_SampleRate44100Hz, kSAI_Stereo);
+
     // Init LCD module
     config_lcd();
 

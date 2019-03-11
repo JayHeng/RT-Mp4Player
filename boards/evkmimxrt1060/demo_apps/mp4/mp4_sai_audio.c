@@ -20,52 +20,39 @@
  * Definitions
  ******************************************************************************/
 /* SAI instance and clock */
-#define DEMO_CODEC_WM8960
-#define DEMO_SAI SAI1
-#define DEMO_SAI_CHANNEL (0)
-#define DEMO_SAI_IRQ SAI1_IRQn
+#define APP_CODEC_WM8960
+#define APP_SAI            SAI1
+#define APP_SAI_CHANNEL    (0)
+#define APP_SAI_IRQ        SAI1_IRQn
+#define APP_SAI_TX_IRQ     SAI1_IRQn
 #define SAI_UserIRQHandler SAI1_IRQHandler
-
-/* IRQ */
-#define DEMO_SAI_TX_IRQ SAI1_IRQn
-#define DEMO_SAI_RX_IRQ SAI1_IRQn
+#define OVER_SAMPLE_RATE   (384U)
 
 /* Select Audio/Video PLL (786.48 MHz) as sai1 clock source */
-#define DEMO_SAI1_CLOCK_SOURCE_SELECT (2U)
-
-#define MAX_SAI_CLK_SRC_PRE_DIV (7)
-#define MAX_SAI_CLK_SRC_DIV (63)
-
-#define MAX_SAI_BIT_CLK_DIV (7)
+#define APP_SAI1_CLOCK_SOURCE_SELECT (2U)
+#define MAX_SAI_CLK_SRC_PRE_DIV      (7)
+#define MAX_SAI_CLK_SRC_DIV          (63)
+#define MAX_SAI_BIT_CLK_DIV          (7)
 
 /* I2C instance and clock */
-#define DEMO_I2C LPI2C1
-
+#define APP_I2C LPI2C1
 /* Select USB1 PLL (480 MHz) as master lpi2c clock source */
-#define DEMO_LPI2C_CLOCK_SOURCE_SELECT (0U)
+#define APP_LPI2C_CLOCK_SOURCE_SELECT (0U)
 /* Clock divider for master lpi2c clock source */
-#define DEMO_LPI2C_CLOCK_SOURCE_DIVIDER (5U)
+#define APP_LPI2C_CLOCK_SOURCE_DIVIDER (5U)
 /* Get frequency of lpi2c clock */
-#define DEMO_I2C_CLK_FREQ ((CLOCK_GetFreq(kCLOCK_Usb1PllClk) / 8) / (DEMO_LPI2C_CLOCK_SOURCE_DIVIDER + 1U))
+#define APP_I2C_CLK_FREQ ((CLOCK_GetFreq(kCLOCK_Usb1PllClk) / 8) / (APP_LPI2C_CLOCK_SOURCE_DIVIDER + 1U))
 
 /* DMA */
-#define EXAMPLE_DMA DMA0
-#define EXAMPLE_DMAMUX DMAMUX
-#define EXAMPLE_TX_CHANNEL (0U)
-#define EXAMPLE_RX_CHANNEL (1U)
-#define EXAMPLE_SAI_TX_SOURCE kDmaRequestMuxSai1Tx
-#define EXAMPLE_SAI_RX_SOURCE kDmaRequestMuxSai1Rx
-
-#define OVER_SAMPLE_RATE (384U)
-#define BUFFER_SIZE (4096)
-#define BUFFER_NUM (1)
+#define APP_DMA           DMA0
+#define APP_DMAMUX        DMAMUX
+#define APP_TX_CHANNEL    (0U)
+#define APP_SAI_TX_SOURCE kDmaRequestMuxSai1Tx
 
 /*******************************************************************************
  * Prototypes
  ******************************************************************************/
 static void txCallback(I2S_Type *base, sai_edma_handle_t *handle, status_t status, void *userData);
-static void rxCallback(I2S_Type *base, sai_edma_handle_t *handle, status_t status, void *userData);
-
 static uint32_t get_sai_clock_freq(void);
 static void set_sai_clock_dividers(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_stereo_t stereo);
 
@@ -74,19 +61,12 @@ static void set_sai_clock_dividers(uint32_t bitWidth, uint32_t sampleRate_Hz, sa
  ******************************************************************************/
 AT_NONCACHEABLE_SECTION_INIT(sai_edma_handle_t txHandle) = {0};
 edma_handle_t dmaTxHandle = {0};
-AT_NONCACHEABLE_SECTION_INIT(sai_edma_handle_t rxHandle) = {0};
-edma_handle_t dmaRxHandle = {0};
 sai_transfer_format_t format = {0};
-AT_NONCACHEABLE_SECTION_ALIGN(uint8_t audioBuff[BUFFER_SIZE * BUFFER_NUM], 4);
 codec_handle_t codecHandle = {0};
 extern codec_config_t boardCodecConfig;
 volatile bool istxFinished = true;
-volatile bool isrxFinished = false;
 volatile uint32_t beginCount = 0;
 volatile uint32_t sendCount = 0;
-volatile uint32_t receiveCount = 0;
-volatile uint32_t fullBlock = 0;
-volatile uint32_t emptyBlock = BUFFER_NUM;
 
 static uint32_t s_clockSourcePreDivider = 0;
 static uint32_t s_clockSourceDivider = 0;
@@ -119,35 +99,9 @@ void BOARD_EnableSaiMclkOutput(bool enable)
     }
 }
 
-//#define BLOCK_SIZE (2304*2)
-//#define BLOCK_NUM (2)
-//
-//uint8_t audio_buf[BLOCK_SIZE*BLOCK_NUM];
-//int buf_index = 0;
-//uint8_t audio_buf_dummy[BLOCK_SIZE] = {0};
-//
-//void SAI_send_audio(uint8_t * buf, uint32_t size)
-//{
-//
-//}
-//static void tx_send_dummy(void)
-//{
-//    sai_transfer_t xfer = {0};
-//    xfer.data           = audio_buf_dummy;
-//    xfer.dataSize       = BLOCK_SIZE;
-//    SAI_TransferSendEDMA(DEMO_SAI, &txHandle, &xfer);
-//    SAI_TransferSendEDMA(DEMO_SAI, &txHandle, &xfer);
-//}
-
-//uint8_t buf_decode[2304*2];
-//uint8_t mp3_decode_one_frame(uint8_t * buf_out);
-//
-//static int flag_sai_tx = 0;
 static void txCallback(I2S_Type *base, sai_edma_handle_t *handle, status_t status, void *userData)
 {
-   // flag_sai_tx = 1;
     sendCount++;
-    emptyBlock++;
 
     if (sendCount == beginCount)
     {
@@ -156,33 +110,6 @@ static void txCallback(I2S_Type *base, sai_edma_handle_t *handle, status_t statu
         sendCount = 0;
     }
 
-}
-//void task_audio_tx(void)
-//{
-//    if(flag_sai_tx)
-//    {
-//        flag_sai_tx = 0;
-//        uint8_t * buf;
-//        buf = audio_buf + buf_index*BLOCK_SIZE;
-//        buf_index ^= 1;
-//        mp3_decode_one_frame(buf);
-//        sai_transfer_t xfer;
-//        xfer.data           = buf;
-//        xfer.dataSize       = BLOCK_SIZE;
-//        SAI_TransferSendEDMA(DEMO_SAI, &txHandle, &xfer);
-//    }
-//}
-static void rxCallback(I2S_Type *base, sai_edma_handle_t *handle, status_t status, void *userData)
-{
-    receiveCount++;
-    fullBlock++;
-
-    if (receiveCount == beginCount)
-    {
-        isrxFinished = true;
-        SAI_TransferTerminateReceiveEDMA(base, handle);
-        receiveCount = 0;
-    }
 }
 
 void sai_audio_play(uint8_t *audioData, uint32_t audioBytes)
@@ -203,7 +130,7 @@ void sai_audio_play(uint8_t *audioData, uint32_t audioBytes)
     beginCount = 1;
 
     /* Reset SAI Tx internal logic */
-    SAI_TxSoftwareReset(DEMO_SAI, kSAI_ResetTypeSoftware);
+    SAI_TxSoftwareReset(APP_SAI, kSAI_ResetTypeSoftware);
     /* Do the play */
     xfer.dataSize = audioBytes;
 
@@ -211,7 +138,7 @@ void sai_audio_play(uint8_t *audioData, uint32_t audioBytes)
     {
         xfer.data = audioData + totalNum * audioBytes;
         /* Shall make sure the sai buffer queue is not full */
-        if (SAI_TransferSendEDMA(DEMO_SAI, &txHandle, &xfer) == kStatus_Success)
+        if (SAI_TransferSendEDMA(APP_SAI, &txHandle, &xfer) == kStatus_Success)
         {
             totalNum++;
         }
@@ -289,14 +216,14 @@ void config_sai(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_stereo_t ste
     CLOCK_InitAudioPll(&audioPllConfig);
 
     /*Clock setting for LPI2C*/
-    CLOCK_SetMux(kCLOCK_Lpi2cMux, DEMO_LPI2C_CLOCK_SOURCE_SELECT);
-    CLOCK_SetDiv(kCLOCK_Lpi2cDiv, DEMO_LPI2C_CLOCK_SOURCE_DIVIDER);
+    CLOCK_SetMux(kCLOCK_Lpi2cMux, APP_LPI2C_CLOCK_SOURCE_SELECT);
+    CLOCK_SetDiv(kCLOCK_Lpi2cDiv, APP_LPI2C_CLOCK_SOURCE_DIVIDER);
 
     // Find best dividers for SAI clock setting
     set_sai_clock_dividers(bitWidth, sampleRate_Hz, stereo);
 
     /*Clock setting for SAI1*/
-    CLOCK_SetMux(kCLOCK_Sai1Mux, DEMO_SAI1_CLOCK_SOURCE_SELECT);
+    CLOCK_SetMux(kCLOCK_Sai1Mux, APP_SAI1_CLOCK_SOURCE_SELECT);
     CLOCK_SetDiv(kCLOCK_Sai1PreDiv, s_clockSourcePreDivider);
     CLOCK_SetDiv(kCLOCK_Sai1Div, s_clockSourceDivider);
 
@@ -314,12 +241,12 @@ void config_sai(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_stereo_t ste
      * dmaConfig.enableDebugMode = false;
      */
     EDMA_GetDefaultConfig(&dmaConfig);
-    EDMA_Init(EXAMPLE_DMA, &dmaConfig);
-    EDMA_CreateHandle(&dmaTxHandle, EXAMPLE_DMA, EXAMPLE_TX_CHANNEL);
+    EDMA_Init(APP_DMA, &dmaConfig);
+    EDMA_CreateHandle(&dmaTxHandle, APP_DMA, APP_TX_CHANNEL);
 
-    DMAMUX_Init(EXAMPLE_DMAMUX);
-    DMAMUX_SetSource(EXAMPLE_DMAMUX, EXAMPLE_TX_CHANNEL, (uint8_t)EXAMPLE_SAI_TX_SOURCE);
-    DMAMUX_EnableChannel(EXAMPLE_DMAMUX, EXAMPLE_TX_CHANNEL);
+    DMAMUX_Init(APP_DMAMUX);
+    DMAMUX_SetSource(APP_DMAMUX, APP_TX_CHANNEL, (uint8_t)APP_SAI_TX_SOURCE);
+    DMAMUX_EnableChannel(APP_DMAMUX, APP_TX_CHANNEL);
 
     /* Init SAI module */
     /*
@@ -330,7 +257,7 @@ void config_sai(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_stereo_t ste
      * config.mclkOutputEnable = true;
      */
     SAI_TxGetDefaultConfig(&config);
-    SAI_TxInit(DEMO_SAI, &config);
+    SAI_TxInit(APP_SAI, &config);
 
     /* Configure the audio format */
     format.bitWidth = bitWidth;
@@ -364,38 +291,23 @@ void config_sai(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_stereo_t ste
     BOARD_Codec_Config(&codecHandle);
 #endif
 
-    SAI_TransferTxCreateHandleEDMA(DEMO_SAI, &txHandle, txCallback, NULL, &dmaTxHandle);
+    SAI_TransferTxCreateHandleEDMA(APP_SAI, &txHandle, txCallback, NULL, &dmaTxHandle);
 
     mclkSourceClockHz = get_sai_clock_freq();
-    SAI_TransferTxSetFormatEDMA(DEMO_SAI, &txHandle, &format, mclkSourceClockHz, format.masterClockHz);
+    SAI_TransferTxSetFormatEDMA(APP_SAI, &txHandle, &format, mclkSourceClockHz, format.masterClockHz);
 
     /* Enable interrupt to handle FIFO error */
-    SAI_TxEnableInterrupts(DEMO_SAI, kSAI_FIFOErrorInterruptEnable);
-    EnableIRQ(DEMO_SAI_TX_IRQ);
+    SAI_TxEnableInterrupts(APP_SAI, kSAI_FIFOErrorInterruptEnable);
+    EnableIRQ(APP_SAI_TX_IRQ);
 
     //sai_audio_play(music, sizeof(music));
-
-    // mp3_play_song("tma.mp3");
-    // tx_send_dummy();
-    // task_audio_tx();
 }
 
 void SAI_UserTxIRQHandler(void)
 {
     /* Clear the FEF flag */
-    SAI_TxClearStatusFlags(DEMO_SAI, kSAI_FIFOErrorFlag);
-    SAI_TxSoftwareReset(DEMO_SAI, kSAI_ResetTypeFIFO);
-/* Add for ARM errata 838869, affects Cortex-M4, Cortex-M4F Store immediate overlapping
-  exception return operation might vector to incorrect interrupt */
-#if defined __CORTEX_M && (__CORTEX_M == 4U)
-    __DSB();
-#endif
-}
-
-void SAI_UserRxIRQHandler(void)
-{
-    SAI_RxClearStatusFlags(DEMO_SAI, kSAI_FIFOErrorFlag);
-    SAI_RxSoftwareReset(DEMO_SAI, kSAI_ResetTypeFIFO);
+    SAI_TxClearStatusFlags(APP_SAI, kSAI_FIFOErrorFlag);
+    SAI_TxSoftwareReset(APP_SAI, kSAI_ResetTypeFIFO);
 /* Add for ARM errata 838869, affects Cortex-M4, Cortex-M4F Store immediate overlapping
   exception return operation might vector to incorrect interrupt */
 #if defined __CORTEX_M && (__CORTEX_M == 4U)
@@ -405,13 +317,8 @@ void SAI_UserRxIRQHandler(void)
 
 void SAI_UserIRQHandler(void)
 {
-    if (DEMO_SAI->TCSR & kSAI_FIFOErrorFlag)
+    if (APP_SAI->TCSR & kSAI_FIFOErrorFlag)
     {
         SAI_UserTxIRQHandler();
-    }
-
-    if (DEMO_SAI->RCSR & kSAI_FIFOErrorFlag)
-    {
-        SAI_UserRxIRQHandler();
     }
 }
