@@ -18,24 +18,11 @@
 #include "diskio.h"
 #include "fsl_sd_disk.h"
 #include "fsl_sai.h"
+#include "mp4.h"
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
 
-typedef enum _conv_audio_format
-{
-    kConvAudioFormat_Int16 = 0U,
-    kConvAudioFormat_Int24 = 1U,
-    kConvAudioFormat_Int32 = 2U,
-} conv_audio_format_t;
-
-#define AUDIO_CONV_FORMAT  kConvAudioFormat_Int16
-#define AUDIO_CONV_SIZE    int16_t
-#define AUDIO_CONV_CHANNEL 2
-
-#define AUDIO_SAMP_WIDTH   kSAI_WordWidth16bits
-#define AUDIO_SAMP_RATE    kSAI_SampleRate44100Hz
-#define AUDIO_SAMP_CHANNEL kSAI_Stereo
 
 /*******************************************************************************
  * Prototypes
@@ -48,8 +35,6 @@ extern void sai_audio_play(uint8_t *audioData, uint32_t audioBytes);
 extern void config_lcd(void);
 extern void lcd_video_display(unsigned char *buf[], int xsize, int ysize);
 extern void config_gpt(void);
-extern void time_measure_start(void);
-extern uint64_t time_measure_done(void);
 
 static void flush_audio_data_cache(void);
 
@@ -85,25 +70,9 @@ static const sdmmchost_pwr_card_t s_sdCardPwrCtrl = {
 };
 #endif
 
-#define MAX_CACHED_AUDIO_FRAMES (2)
 static uint8_t *s_cachedAudioBuffer;
 static uint32_t s_cachedAudioBytes = 0;
 static uint32_t s_cachedAudioFrames = 0;
-
-typedef struct _time_measure_context
-{
-    uint64_t readFrame_ns;
-    uint64_t decodeAudio_ns;
-    uint64_t convAudio_ns;
-    uint64_t playAudio_ns;
-    uint64_t decodeVideo_ns;
-    uint64_t playVideo_ns;
-    bool isAudioStream;
-} time_measure_context_t;
-
-#define TIME_MEASURE_CNT 20
-static time_measure_context_t s_timeMeasureContext[TIME_MEASURE_CNT];
-static uint32_t s_timeMeasureIndex = 0;
 
 /*******************************************************************************
  * Code
@@ -292,6 +261,31 @@ static void flush_audio_data_cache(void)
     }
 }
 
+#if MP4_FF_TIME_ENABLE
+extern void time_measure_start(void);
+extern uint64_t time_measure_done(void);
+#define FF_MEASURE_PACKETS 10
+#define FF_MEASURE_FRAMES 50
+typedef struct _ff_measure_context
+{
+    uint64_t readFrame_ns;
+    uint64_t decodeAudio_ns[FF_MEASURE_PACKETS];
+    uint64_t cachePlayAudio_ns[FF_MEASURE_PACKETS];
+    uint64_t decodeVideo_ns[FF_MEASURE_PACKETS];
+    uint64_t playVideo_ns[FF_MEASURE_PACKETS];
+    bool isAudioStream;
+} ff_measure_context_t;
+static ff_measure_context_t s_ffMeasureContext[FF_MEASURE_FRAMES];
+static uint32_t s_ffMeasureIndex = 0;
+void ff_measure_increase(void)
+{
+    if (s_ffMeasureIndex < FF_MEASURE_FRAMES)
+    {
+        s_ffMeasureIndex++;
+    }
+}
+#endif // #if MP4_FF_TIME_ENABLE
+
 static void h264_video_decode(const char *infilename, const char *aoutfilename, const char *voutfilename)
 {
     printf("Decode file '%s' to '%s' and '%s'\n", infilename, aoutfilename, voutfilename);
@@ -372,12 +366,14 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
     AVFrame *frame = av_frame_alloc();
     AVFrame *frameyuv = av_frame_alloc();
 
-    uint8_t *pingAudioBuffer = (uint8_t *)av_malloc(8192*2);
-    uint8_t *pongAudioBuffer = (uint8_t *)av_malloc(8192*2);
+    uint8_t *pingAudioBuffer = (uint8_t *)av_malloc(sizeof(AUDIO_CONV_SIZE)*AUDIO_CONV_CHANNEL*AUDIO_FRAME_SIZE*AUDIO_CACHE_FRAMES);
+    uint8_t *pongAudioBuffer = (uint8_t *)av_malloc(sizeof(AUDIO_CONV_SIZE)*AUDIO_CONV_CHANNEL*AUDIO_FRAME_SIZE*AUDIO_CACHE_FRAMES);
     bool isPingBufferAvail = true;
 
-    s_timeMeasureIndex = 0;
+#if MP4_FF_TIME_ENABLE
+    s_ffMeasureIndex = 0;
     time_measure_start();
+#endif
 
 #if MP4_WAV_ENABLE
     wav_start(kSAI_WordWidth16bits, kSAI_SampleRate44100Hz, 1, 3874877);
@@ -385,10 +381,11 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
 
     while (av_read_frame(pInFmtCtx, &packet) >= 0)
     {
-        s_timeMeasureContext[s_timeMeasureIndex].readFrame_ns = time_measure_done();
+#if MP4_FF_TIME_ENABLE
+        s_ffMeasureContext[s_ffMeasureIndex].readFrame_ns = time_measure_done();
+#endif
         if (packet.stream_index == audioStream)
         {
-            s_timeMeasureContext[s_timeMeasureIndex].isAudioStream = true;
             uint8_t *pktdata = packet.data;
             int pktsize = packet.size;
             int out_size;
@@ -396,9 +393,14 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
             while (pktsize > 0)
             {
                 out_size = AVCODEC_MAX_AUDIO_FRAME_SIZE * 100;
+#if MP4_FF_TIME_ENABLE
+                s_ffMeasureContext[s_ffMeasureIndex].isAudioStream = true;
                 time_measure_start();
                 len =avcodec_decode_audio4(pInCodecCtx_audio, frame, &out_size, &packet);
-                s_timeMeasureContext[s_timeMeasureIndex].decodeAudio_ns = time_measure_done();
+                s_ffMeasureContext[s_ffMeasureIndex].decodeAudio_ns[0] = time_measure_done();
+#else
+                len =avcodec_decode_audio4(pInCodecCtx_audio, frame, &out_size, &packet);
+#endif
                 if (len < 0)
                 {
                     printf("Error while decoding audio.\n");
@@ -430,13 +432,21 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
                         s_cachedAudioBuffer = audioBuffer;
                         s_cachedAudioBytes += sizeof(AUDIO_CONV_SIZE) * frame->nb_samples * AUDIO_CONV_CHANNEL;
                         s_cachedAudioFrames++;
+#if MP4_FF_TIME_ENABLE
                         time_measure_start();
-                        if (s_cachedAudioFrames == MAX_CACHED_AUDIO_FRAMES)
+                        if (s_cachedAudioFrames == AUDIO_CACHE_FRAMES)
                         {
                             flush_audio_data_cache();
                             isPingBufferAvail = !isPingBufferAvail;
                         }
-                        s_timeMeasureContext[s_timeMeasureIndex].playAudio_ns = time_measure_done();
+                        s_ffMeasureContext[s_ffMeasureIndex].cachePlayAudio_ns[0] = time_measure_done();
+#else
+                        if (s_cachedAudioFrames == AUDIO_CACHE_FRAMES)
+                        {
+                            flush_audio_data_cache();
+                            isPingBufferAvail = !isPingBufferAvail;
+                        }
+#endif
 #if MP4_WAV_ENABLE
                         wav_write(audioBuffer, sizeof(AUDIO_CONV_SIZE) * frame->nb_samples * AUDIO_CONV_CHANNEL);
 #endif
@@ -451,10 +461,8 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
                 pktdata += len;
             }
         }
-        if (packet.stream_index == videoStream)
+        else if (packet.stream_index == videoStream)
         {
-            flush_audio_data_cache();
-            s_timeMeasureContext[s_timeMeasureIndex].isAudioStream = false;
             uint8_t *pktdatayuv = packet.data;
             int pktsizeyuv = packet.size;
             int out_sizeyuv;
@@ -462,9 +470,14 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
             while (pktsizeyuv > 0)
             {
                 out_sizeyuv = AVCODEC_MAX_VIDEO_FRAME_SIZE * 100;
+#if MP4_FF_TIME_ENABLE
+                s_ffMeasureContext[s_ffMeasureIndex].isAudioStream = false;
                 time_measure_start();
                 lenyuv =avcodec_decode_video2(pInCodecCtx_video, frameyuv, &out_sizeyuv, &packet);
-                s_timeMeasureContext[s_timeMeasureIndex].decodeVideo_ns = time_measure_done();
+                s_ffMeasureContext[s_ffMeasureIndex].decodeVideo_ns[0] = time_measure_done();
+#else
+                lenyuv =avcodec_decode_video2(pInCodecCtx_video, frameyuv, &out_sizeyuv, &packet);
+#endif
                 if (lenyuv < 0)
                 {
                     printf("Error while decoding video.\n");
@@ -473,9 +486,13 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
                 if (out_sizeyuv > 0)
                 {
                     // Show video (yuv444p) via LCD, note: PXP can only support YUV444->RGB24
+#if MP4_FF_TIME_ENABLE
                     time_measure_start();
                     lcd_video_display(frameyuv->data, frameyuv->width, frameyuv->height);
-                    s_timeMeasureContext[s_timeMeasureIndex].playVideo_ns = time_measure_done();
+                    s_ffMeasureContext[s_ffMeasureIndex].playVideo_ns[0] = time_measure_done();
+#else
+                    lcd_video_display(frameyuv->data, frameyuv->width, frameyuv->height);
+#endif
                     // Save YUV data (yuv420p) in file
                     //int y_size = frameyuv->width * frameyuv->height;
                     //f_write(&voutputFil, frameyuv->data[0], y_size, &bw_wh);
@@ -488,13 +505,12 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
         }
         //av_free_packet(&packet);
         av_packet_unref(&packet);
+
+#if MP4_FF_TIME_ENABLE
         time_measure_start();
-        if (s_timeMeasureIndex < TIME_MEASURE_CNT)
-        {
-            s_timeMeasureIndex++;
-        }
+        ff_measure_increase();
+#endif
     }
-    //s_timeMeasureContext[s_timeMeasureIndex].readFrame_ns = time_measure_done();
 
 #if MP4_WAV_ENABLE
     wav_close();

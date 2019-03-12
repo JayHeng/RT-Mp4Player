@@ -16,6 +16,7 @@
 #endif
 #include "fsl_sai_edma.h"
 #include "fsl_wm8960.h"
+#include "mp4.h"
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
@@ -112,6 +113,21 @@ static void txCallback(I2S_Type *base, sai_edma_handle_t *handle, status_t statu
 
 }
 
+#if MP4_SAI_TIME_ENABLE
+extern void time_measure_start(void);
+extern uint64_t time_measure_done(void);
+#define SAI_MEASURE_TRANS 100
+typedef struct _sai_measure_context
+{
+    uint32_t transIndex;
+    uint32_t costBytes;
+    uint64_t costTime_ns;
+} sai_measure_context_t;
+static sai_measure_context_t s_saiMeasureContext[SAI_MEASURE_TRANS];
+static uint32_t s_saiMeasureIndex = 0;
+static uint32_t s_saiTransIndex = 0;
+#endif //#if MP4_SAI_TIME_ENABLE
+
 void sai_audio_play(uint8_t *audioData, uint32_t audioBytes)
 {
     sai_transfer_t xfer = {0};
@@ -121,6 +137,31 @@ void sai_audio_play(uint8_t *audioData, uint32_t audioBytes)
     while (istxFinished != true)
     {
     }
+
+#if MP4_SAI_TIME_ENABLE
+    if (s_saiMeasureIndex < SAI_MEASURE_TRANS)
+    {
+        if (s_saiMeasureIndex)
+        {
+            uint64_t costTime_ns = time_measure_done();
+            uint32_t transSamples = audioBytes / sizeof(AUDIO_CONV_SIZE) / AUDIO_CONV_CHANNEL;
+            uint64_t expectedTime_ns = (uint64_t)transSamples * 1000000000 / AUDIO_SAMP_RATE;
+            if ((costTime_ns > expectedTime_ns) && ((costTime_ns - expectedTime_ns) > (AUDIO_FRAME_ERR_NS * transSamples / AUDIO_FRAME_SIZE)))
+            {
+                s_saiMeasureContext[s_saiMeasureIndex -1].transIndex = s_saiTransIndex;
+                s_saiMeasureContext[s_saiMeasureIndex -1].costTime_ns = costTime_ns;
+            }
+            else
+            {
+                s_saiMeasureIndex--;
+            }
+        }
+        time_measure_start();
+        s_saiMeasureContext[s_saiMeasureIndex].costBytes = audioBytes;
+        s_saiMeasureIndex++;
+    }
+    s_saiTransIndex++;
+#endif //#if MP4_SAI_TIME_ENABLE
 
     /* Clear the status */
     istxFinished = false;
