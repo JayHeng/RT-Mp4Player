@@ -90,19 +90,15 @@ define symbol m_interrupts_end         = 0x800003FF;
 
 define symbol m_text_start             = 0x80002300;
 define symbol m_text_end               = 0x802FFFFF;
-
 //define symbol m_text_start             = 0x60002300;
 //define symbol m_text_end               = 0x608FFFFF;
 
+define symbol m_data_start             = 0x80300000;
+define symbol m_data_end               = 0x81DFFFFF;
 //define symbol m_data_start             = 0x20000000;
 //define symbol m_data_end               = 0x2001FFFF;
 
-define symbol m_data_start            = 0x80300000;
-define symbol m_data_end              = 0x81DFFFFF;
-//define symbol m_data_end              = 0x81BFFFFF;
-
 define symbol m_ncache_start           = 0x81E00000;
-//define symbol m_ncache_start           = 0x81C00000;
 define symbol m_ncache_end             = 0x81FFFFFF;
 
 /* Sizes */
@@ -110,13 +106,11 @@ if (isdefinedsymbol(__stack_size__)) {
   define symbol __size_cstack__        = __stack_size__;
 } else {
   define symbol __size_cstack__        = 0x300000;
-  //define symbol __size_cstack__        = 0x80000;
 }
 
 if (isdefinedsymbol(__heap_size__)) {
   define symbol __size_heap__          = __heap_size__;
 } else {
- // define symbol __size_heap__          = 0x400000;
   define symbol __size_heap__          = 0x1200000;
 }
 
@@ -127,9 +121,7 @@ define exported symbol __RAM_VECTOR_TABLE_SIZE = 0x0;
 define memory mem with size = 4G;
 define region TEXT_region = mem:[from m_interrupts_start to m_interrupts_end]
                           | mem:[from m_text_start to m_text_end];
-
 define region DATA_region = mem:[from m_data_start to m_data_end-__size_cstack__];
-//define region DATA2_region = mem:[from m_data2_start to m_data2_end];
 define region CSTACK_region = mem:[from m_data_end-__size_cstack__+1 to m_data_end];
 define region NCACHE_region = mem:[from m_ncache_start to m_ncache_end];
 
@@ -137,7 +129,6 @@ define block CSTACK    with alignment = 8, size = __size_cstack__   { };
 define block HEAP      with alignment = 8, size = __size_heap__     { };
 define block RW        { readwrite };
 define block ZI        { zi };
-//define block NCACHE_VAR    { section NonCacheable , section NonCacheable.init };
 define block NCACHE_VAR with size = 0x200000 , alignment = 0x100000  { section NonCacheable , section NonCacheable.init };
 
 initialize by copy { readwrite, section .textrw };
@@ -149,5 +140,5 @@ place in TEXT_region                        { readonly };
 place in DATA_region                        { block RW };
 place in DATA_region                        { block ZI };
 place in DATA_region                        { last block HEAP };
-place in NCACHE_region                        { block NCACHE_VAR };
+place in NCACHE_region                      { block NCACHE_VAR };
 place in CSTACK_region                      { block CSTACK };

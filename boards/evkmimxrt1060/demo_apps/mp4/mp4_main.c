@@ -29,6 +29,14 @@ typedef enum _conv_audio_format
     kConvAudioFormat_Int32 = 2U,
 } conv_audio_format_t;
 
+#define AUDIO_CONV_FORMAT  kConvAudioFormat_Int16
+#define AUDIO_CONV_SIZE    int16_t
+#define AUDIO_CONV_CHANNEL 2
+
+#define AUDIO_SAMP_WIDTH   kSAI_WordWidth16bits
+#define AUDIO_SAMP_RATE    kSAI_SampleRate44100Hz
+#define AUDIO_SAMP_CHANNEL kSAI_Stereo
+
 /*******************************************************************************
  * Prototypes
  ******************************************************************************/
@@ -43,10 +51,12 @@ extern void config_gpt(void);
 extern void time_measure_start(void);
 extern uint64_t time_measure_done(void);
 
+static void flush_audio_data_cache(void);
+
 #if MP4_WAV_ENABLE
-void wav_start(uint32_t bitWidth, uint32_t sampleRate_Hz, uint32_t channels, uint32_t fileSize);
-void wav_write(uint8_t *data, uint32_t bytes);
-void wav_close(void);
+static void wav_start(uint32_t bitWidth, uint32_t sampleRate_Hz, uint32_t channels, uint32_t fileSize);
+static void wav_write(uint8_t *data, uint32_t bytes);
+static void wav_close(void);
 #endif
 
 /*******************************************************************************
@@ -74,6 +84,11 @@ static const sdmmchost_pwr_card_t s_sdCardPwrCtrl = {
     .powerOffDelay_ms = 0U,
 };
 #endif
+
+#define MAX_CACHED_AUDIO_FRAMES (2)
+static uint8_t *s_cachedAudioBuffer;
+static uint32_t s_cachedAudioBytes = 0;
+static uint32_t s_cachedAudioFrames = 0;
 
 typedef struct _time_measure_context
 {
@@ -267,6 +282,16 @@ void convert_audio_format(float *src_l,
     }
 }
 
+static void flush_audio_data_cache(void)
+{
+    if (s_cachedAudioBytes)
+    {
+        sai_audio_play(s_cachedAudioBuffer, s_cachedAudioBytes);
+        s_cachedAudioFrames = 0;
+        s_cachedAudioBytes = 0;
+    }
+}
+
 static void h264_video_decode(const char *infilename, const char *aoutfilename, const char *voutfilename)
 {
     printf("Decode file '%s' to '%s' and '%s'\n", infilename, aoutfilename, voutfilename);
@@ -347,8 +372,8 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
     AVFrame *frame = av_frame_alloc();
     AVFrame *frameyuv = av_frame_alloc();
 
-    uint8_t *pingAudioBuffer = (uint8_t *)av_malloc(8192);
-    uint8_t *pongAudioBuffer = (uint8_t *)av_malloc(8192);
+    uint8_t *pingAudioBuffer = (uint8_t *)av_malloc(8192*2);
+    uint8_t *pongAudioBuffer = (uint8_t *)av_malloc(8192*2);
     bool isPingBufferAvail = true;
 
     s_timeMeasureIndex = 0;
@@ -395,15 +420,25 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
                     { //Audacity: little endian 32bit stereo start offset 7 ()
                         float* ptr_l = (float*)frame->extended_data[0];
                         float* ptr_r = (float*)frame->extended_data[1];
+#if (AUDIO_CONV_CHANNEL == 1)
+                        ptr_r = 0;
+#elif (AUDIO_CONV_CHANNEL == 2)
+                        // Do nothing
+#endif
                         uint8_t *audioBuffer = isPingBufferAvail ? pingAudioBuffer : pongAudioBuffer;
-                        isPingBufferAvail = !isPingBufferAvail;
-                        convert_audio_format(ptr_l, ptr_r, audioBuffer, frame->nb_samples, kConvAudioFormat_Int24);
+                        convert_audio_format(ptr_l, ptr_r, audioBuffer + s_cachedAudioBytes, frame->nb_samples, AUDIO_CONV_FORMAT);
+                        s_cachedAudioBuffer = audioBuffer;
+                        s_cachedAudioBytes += sizeof(AUDIO_CONV_SIZE) * frame->nb_samples * AUDIO_CONV_CHANNEL;
+                        s_cachedAudioFrames++;
                         time_measure_start();
-                        sai_audio_play(audioBuffer, sizeof(int32_t) * frame->nb_samples * 2);
+                        if (s_cachedAudioFrames == MAX_CACHED_AUDIO_FRAMES)
+                        {
+                            flush_audio_data_cache();
+                            isPingBufferAvail = !isPingBufferAvail;
+                        }
                         s_timeMeasureContext[s_timeMeasureIndex].playAudio_ns = time_measure_done();
-
 #if MP4_WAV_ENABLE
-                        wav_write(audioBuffer, frame->nb_samples * sizeof(int16_t));
+                        wav_write(audioBuffer, sizeof(AUDIO_CONV_SIZE) * frame->nb_samples * AUDIO_CONV_CHANNEL);
 #endif
                         //for (int i = 0; i < frame->nb_samples; i++)
                         //{
@@ -418,6 +453,7 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
         }
         if (packet.stream_index == videoStream)
         {
+            flush_audio_data_cache();
             s_timeMeasureContext[s_timeMeasureIndex].isAudioStream = false;
             uint8_t *pktdatayuv = packet.data;
             int pktsizeyuv = packet.size;
@@ -500,7 +536,7 @@ int main(void)
     }
 
     // Init SAI module
-    config_sai(kSAI_WordWidth24bits, kSAI_SampleRate44100Hz, kSAI_Stereo);
+    config_sai(AUDIO_SAMP_WIDTH, AUDIO_SAMP_RATE, AUDIO_SAMP_CHANNEL);
 
     // Init LCD module
     config_lcd();
