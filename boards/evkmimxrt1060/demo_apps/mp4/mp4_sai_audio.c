@@ -10,7 +10,7 @@
 #include "pin_mux.h"
 #include "clock_config.h"
 #include "fsl_debug_console.h"
-//#include "music.h"
+#include "music.h"
 #if defined(FSL_FEATURE_SOC_DMAMUX_COUNT) && FSL_FEATURE_SOC_DMAMUX_COUNT
 #include "fsl_dmamux.h"
 #endif
@@ -148,6 +148,7 @@ void sai_audio_play(uint8_t *audioData, uint32_t audioBytes)
             uint64_t expectedTime_ns = (uint64_t)transSamples * 1000000000 / AUDIO_SAMP_RATE;
             if ((costTime_ns > expectedTime_ns) && ((costTime_ns - expectedTime_ns) > (AUDIO_FRAME_ERR_NS * transSamples / AUDIO_FRAME_SIZE)))
             {
+                // Note: Only record those transfers which error is more than AUDIO_FRAME_ERR_NS
                 s_saiMeasureContext[s_saiMeasureIndex -1].transIndex = s_saiTransIndex;
                 s_saiMeasureContext[s_saiMeasureIndex -1].costTime_ns = costTime_ns;
             }
@@ -341,7 +342,11 @@ void config_sai(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_stereo_t ste
     SAI_TxEnableInterrupts(APP_SAI, kSAI_FIFOErrorInterruptEnable);
     EnableIRQ(APP_SAI_TX_IRQ);
 
-    //sai_audio_play(music, sizeof(music));
+    //sai_audio_play(music, MUSIC_LEN);
+    //for (uint32_t i = 0; i < 30; i++)
+    //{
+    //    sai_audio_play((music + i * MUSIC_LEN / 30), MUSIC_LEN / 30);
+    //}
 }
 
 void SAI_UserTxIRQHandler(void)

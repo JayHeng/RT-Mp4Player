@@ -195,19 +195,19 @@ void convert_audio_format(float *src_l,
             }
             if (format == kConvAudioFormat_Int16)
             {
-                int32_t temp = data_l * ((int32_t)1 << 16);
+                int32_t temp = (int32_t)(data_l * ((int32_t)1 << 16));
                 *((int16_t *)dest) = (int16_t)temp;
                 dest +=sizeof(int16_t);
             }
             else if (format == kConvAudioFormat_Int24)
             {
-                int32_t temp = data_l * ((int32_t)1 << 24);
+                int32_t temp = (int32_t)(data_l * ((int32_t)1 << 24));
                 *((int32_t *)dest) = (int32_t)temp;
                 dest +=sizeof(int32_t);
             }
             else if (format == kConvAudioFormat_Int32)
             {
-                int64_t temp = (double)data_l * ((int64_t)1 << 32);
+                int64_t temp = (int64_t)((double)data_l * ((int64_t)1 << 32));
                 *((int32_t *)dest) = (int32_t)temp;
                 dest +=sizeof(int32_t);
 
@@ -229,19 +229,19 @@ void convert_audio_format(float *src_l,
             }
             if (format == kConvAudioFormat_Int16)
             {
-                int32_t temp = data_r * ((int32_t)1 << 16);
+                int32_t temp = (int32_t)(data_r * ((int32_t)1 << 16));
                 *((int16_t *)dest) = (int16_t)temp;
                 dest +=sizeof(int16_t);
             }
             else if (format == kConvAudioFormat_Int24)
             {
-                int32_t temp = data_r * ((int32_t)1 << 24);
+                int32_t temp = (int32_t)(data_r * ((int32_t)1 << 24));
                 *((int32_t *)dest) = (int32_t)temp;
                 dest +=sizeof(int32_t);
             }
             else if (format == kConvAudioFormat_Int32)
             {
-                int64_t temp = (double)data_r * ((int64_t)1 << 32);
+                int64_t temp = (int64_t)((double)data_r * ((int64_t)1 << 32));
                 *((int32_t *)dest) = (int32_t)temp;
                 dest +=sizeof(int32_t);
             }
@@ -551,14 +551,16 @@ int main(void)
         return -1;
     }
 
+#if MP4_SAI_TIME_ENABLE || MP4_FF_TIME_ENABLE
+    // Init GPT module
+    config_gpt();
+#endif
+
     // Init SAI module
     config_sai(AUDIO_SAMP_WIDTH, AUDIO_SAMP_RATE, AUDIO_SAMP_CHANNEL);
 
     // Init LCD module
     config_lcd();
-
-    // Init GPT module
-    config_gpt();
 
     //char *filepath_in="/bigbuckbunny_480x272.h264";
     //char *filepath_in="/clown_720x576.h264";
