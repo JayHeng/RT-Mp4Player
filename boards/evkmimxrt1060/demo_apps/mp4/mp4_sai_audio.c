@@ -65,9 +65,7 @@ edma_handle_t dmaTxHandle = {0};
 sai_transfer_format_t format = {0};
 codec_handle_t codecHandle = {0};
 extern codec_config_t boardCodecConfig;
-volatile bool istxFinished = true;
-volatile uint32_t beginCount = 0;
-volatile uint32_t sendCount = 0;
+volatile uint8_t s_txBufferQueueIndex = 0;
 
 static uint32_t s_clockSourcePreDivider = 0;
 static uint32_t s_clockSourceDivider = 0;
@@ -102,15 +100,13 @@ void BOARD_EnableSaiMclkOutput(bool enable)
 
 static void txCallback(I2S_Type *base, sai_edma_handle_t *handle, status_t status, void *userData)
 {
-    sendCount++;
-
-    if (sendCount == beginCount)
+    if (kStatus_SAI_RxError == status)
     {
-        istxFinished = true;
-        SAI_TransferTerminateSendEDMA(base, handle);
-        sendCount = 0;
     }
-
+    else
+    {
+        s_txBufferQueueIndex--;
+    }
 }
 
 #if MP4_SAI_TIME_ENABLE
@@ -131,10 +127,8 @@ static uint32_t s_saiTransIndex = 0;
 void sai_audio_play(uint8_t *audioData, uint32_t audioBytes)
 {
     sai_transfer_t xfer = {0};
-    uint32_t totalNum = 0;
 
-    /* Wait for the send finished */
-    while (istxFinished != true)
+    while (s_txBufferQueueIndex >= AUDIO_BUFFER_QUEUE - 1)
     {
     }
 
@@ -164,27 +158,13 @@ void sai_audio_play(uint8_t *audioData, uint32_t audioBytes)
     s_saiTransIndex++;
 #endif //#if MP4_SAI_TIME_ENABLE
 
-    /* Clear the status */
-    istxFinished = false;
-    sendCount = 0;
+    s_txBufferQueueIndex++;
 
-    /* Send times according to audio bytes need to play */
-    beginCount = 1;
-
-    /* Reset SAI Tx internal logic */
-    SAI_TxSoftwareReset(APP_SAI, kSAI_ResetTypeSoftware);
     /* Do the play */
+    xfer.data = audioData;
     xfer.dataSize = audioBytes;
-
-    while (totalNum < beginCount)
-    {
-        xfer.data = audioData + totalNum * audioBytes;
-        /* Shall make sure the sai buffer queue is not full */
-        if (SAI_TransferSendEDMA(APP_SAI, &txHandle, &xfer) == kStatus_Success)
-        {
-            totalNum++;
-        }
-    }
+    /* Shall make sure the sai buffer queue is not full */
+    while (SAI_TransferSendEDMA(APP_SAI, &txHandle, &xfer) != kStatus_Success);
 }
 
 void set_sai_clock_dividers(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_stereo_t stereo)

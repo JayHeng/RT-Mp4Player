@@ -17,14 +17,16 @@
 // Set to measure FFmpeg decode time for each frame
 #define MP4_FF_TIME_ENABLE  0
 // Set to measure SAI transfer time for cached frames
-#define MP4_SAI_TIME_ENABLE 1
+#define MP4_SAI_TIME_ENABLE 0
 // The detected error time in ns for one frame
 #define AUDIO_FRAME_ERR_NS 1000000
 
-// Set audio frame size in source media
+// Set audio frame size according to source media
 #define AUDIO_FRAME_SIZE   0x400
-// Set audio cache frames to play
+// Set audio cache frames, it is important for FFmpeg decode
 #define AUDIO_CACHE_FRAMES 3
+// Set audio buffer queue, it is important for SAI DMA transfer
+#define AUDIO_BUFFER_QUEUE 3
 
 typedef enum _conv_audio_format
 {

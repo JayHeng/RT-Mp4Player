@@ -70,6 +70,9 @@ static const sdmmchost_pwr_card_t s_sdCardPwrCtrl = {
 };
 #endif
 
+static uint8_t s_audioBufferQueue[AUDIO_BUFFER_QUEUE][4*AUDIO_CONV_CHANNEL*AUDIO_FRAME_SIZE*AUDIO_CACHE_FRAMES];
+static uint8_t s_audioBufferQueueIndex = 0;
+
 static uint8_t *s_cachedAudioBuffer;
 static uint32_t s_cachedAudioBytes = 0;
 static uint32_t s_cachedAudioFrames = 0;
@@ -366,10 +369,6 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
     AVFrame *frame = av_frame_alloc();
     AVFrame *frameyuv = av_frame_alloc();
 
-    uint8_t *pingAudioBuffer = (uint8_t *)av_malloc(sizeof(AUDIO_CONV_SIZE)*AUDIO_CONV_CHANNEL*AUDIO_FRAME_SIZE*AUDIO_CACHE_FRAMES);
-    uint8_t *pongAudioBuffer = (uint8_t *)av_malloc(sizeof(AUDIO_CONV_SIZE)*AUDIO_CONV_CHANNEL*AUDIO_FRAME_SIZE*AUDIO_CACHE_FRAMES);
-    bool isPingBufferAvail = true;
-
 #if MP4_FF_TIME_ENABLE
     s_ffMeasureIndex = 0;
     time_measure_start();
@@ -427,7 +426,7 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
 #elif (AUDIO_CONV_CHANNEL == 2)
                         // Do nothing
 #endif
-                        uint8_t *audioBuffer = isPingBufferAvail ? pingAudioBuffer : pongAudioBuffer;
+                        uint8_t *audioBuffer = s_audioBufferQueue[s_audioBufferQueueIndex];
                         convert_audio_format(ptr_l, ptr_r, audioBuffer + s_cachedAudioBytes, frame->nb_samples, AUDIO_CONV_FORMAT);
                         s_cachedAudioBuffer = audioBuffer;
                         s_cachedAudioBytes += sizeof(AUDIO_CONV_SIZE) * frame->nb_samples * AUDIO_CONV_CHANNEL;
@@ -437,14 +436,16 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
                         if (s_cachedAudioFrames == AUDIO_CACHE_FRAMES)
                         {
                             flush_audio_data_cache();
-                            isPingBufferAvail = !isPingBufferAvail;
+                            s_audioBufferQueueIndex++;
+                            s_audioBufferQueueIndex %= AUDIO_BUFFER_QUEUE;
                         }
                         s_ffMeasureContext[s_ffMeasureIndex].cachePlayAudio_ns[0] = time_measure_done();
 #else
                         if (s_cachedAudioFrames == AUDIO_CACHE_FRAMES)
                         {
                             flush_audio_data_cache();
-                            isPingBufferAvail = !isPingBufferAvail;
+                            s_audioBufferQueueIndex++;
+                            s_audioBufferQueueIndex %= AUDIO_BUFFER_QUEUE;
                         }
 #endif
 #if MP4_WAV_ENABLE
