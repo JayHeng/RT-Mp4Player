@@ -298,16 +298,19 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
     if (c != FR_OK)
     {
         printf("Could not open '%s', erro = %d\n", infilename, c);
+        return;
     }
     c = f_open(&aoutputFil, aoutfilename, FA_CREATE_ALWAYS | FA_WRITE);
     if (c != FR_OK)
     {
         printf("Could not open '%s', erro = %d\n", aoutfilename, c);
+        return;
     }
     c = f_open(&voutputFil, voutfilename, FA_CREATE_ALWAYS | FA_WRITE);
     if (c != FR_OK)
     {
         printf("Could not open '%s', erro = %d\n", voutfilename, c);
+        return;
     }
 
     // Define user format conext var
@@ -324,12 +327,14 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
     if (error != 0)
     {
         printf("Couldn't open file: error :%d\n",error);
+        return;
     }
     // Get steam info from input media file
     error = avformat_find_stream_info(pInFmtCtx, NULL);
     if (error < 0)
     {
         printf("Couldn't find stream information error :%d\n",error);
+        return;
     }
     int audioStream = -1;
     int videoStream = -1;
@@ -354,6 +359,7 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
     if(avcodec_open2(pInCodecCtx_video, pInCodec_video, NULL) < 0)
     {
         printf("error avcodec_open failed video.\n");
+        return;
 
     }
     AVCodecContext *pInCodecCtx_audio = pInFmtCtx->streams[audioStream]->codec;
@@ -361,7 +367,7 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
     if(avcodec_open2(pInCodecCtx_audio, pInCodec_audio, NULL) < 0)
     {
         printf("error avcodec_open failed audio.\n");
-
+        return;
     }
 
     AVPacket packet;
@@ -569,9 +575,9 @@ int main(void)
     //char *filepath_in="/test.h264";
     //char *filepath_in="/1.h64";
     //char *filepath_out="/test-out.yuv";
-    char *filepath_in="/tmall.mp4";
-    char *filepath_aout="/tmall.pcm";
-    char *filepath_vout="/tmall.yuv";
+    char *filepath_in="/bunny.mp4";
+    char *filepath_aout="/bunny.pcm";
+    char *filepath_vout="/bunny.yuv";
     //while(1)
     h264_video_decode(filepath_in, filepath_aout, filepath_vout);
 }

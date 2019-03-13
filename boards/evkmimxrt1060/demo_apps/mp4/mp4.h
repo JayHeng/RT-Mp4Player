@@ -42,5 +42,5 @@ typedef enum _conv_audio_format
 
 // Set SAI configurations for audio
 #define AUDIO_SAMP_WIDTH   kSAI_WordWidth16bits
-#define AUDIO_SAMP_RATE    kSAI_SampleRate44100Hz
+#define AUDIO_SAMP_RATE    kSAI_SampleRate48KHz
 #define AUDIO_SAMP_CHANNEL kSAI_Stereo
