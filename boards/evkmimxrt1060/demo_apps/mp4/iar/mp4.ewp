@@ -2141,21 +2141,18 @@
     </configuration>
     <group>
         <name>board</name>
-        <group>
-            <name>src</name>
-            <file>
-                <name>$PROJ_DIR$\..\board.c</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\board.h</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\clock_config.c</name>
-            </file>
-            <file>
-                <name>$PROJ_DIR$\..\clock_config.h</name>
-            </file>
-        </group>
+        <file>
+            <name>$PROJ_DIR$\..\board.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\board.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\clock_config.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\clock_config.h</name>
+        </file>
         <file>
             <name>$PROJ_DIR$\..\pin_mux.c</name>
         </file>
@@ -2186,9 +2183,6 @@
         <group>
             <name>serial_manager</name>
             <file>
-                <name>$PROJ_DIR$\..\..\..\..\..\components\uart\lpuart_adapter.c</name>
-            </file>
-            <file>
                 <name>$PROJ_DIR$\..\..\..\..\..\components\serial_manager\serial_manager.c</name>
             </file>
             <file>
@@ -2199,6 +2193,12 @@
             </file>
             <file>
                 <name>$PROJ_DIR$\..\..\..\..\..\components\serial_manager\serial_port_uart.h</name>
+            </file>
+        </group>
+        <group>
+            <name>uart</name>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\components\uart\lpuart_adapter.c</name>
             </file>
             <file>
                 <name>$PROJ_DIR$\..\..\..\..\..\components\uart\uart.h</name>
@@ -3572,6 +3572,18 @@
     </group>
     <group>
         <name>xip</name>
+        <file>
+            <name>$PROJ_DIR$\..\..\..\xip\evkmimxrt1060_flexspi_nor_config.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\..\..\xip\evkmimxrt1060_flexspi_nor_config.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\..\..\xip\evkmimxrt1060_sdram_ini_dcd.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\..\..\xip\evkmimxrt1060_sdram_ini_dcd.h</name>
+        </file>
         <file>
             <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1062\xip\fsl_flexspi_nor_boot.c</name>
         </file>

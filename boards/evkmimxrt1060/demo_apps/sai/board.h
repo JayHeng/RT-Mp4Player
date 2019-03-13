@@ -20,7 +20,7 @@
 #define BOARD_NAME "MIMXRT1060-EVK"
 
 /* The UART to use for debug messages. */
-#define BOARD_DEBUG_UART_TYPE 1 //kSerialPort_Uart
+#define BOARD_DEBUG_UART_TYPE kSerialPort_Uart
 #define BOARD_DEBUG_UART_BASEADDR (uint32_t) LPUART1
 #define BOARD_DEBUG_UART_INSTANCE 1U
 
