@@ -361,8 +361,6 @@
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062/drivers</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062/utilities/str</state>
-                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062/utilities/io</state>
-                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062/utilities/log</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062/utilities/debug_console</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062/utilities</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062/xip</state>
@@ -1431,8 +1429,6 @@
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062/drivers</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062/utilities/str</state>
-                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062/utilities/io</state>
-                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062/utilities/log</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062/utilities/debug_console</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062/utilities</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062/xip</state>
@@ -2189,9 +2185,6 @@
         </group>
         <group>
             <name>serial_manager</name>
-            <excluded>
-                <configuration>sdram_debug</configuration>
-            </excluded>
             <file>
                 <name>$PROJ_DIR$\..\..\..\..\..\components\uart\lpuart_adapter.c</name>
             </file>
@@ -3569,18 +3562,6 @@
         </file>
         <file>
             <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1062\utilities\debug_console\fsl_debug_console_conf.h</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1062\utilities\io\fsl_io.c</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1062\utilities\io\fsl_io.h</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1062\utilities\log\fsl_log.c</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1062\utilities\log\fsl_log.h</name>
         </file>
         <file>
             <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1062\utilities\str\fsl_str.c</name>

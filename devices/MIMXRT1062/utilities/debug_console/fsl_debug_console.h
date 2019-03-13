@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2013 - 2015, Freescale Semiconductor, Inc.
- * Copyright 2016-2017 NXP
+ * Copyright 2016-2018 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -23,6 +23,8 @@
 #define _FSL_DEBUGCONSOLE_H_
 
 #include "fsl_common.h"
+#include "serial_manager.h"
+
 /*!
  * @addtogroup debugconsole
  * @{
@@ -31,6 +33,11 @@
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
+
+/*! @brief Definition select redirect toolchain printf, scanf to uart or not. */
+#define DEBUGCONSOLE_REDIRECT_TO_TOOLCHAIN 0U /*!< Select toolchain printf and scanf. */
+#define DEBUGCONSOLE_REDIRECT_TO_SDK 1U       /*!< Select SDK version printf, scanf. */
+#define DEBUGCONSOLE_DISABLE 2U               /*!< Disable debugconsole function. */
 
 /*! @brief Definition to select sdk or toolchain printf, scanf. */
 #ifndef SDK_DEBUGCONSOLE
@@ -49,12 +56,24 @@
 #include <stdio.h>
 #endif
 
-#if SDK_DEBUGCONSOLE /* Select printf, scanf, putchar, getchar of SDK version. */
+/*! @brief Definition to select redirect toolchain printf, scanf to uart or not.
+ *
+ *  if SDK_DEBUGCONSOLE defined to 0,it represents select toolchain printf, scanf.
+ *  if SDK_DEBUGCONSOLE defined to 1,it represents select SDK version printf, scanf.
+ *  if SDK_DEBUGCONSOLE defined to 2,it represents disable debugconsole function.
+*/
+#if SDK_DEBUGCONSOLE == DEBUGCONSOLE_DISABLE /* Disable debug console */
+#define PRINTF
+#define SCANF
+#define PUTCHAR
+#define GETCHAR
+#elif SDK_DEBUGCONSOLE == DEBUGCONSOLE_REDIRECT_TO_SDK /* Select printf, scanf, putchar, getchar of SDK version. */
 #define PRINTF DbgConsole_Printf
 #define SCANF DbgConsole_Scanf
 #define PUTCHAR DbgConsole_Putchar
 #define GETCHAR DbgConsole_Getchar
-#else /* Select printf, scanf, putchar, getchar of toolchain. */
+#elif SDK_DEBUGCONSOLE == DEBUGCONSOLE_REDIRECT_TO_TOOLCHAIN /* Select printf, scanf, putchar, getchar of toolchain. \ \
+                                                                */
 #define PRINTF printf
 #define SCANF scanf
 #define PUTCHAR putchar
@@ -75,31 +94,27 @@ extern "C" {
 /*!
  * @brief Initializes the peripheral used for debug messages.
  *
- * Call this function to enable debug log messages to be output via the specified peripheral,
- * frequency of peripheral source clock, and base address at the specified baud rate.
+ * Call this function to enable debug log messages to be output via the specified peripheral
+ * initialized by the serial manager module.
  * After this function has returned, stdout and stdin are connected to the selected peripheral.
  *
- * @param baseAddr      Indicates the address of the peripheral used to send debug messages.
+ * @param instance      The instance of the module.
  * @param baudRate      The desired baud rate in bits per second.
  * @param device        Low level device type for the debug console, can be one of the following.
- *                      @arg DEBUG_CONSOLE_DEVICE_TYPE_UART,
- *                      @arg DEBUG_CONSOLE_DEVICE_TYPE_LPUART,
- *                      @arg DEBUG_CONSOLE_DEVICE_TYPE_LPSCI,
- *                      @arg DEBUG_CONSOLE_DEVICE_TYPE_USBCDC.
+ *                      @arg kSerialPort_Uart,
+ *                      @arg kSerialPort_UsbCdc.
  * @param clkSrcFreq    Frequency of peripheral source clock.
  *
  * @return              Indicates whether initialization was successful or not.
  * @retval kStatus_Success          Execution successfully
- * @retval kStatus_Fail             Execution failure
- * @retval kStatus_InvalidArgument  Invalid argument existed
  */
-status_t DbgConsole_Init(uint32_t baseAddr, uint32_t baudRate, uint8_t device, uint32_t clkSrcFreq);
+status_t DbgConsole_Init(uint8_t instance, uint32_t baudRate, serial_port_type_t device, uint32_t clkSrcFreq);
 
 /*!
  * @brief De-initializes the peripheral used for debug messages.
  *
  * Call this function to disable debug log messages to be output via the specified peripheral
- * base address and at the specified baud rate.
+ * initialized by the serial manager module.
  *
  * @return Indicates whether de-initialization was successful or not.
  */
@@ -111,10 +126,10 @@ status_t DbgConsole_Deinit(void);
  *
  * Call this function to write a formatted output to the standard output stream.
  *
- * @param   fmt_s Format control string.
+ * @param   formatString Format control string.
  * @return  Returns the number of characters printed or a negative value if an error occurs.
  */
-int DbgConsole_Printf(const char *fmt_s, ...);
+int DbgConsole_Printf(const char *formatString, ...);
 
 /*!
  * @brief Writes a character to stdout.
@@ -131,24 +146,36 @@ int DbgConsole_Putchar(int ch);
  *
  * Call this function to read formatted data from the standard input stream.
  *
- * @param   fmt_ptr Format control string.
+ * @note Due the limitation in the BM OSA environment (CPU is blocked in the function,
+ * other tasks will not be scheduled), the function cannot be used when the
+ * DEBUG_CONSOLE_TRANSFER_NON_BLOCKING is set in the BM OSA environment.
+ * And an error is returned when the function called in this case. The suggestion
+ * is that polling the non-blocking function DbgConsole_TryGetchar to get the input char.
+ *
+ * @param   formatString Format control string.
  * @return  Returns the number of fields successfully converted and assigned.
  */
-int DbgConsole_Scanf(char *fmt_ptr, ...);
+int DbgConsole_Scanf(char *formatString, ...);
 
 /*!
  * @brief Reads a character from standard input.
  *
  * Call this function to read a character from standard input.
  *
+ * @note Due the limitation in the BM OSA environment (CPU is blocked in the function,
+ * other tasks will not be scheduled), the function cannot be used when the
+ * DEBUG_CONSOLE_TRANSFER_NON_BLOCKING is set in the BM OSA environment.
+ * And an error is returned when the function called in this case. The suggestion
+ * is that polling the non-blocking function DbgConsole_TryGetchar to get the input char.
+ *
  * @return Returns the character read.
  */
 int DbgConsole_Getchar(void);
 
 /*!
- * @brief Debug console flush log.
+ * @brief Debug console flush.
  *
- * Call this function to wait the buffer empty and io idle before.
+ * Call this function to wait the tx buffer empty.
  * If interrupt transfer is using, make sure the global IRQ is enable before call this function
  * This function should be called when
  * 1, before enter power down mode
@@ -160,8 +187,8 @@ status_t DbgConsole_Flush(void);
 #ifdef DEBUG_CONSOLE_TRANSFER_NON_BLOCKING
 /*!
  * @brief Debug console try to get char
- * This function provide a api which will not block current task, if character is
- * avaliable return it , otherwise return fail.
+ * This function provides a API which will not block current task, if character is
+ * available return it, otherwise return fail.
  * @param ch the address of char to receive
  * @return Indicates get char was successful or not.
  */

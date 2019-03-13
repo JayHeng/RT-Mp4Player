@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 NXP
+ * Copyright 2017 - 2018 NXP
  * All rights reserved.
  *
  *
@@ -20,7 +20,7 @@
 /*! @brief define the transmit buffer length which is used to store the multi task log, buffer is enabled automatically
 * when
 * non-blocking transfer is using,
-* This value will affect the RAM's utilization, should be set per paltform's capability and software requirement.
+* This value will affect the RAM's ultilization, should be set per paltform's capability and software requirement.
 * If it is configured too small, log maybe missed , because the log will not be
 * buffered if the buffer is full, and the print will return immediately with -1.
 * And this value should be multiple of 4 to meet memory alignment.
@@ -32,8 +32,8 @@
 
 /*! @brief define the receive buffer length which is used to store the user input, buffer is enabled automatically when
 * non-blocking transfer is using,
-* This value will affect the RAM's utilization, should be set per paltform's capability and software requirement.
-* If it is configured too small, log maybe missed, because buffer will be overwritten if buffer is too small.
+* This value will affect the RAM's ultilization, should be set per paltform's capability and software requirement.
+* If it is configured too small, log maybe missed, because buffer will be overwrited if buffer is too small.
 * And this value should be multiple of 4 to meet memory alignment.
 *
 */
@@ -44,6 +44,13 @@
 #else
 #define DEBUG_CONSOLE_TRANSFER_BLOCKING
 #endif /* DEBUG_CONSOLE_TRANSFER_NON_BLOCKING */
+
+/*!@ brief Whether enable the RX function
+* If the macro is zero, the receive function of the debug console is disabled.
+*/
+#ifndef DEBUG_CONSOLE_RX_ENABLE
+#define DEBUG_CONSOLE_RX_ENABLE (1U)
+#endif /* DEBUG_CONSOLE_RX_ENABLE */
 
 /*!@ brief define the MAX log length debug console support , that is when you call printf("log", x);, the log
 * length can not bigger than this value.
