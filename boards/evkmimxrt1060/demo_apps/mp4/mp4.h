@@ -44,3 +44,7 @@ typedef enum _conv_audio_format
 #define AUDIO_SAMP_WIDTH   kSAI_WordWidth16bits
 #define AUDIO_SAMP_RATE    kSAI_SampleRate48KHz
 #define AUDIO_SAMP_CHANNEL kSAI_Stereo
+
+// Set video resolution
+#define VIDEO_RESOLUTION_272P   0  // For 480*272 LCD
+#define VIDEO_RESOLUTION_720HD  1  // For 1280*800 LCD

@@ -17,11 +17,13 @@
 #include "fsl_elcdif.h"
 #include "fsl_cache.h"
 #include "fsl_gpio.h"
+#include "mp4.h"
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
 #define APP_ELCDIF LCDIF
 
+#if VIDEO_RESOLUTION_272P
 #define APP_IMG_HEIGHT 272
 #define APP_IMG_WIDTH 480
 #define APP_HSW 41
@@ -30,6 +32,16 @@
 #define APP_VSW 10
 #define APP_VFP 4
 #define APP_VBP 2
+#elif VIDEO_RESOLUTION_720HD
+#define APP_IMG_HEIGHT 800
+#define APP_IMG_WIDTH 1280
+#define APP_HSW 10
+#define APP_HFP 70
+#define APP_HBP 80
+#define APP_VSW 3
+#define APP_VFP 10
+#define APP_VBP 10
+#endif
 #define APP_POL_FLAGS \
     (kELCDIF_DataEnableActiveHigh | kELCDIF_VsyncActiveLow | kELCDIF_HsyncActiveLow | kELCDIF_DriveDataOnRisingClkEdge)
 
@@ -65,8 +77,13 @@
 #endif
 
 #define APP_PXP PXP
+#if VIDEO_RESOLUTION_272P
 #define APP_PS_WIDTH 480/* 720,352,image resolution*/
 #define APP_BPP 4U
+#elif VIDEO_RESOLUTION_720HD
+#define APP_PS_WIDTH 1280/* 1280,800,image resolution*/
+#define APP_BPP 4U
+#endif
 
 #define APP_PS_ULC_X 0U
 #define APP_PS_ULC_Y 0U
@@ -101,28 +118,29 @@ void BOARD_EnableLcdInterrupt(void)
 /* Initialize the LCD_DISP. */
 void BOARD_InitLcd(void)
 {
-    volatile uint32_t i = 0x100U;
-
     gpio_pin_config_t config = {
         kGPIO_DigitalOutput, 0,
     };
 
+#if VIDEO_RESOLUTION_272P
     /* Reset the LCD. */
     GPIO_PinInit(LCD_DISP_GPIO, LCD_DISP_GPIO_PIN, &config);
-
     GPIO_PinWrite(LCD_DISP_GPIO, LCD_DISP_GPIO_PIN, 0);
-
+    volatile uint32_t i = 0x100U;
     while (i--)
     {
     }
-
     GPIO_PinWrite(LCD_DISP_GPIO, LCD_DISP_GPIO_PIN, 1);
+#elif VIDEO_RESOLUTION_720HD
+    // Do nothing
+#endif
 
     /* Backlight. */
     config.outputLogic = 1;
     GPIO_PinInit(LCD_BL_GPIO, LCD_BL_GPIO_PIN, &config);
 }
 
+#if VIDEO_RESOLUTION_272P
 void BOARD_InitLcdifPixelClock(void)
 {
     /*
@@ -155,6 +173,40 @@ void BOARD_InitLcdifPixelClock(void)
 
     CLOCK_SetDiv(kCLOCK_LcdifDiv, 1);
 }
+#elif VIDEO_RESOLUTION_720HD
+void BOARD_InitLcdifPixelClock(void)
+{
+    /*
+     * The desired output frame rate is 60Hz. So the pixel clock frequency is:
+     * (1280 + 10 + 80 + 70) * (800 + 3 + 10 + 10) * 60 = 71M.
+     * Here set the LCDIF pixel clock to 70.5M.
+     */
+
+    /*
+     * Initialize the Video PLL.
+     * Video PLL output clock is OSC24M * (loopDivider + (denominator / numerator)) / postDivider = 70.5MHz.
+     */
+    clock_video_pll_config_t config = {
+        .loopDivider = 47, .postDivider = 16, .numerator = 0, .denominator = 0,
+    };
+
+    CLOCK_InitVideoPll(&config);
+
+    /*
+     * 000 derive clock from PLL2
+     * 001 derive clock from PLL3 PFD3
+     * 010 derive clock from PLL5
+     * 011 derive clock from PLL2 PFD0
+     * 100 derive clock from PLL2 PFD1
+     * 101 derive clock from PLL3 PFD1
+     */
+    CLOCK_SetMux(kCLOCK_LcdifPreMux, 2);
+
+    CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 0);
+
+    CLOCK_SetDiv(kCLOCK_LcdifDiv, 0);
+}
+#endif
 
 /* Put the unused frame buffer to the s_fbList. */
 static void APP_PutFrameBuffer(void *fb)
@@ -217,6 +269,13 @@ static void APP_InitLcdif(void)
 
     ELCDIF_RgbModeInit(APP_ELCDIF, &config);
 
+#if VIDEO_RESOLUTION_272P
+    // Do nothing
+#elif VIDEO_RESOLUTION_720HD
+    /* Update the eLCDIF AXI master features for better performance */
+    APP_ELCDIF->CTRL2 = 0x00700000;
+#endif
+
     ELCDIF_RgbModeStart(APP_ELCDIF);
 }
 
@@ -253,29 +312,6 @@ void lcd_video_display(unsigned char *buf[], int xsize, int ysize)
    */
    curLcdBufferIdx ^= 1U;
 }
-//static int decode_write_frame(FIL *file, AVCodecContext *avctx, AVFrame *frame, int *frame_index, AVPacket *pkt, int flush)
-//{
-//        int got_frame = 0;
-//	do {
-//		int len = avcodec_decode_video2(avctx, frame, &got_frame, pkt);
-//		if (len < 0) {
-//			//fprintf(stderr, "Error while decoding frame %d\n", *frame_index);
-//                        printf("Error while decoding frame %d\n!", *frame_index);
-//			return len;
-//		}
-//
-//		if (got_frame) {
-//                       printf("%d\r\n", *frame_index);
-//
-//			if (file) {
-//
-//                               lcd_video_display(frame->data, frame->linesize, frame->width, frame->height);
-//			}
-//                        (*frame_index)++;
-//		}
-//	} while (flush && got_frame);
-//	return 0;
-//}
 
 /*!
  * @brief config_lcd function
