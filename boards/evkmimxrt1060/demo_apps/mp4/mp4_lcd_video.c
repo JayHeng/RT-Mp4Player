@@ -84,9 +84,6 @@ static void *volatile s_fbList = NULL; /* List to the frame buffers. */
 static void *volatile inactiveBuf = NULL;
 static void *volatile activeBuf = NULL;
 
-SDK_ALIGN(static uint8_t g_frameBuffer[APP_LCD_FB_NUM][SDK_SIZEALIGN(APP_IMG_HEIGHT * APP_IMG_WIDTH * APP_LCD_FB_BPP,
-                                                                     APP_CACHE_LINE_SIZE)], APP_CACHE_LINE_SIZE);
-
 static pxp_output_buffer_config_t outputBufferConfig;
 static pxp_ps_buffer_config_t psBufferConfig;
 AT_NONCACHEABLE_SECTION_ALIGN(static uint32_t s_psBufferLcd[2][APP_IMG_HEIGHT][APP_IMG_WIDTH], FRAME_BUFFER_ALIGN);
@@ -166,37 +163,6 @@ static void APP_PutFrameBuffer(void *fb)
     s_fbList = fb;
 }
 
-#if 0
-void APP_ELCDIF_Init(void)
-{
-    uint8_t i;
-
-    const elcdif_rgb_mode_config_t config = {
-        .panelWidth = APP_IMG_WIDTH,
-        .panelHeight = APP_IMG_HEIGHT,
-        .hsw = APP_HSW,
-        .hfp = APP_HFP,
-        .hbp = APP_HBP,
-        .vsw = APP_VSW,
-        .vfp = APP_VFP,
-        .vbp = APP_VBP,
-        .polarityFlags = APP_POL_FLAGS,
-        .bufferAddr = (uint32_t)g_frameBuffer[0],
-        .pixelFormat = kELCDIF_PixelFormatRGB888,
-        .dataBus = APP_LCDIF_DATA_BUS,
-    };
-
-    for (i = 1; i < APP_LCD_FB_NUM; i++)
-    {
-        APP_PutFrameBuffer(g_frameBuffer[i]);
-    }
-
-    activeBuf = g_frameBuffer[0];
-    ELCDIF_RgbModeInit(APP_ELCDIF, &config);
-}
-
-#endif
-
 static void APP_InitPxp(void)
 {
     PXP_Init(APP_PXP);
@@ -270,12 +236,12 @@ void lcd_video_display(unsigned char *buf[], int xsize, int ysize)
     outputBufferConfig.buffer0Addr = (uint32_t)s_psBufferLcd[curLcdBufferIdx];
     PXP_SetOutputBufferConfig(APP_PXP, &outputBufferConfig);
 
-	if (isPxpOn) {
-	  // while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(APP_PXP))) {}
-		PXP_ClearStatusFlags(APP_PXP, kPXP_CompleteFlag);
-	}
+    if (isPxpOn) {
+        // while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(APP_PXP))) {}
+        PXP_ClearStatusFlags(APP_PXP, kPXP_CompleteFlag);
+    }
     PXP_Start(APP_PXP);
-	isPxpOn = 1;
+    isPxpOn = 1;
 
    ELCDIF_SetNextBufferAddr(APP_ELCDIF, (uint32_t)s_psBufferLcd[curLcdBufferIdx]);
    ELCDIF_ClearInterruptStatus(APP_ELCDIF, kELCDIF_CurFrameDone);
@@ -319,9 +285,6 @@ void config_lcd(void)
     BOARD_InitLcdifPixelClock();
     BOARD_InitLcd();
 
-    // clear the framebuffer first
-    memset(g_frameBuffer, 0, sizeof(g_frameBuffer));
-
     ELCDIF_EnableInterrupts(APP_ELCDIF, kELCDIF_CurFrameDoneInterruptEnable);
     ELCDIF_RgbModeStart(APP_ELCDIF);
 
@@ -358,4 +321,5 @@ void APP_LCDIF_IRQHandler(void)
 void LCDIF_IRQHandler(void)
 {
     APP_LCDIF_IRQHandler();
+    __DSB();
 }
