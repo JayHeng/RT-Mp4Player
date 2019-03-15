@@ -59,7 +59,7 @@
 /*
  * For better performance, three frame buffers are used in this demo.
  */
-#define APP_LCD_FB_NUM 3 /* LCD frame buffer number. */
+#define APP_LCD_FB_NUM 2 /* LCD frame buffer number. */
 #define APP_LCD_FB_BPP 3 /* LCD frame buffer byte per pixel, RGB888 format, 24-bit. */
 
 /* Cache line size. */
@@ -103,7 +103,7 @@ static void *volatile activeBuf = NULL;
 
 static pxp_output_buffer_config_t outputBufferConfig;
 static pxp_ps_buffer_config_t psBufferConfig;
-AT_NONCACHEABLE_SECTION_ALIGN(static uint32_t s_psBufferLcd[2][APP_IMG_HEIGHT][APP_IMG_WIDTH], FRAME_BUFFER_ALIGN);
+AT_NONCACHEABLE_SECTION_ALIGN(static uint32_t s_psBufferLcd[APP_LCD_FB_NUM][APP_IMG_HEIGHT][APP_IMG_WIDTH], FRAME_BUFFER_ALIGN);
 
 /*******************************************************************************
  * Code
@@ -281,36 +281,33 @@ static void APP_InitLcdif(void)
 
 void lcd_video_display(unsigned char *buf[], int xsize, int ysize)
 {
-    uint8_t curLcdBufferIdx = 1U;
-    static uint32_t isPxpOn = 0;
+    static uint8_t curLcdBufferIdx = 1U;
     psBufferConfig.bufferAddr = (uint32_t)buf[0];
     psBufferConfig.bufferAddrU = (uint32_t)buf[1];
     psBufferConfig.bufferAddrV = (uint32_t)buf[2];
 
     PXP_SetProcessSurfaceBufferConfig(APP_PXP, &psBufferConfig);
-
     PXP_SetProcessSurfaceScaler(APP_PXP, xsize, ysize, APP_IMG_WIDTH, APP_IMG_HEIGHT);
-    PXP_SetProcessSurfacePosition(APP_PXP, APP_PS_ULC_X, APP_PS_ULC_Y, APP_PS_ULC_X + APP_IMG_WIDTH - 1U,
-                                          APP_PS_ULC_Y + APP_IMG_HEIGHT - 1U);
+    PXP_SetProcessSurfacePosition(APP_PXP,
+                                  APP_PS_ULC_X,
+                                  APP_PS_ULC_Y,
+                                  APP_PS_ULC_X + APP_IMG_WIDTH - 1U,
+                                  APP_PS_ULC_Y + APP_IMG_HEIGHT - 1U);
     outputBufferConfig.buffer0Addr = (uint32_t)s_psBufferLcd[curLcdBufferIdx];
     PXP_SetOutputBufferConfig(APP_PXP, &outputBufferConfig);
-
-    if (isPxpOn) {
-        // while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(APP_PXP))) {}
-        PXP_ClearStatusFlags(APP_PXP, kPXP_CompleteFlag);
-    }
     PXP_Start(APP_PXP);
-    isPxpOn = 1;
-
-   ELCDIF_SetNextBufferAddr(APP_ELCDIF, (uint32_t)s_psBufferLcd[curLcdBufferIdx]);
-   ELCDIF_ClearInterruptStatus(APP_ELCDIF, kELCDIF_CurFrameDone);
-
-   /*
-   while (!(kELCDIF_CurFrameDone & ELCDIF_GetInterruptStatus(APP_ELCDIF)))
-   {
-   }
-   */
-   curLcdBufferIdx ^= 1U;
+    /* Wait for process complete. */
+    while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(APP_PXP)))
+    {
+    }
+    PXP_ClearStatusFlags(APP_PXP, kPXP_CompleteFlag);
+    ELCDIF_SetNextBufferAddr(APP_ELCDIF, (uint32_t)s_psBufferLcd[curLcdBufferIdx]);
+    ELCDIF_ClearInterruptStatus(APP_ELCDIF, kELCDIF_CurFrameDone);
+    while (!(kELCDIF_CurFrameDone & ELCDIF_GetInterruptStatus(APP_ELCDIF)))
+    {
+    }
+    curLcdBufferIdx++;
+    curLcdBufferIdx %= APP_LCD_FB_NUM;
 }
 
 /*!
