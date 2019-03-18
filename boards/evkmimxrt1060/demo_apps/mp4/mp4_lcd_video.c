@@ -79,10 +79,14 @@
 #define APP_PXP PXP
 #if VIDEO_RESOLUTION_272P
 #define APP_PS_WIDTH 480/* 720,352,image resolution*/
-#define APP_BPP 4U
 #elif VIDEO_RESOLUTION_720HD
 #define APP_PS_WIDTH 1280/* 1280,800,image resolution*/
+#endif
+
+#if VIDEO_PIXEL_FMT_RGB888
 #define APP_BPP 4U
+#elif VIDEO_PIXEL_FMT_RGB565
+#define APP_BPP 2U
 #endif
 
 #define APP_PS_ULC_X 0U
@@ -104,7 +108,7 @@ static void *volatile activeBuf = NULL;
 static pxp_output_buffer_config_t outputBufferConfig;
 static pxp_ps_buffer_config_t psBufferConfig;
 AT_NONCACHEABLE_SECTION(static uint8_t s_convBufferYUV[3][APP_IMG_HEIGHT][APP_IMG_WIDTH]);
-AT_NONCACHEABLE_SECTION_ALIGN(static uint32_t s_psBufferLcd[APP_LCD_FB_NUM][APP_IMG_HEIGHT][APP_IMG_WIDTH], FRAME_BUFFER_ALIGN);
+AT_NONCACHEABLE_SECTION_ALIGN(static uint8_t s_psBufferLcd[APP_LCD_FB_NUM][APP_IMG_HEIGHT][APP_IMG_WIDTH][APP_BPP], FRAME_BUFFER_ALIGN);
 
 /*******************************************************************************
  * Code
@@ -233,7 +237,11 @@ static void APP_InitPxp(void)
     PXP_SetAlphaSurfacePosition(APP_PXP, 0xFFFFU, 0xFFFFU, 0U, 0U);
 
     /* Output config. */
+#if VIDEO_PIXEL_FMT_RGB888
     outputBufferConfig.pixelFormat = kPXP_OutputPixelFormatRGB888;
+#elif VIDEO_PIXEL_FMT_RGB565
+    outputBufferConfig.pixelFormat = kPXP_OutputPixelFormatRGB565;
+#endif
     outputBufferConfig.interlacedMode = kPXP_OutputProgressive;
     outputBufferConfig.buffer0Addr = (uint32_t)s_psBufferLcd[0];
     outputBufferConfig.buffer1Addr = 0U;
@@ -260,7 +268,11 @@ static void APP_InitLcdif(void)
         .vbp = APP_VBP,
         .polarityFlags = APP_POL_FLAGS,
         .bufferAddr = (uint32_t)s_psBufferLcd[0],
+#if VIDEO_PIXEL_FMT_RGB888
         .pixelFormat = kELCDIF_PixelFormatXRGB8888,
+#elif VIDEO_PIXEL_FMT_RGB565
+        .pixelFormat = kELCDIF_PixelFormatRGB565,
+#endif
         .dataBus = APP_LCDIF_DATA_BUS,
     };
 

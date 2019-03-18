@@ -48,3 +48,7 @@ typedef enum _conv_audio_format
 // Set video resolution
 #define VIDEO_RESOLUTION_272P   0  // For 480*272 LCD
 #define VIDEO_RESOLUTION_720HD  1  // For 1280*800 LCD
+
+// Set video pixel format
+#define VIDEO_PIXEL_FMT_RGB888  0
+#define VIDEO_PIXEL_FMT_RGB565  1
