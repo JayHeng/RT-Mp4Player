@@ -177,14 +177,14 @@ void BOARD_InitLcdifPixelClock(void)
 void BOARD_InitLcdifPixelClock(void)
 {
     /*
-     * The desired output frame rate is 60Hz. So the pixel clock frequency is:
-     * (1280 + 10 + 80 + 70) * (800 + 3 + 10 + 10) * 60 = 71M.
+     * The desired output frame rate is 30Hz. So the pixel clock frequency is:
+     * (1280 + 10 + 80 + 70) * (800 + 3 + 10 + 10) * 30 = 35.5M.
      * Here set the LCDIF pixel clock to 70.5M.
      */
 
     /*
      * Initialize the Video PLL.
-     * Video PLL output clock is OSC24M * (loopDivider + (denominator / numerator)) / postDivider = 70.5MHz.
+     * Video PLL output clock is OSC24M * (loopDivider + (denominator / numerator)) / postDivider = 35.2MHz.
      */
     clock_video_pll_config_t config = {
         .loopDivider = 47, .postDivider = 16, .numerator = 0, .denominator = 0,
@@ -204,7 +204,7 @@ void BOARD_InitLcdifPixelClock(void)
 
     CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 0);
 
-    CLOCK_SetDiv(kCLOCK_LcdifDiv, 0);
+    CLOCK_SetDiv(kCLOCK_LcdifDiv, 1);
 }
 #endif
 
@@ -310,6 +310,22 @@ void lcd_video_display(unsigned char *buf[], int xsize, int ysize)
     curLcdBufferIdx %= APP_LCD_FB_NUM;
 }
 
+void set_pxp_master_priority(uint32_t priority)
+{
+    // NIC-301(SIM_MAIN GPV) read qos
+    *(uint32_t *)0x41046100 = priority;
+    // NIC-301(SIM_MAIN GPV) write qos
+    *(uint32_t *)0x41046104 = priority;
+}
+
+void set_lcd_master_priority(uint32_t priority)
+{
+    // NIC-301(SIM_MAIN GPV) read qos
+    *(uint32_t *)0x41044100 = priority;
+    // NIC-301(SIM_MAIN GPV) write qos
+    *(uint32_t *)0x41044104 = priority;
+}
+
 /*!
  * @brief config_lcd function
  */
@@ -324,6 +340,9 @@ void config_lcd(void)
     APP_InitPxp();
     APP_InitLcdif();
     BOARD_EnableLcdInterrupt();
+
+    set_lcd_master_priority(15);
+    set_pxp_master_priority(14);
 }
 
 void APP_LCDIF_IRQHandler(void)
