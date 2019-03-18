@@ -33,7 +33,7 @@ static int sdcard_mount(void);
 extern void config_sai(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_stereo_t stereo);
 extern void sai_audio_play(uint8_t *audioData, uint32_t audioBytes);
 extern void config_lcd(void);
-extern void lcd_video_display(unsigned char *buf[], int xsize, int ysize);
+extern void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize);
 extern void config_gpt(void);
 
 static void flush_audio_data_cache(void);

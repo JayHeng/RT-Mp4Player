@@ -103,6 +103,7 @@ static void *volatile activeBuf = NULL;
 
 static pxp_output_buffer_config_t outputBufferConfig;
 static pxp_ps_buffer_config_t psBufferConfig;
+AT_NONCACHEABLE_SECTION(static uint8_t s_convBufferYUV[3][APP_IMG_HEIGHT][APP_IMG_WIDTH]);
 AT_NONCACHEABLE_SECTION_ALIGN(static uint32_t s_psBufferLcd[APP_LCD_FB_NUM][APP_IMG_HEIGHT][APP_IMG_WIDTH], FRAME_BUFFER_ALIGN);
 
 /*******************************************************************************
@@ -226,11 +227,8 @@ static void APP_InitPxp(void)
     psBufferConfig.bufferAddrU = 0U;
     psBufferConfig.bufferAddrV = 0U;
     psBufferConfig.pitchBytes = APP_PS_WIDTH;
-
     PXP_SetProcessSurfaceBackGroundColor(APP_PXP, 0U);
-
     PXP_SetProcessSurfaceBufferConfig(APP_PXP, &psBufferConfig);
-
     /* Disable AS. */
     PXP_SetAlphaSurfacePosition(APP_PXP, 0xFFFFU, 0xFFFFU, 0U, 0U);
 
@@ -242,7 +240,6 @@ static void APP_InitPxp(void)
     outputBufferConfig.pitchBytes = APP_IMG_WIDTH * APP_BPP;
     outputBufferConfig.width = APP_IMG_WIDTH;
     outputBufferConfig.height = APP_IMG_HEIGHT;
-
     PXP_SetOutputBufferConfig(APP_PXP, &outputBufferConfig);
 
     /* Disable CSC1, it is enabled by default. */
@@ -267,6 +264,12 @@ static void APP_InitLcdif(void)
         .dataBus = APP_LCDIF_DATA_BUS,
     };
 
+    for (uint32_t i = 1; i < APP_LCD_FB_NUM; i++)
+    {
+        APP_PutFrameBuffer(s_psBufferLcd[i]);
+    }
+    activeBuf = s_psBufferLcd[0];
+
     ELCDIF_RgbModeInit(APP_ELCDIF, &config);
 
 #if VIDEO_RESOLUTION_272P
@@ -279,13 +282,54 @@ static void APP_InitLcdif(void)
     ELCDIF_RgbModeStart(APP_ELCDIF);
 }
 
-void lcd_video_display(unsigned char *buf[], int xsize, int ysize)
+void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
 {
     static uint8_t curLcdBufferIdx = 1U;
-    psBufferConfig.bufferAddr = (uint32_t)buf[0];
-    psBufferConfig.bufferAddrU = (uint32_t)buf[1];
-    psBufferConfig.bufferAddrV = (uint32_t)buf[2];
+    static bool isPxpFirstStart = true;
+    static bool isLcdCurFrameDone = true;
 
+    if (!isPxpFirstStart)
+    {
+        // Wait util PXP complete, As it is not first frame
+        while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(APP_PXP)))
+        {
+        }
+        PXP_ClearStatusFlags(APP_PXP, kPXP_CompleteFlag);
+
+        if (!isLcdCurFrameDone)
+        {
+            // Wait util last LCD frame done, then we can show current frame
+            while (!(kELCDIF_CurFrameDone & ELCDIF_GetInterruptStatus(APP_ELCDIF)))
+            {
+            }
+        }
+        else
+        {
+            isLcdCurFrameDone = false;
+        }
+
+        // Start to show current frame via LCD
+        ELCDIF_SetNextBufferAddr(APP_ELCDIF, (uint32_t)s_psBufferLcd[curLcdBufferIdx]);
+        ELCDIF_ClearInterruptStatus(APP_ELCDIF, kELCDIF_CurFrameDone);
+
+        curLcdBufferIdx++;
+        curLcdBufferIdx %= APP_LCD_FB_NUM;
+    }
+    else
+    {
+        isPxpFirstStart = false;
+    }
+
+    // Copy over frame YUV data, so we can use ping-pong frame buffer
+    for (uint32_t i = 0; i < 3; i++)
+    {
+        memcpy(s_convBufferYUV[i], buf[i], xsize * ysize);
+    }
+    psBufferConfig.bufferAddr = (uint32_t)s_convBufferYUV[0];
+    psBufferConfig.bufferAddrU = (uint32_t)s_convBufferYUV[1];
+    psBufferConfig.bufferAddrV = (uint32_t)s_convBufferYUV[2];
+
+    // Start to convert next frame via PXP
     PXP_SetProcessSurfaceBufferConfig(APP_PXP, &psBufferConfig);
     PXP_SetProcessSurfaceScaler(APP_PXP, xsize, ysize, APP_IMG_WIDTH, APP_IMG_HEIGHT);
     PXP_SetProcessSurfacePosition(APP_PXP,
@@ -296,18 +340,6 @@ void lcd_video_display(unsigned char *buf[], int xsize, int ysize)
     outputBufferConfig.buffer0Addr = (uint32_t)s_psBufferLcd[curLcdBufferIdx];
     PXP_SetOutputBufferConfig(APP_PXP, &outputBufferConfig);
     PXP_Start(APP_PXP);
-    /* Wait for process complete. */
-    while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(APP_PXP)))
-    {
-    }
-    PXP_ClearStatusFlags(APP_PXP, kPXP_CompleteFlag);
-    ELCDIF_SetNextBufferAddr(APP_ELCDIF, (uint32_t)s_psBufferLcd[curLcdBufferIdx]);
-    ELCDIF_ClearInterruptStatus(APP_ELCDIF, kELCDIF_CurFrameDone);
-    while (!(kELCDIF_CurFrameDone & ELCDIF_GetInterruptStatus(APP_ELCDIF)))
-    {
-    }
-    curLcdBufferIdx++;
-    curLcdBufferIdx %= APP_LCD_FB_NUM;
 }
 
 void set_pxp_master_priority(uint32_t priority)

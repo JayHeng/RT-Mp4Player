@@ -58,24 +58,24 @@ define symbol m_text_end               = 0x800FFFFF;
 //define symbol m_text_end               = 0x608FFFFF;
 
 define symbol m_data_start             = 0x80100000;
-define symbol m_data_end               = 0x817FFFFF;
+define symbol m_data_end               = 0x814FFFFF;
 //define symbol m_data_start             = 0x20000000;
 //define symbol m_data_end               = 0x2001FFFF;
 
-define symbol m_ncache_start           = 0x81800000;
+define symbol m_ncache_start           = 0x81500000;
 define symbol m_ncache_end             = 0x81FFFFFF;
 
 /* Sizes */
 if (isdefinedsymbol(__stack_size__)) {
   define symbol __size_cstack__        = __stack_size__;
 } else {
-  define symbol __size_cstack__        = 0x300000;
+  define symbol __size_cstack__        = 0x200000;
 }
 
 if (isdefinedsymbol(__heap_size__)) {
   define symbol __size_heap__          = __heap_size__;
 } else {
-  define symbol __size_heap__          = 0x1200000;
+  define symbol __size_heap__          = 0x1000000;
 }
 
 define exported symbol __VECTOR_TABLE  = m_interrupts_start;
@@ -93,7 +93,7 @@ define block CSTACK    with alignment = 8, size = __size_cstack__   { };
 define block HEAP      with alignment = 8, size = __size_heap__     { };
 define block RW        { readwrite };
 define block ZI        { zi };
-define block NCACHE_VAR with size = 0x800000 , alignment = 0x100000  { section NonCacheable , section NonCacheable.init };
+define block NCACHE_VAR with size = 0xb00000 , alignment = 0x100000  { section NonCacheable , section NonCacheable.init };
 
 initialize by copy { readwrite, section .textrw };
 do not initialize  { section .noinit };
