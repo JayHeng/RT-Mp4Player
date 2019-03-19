@@ -36,7 +36,7 @@
                 </option>
                 <option>
                     <name>MacFile</name>
-                    <state></state>
+                    <state>$PROJ_DIR$/evkmimxrt1060_sdram_init.mac</state>
                 </option>
                 <option>
                     <name>MemOverride</name>
@@ -1517,7 +1517,7 @@
                 </option>
                 <option>
                     <name>MacFile</name>
-                    <state></state>
+                    <state>$PROJ_DIR$/evkmimxrt1060_sdram_init.mac</state>
                 </option>
                 <option>
                     <name>MemOverride</name>
@@ -2998,7 +2998,7 @@
                 </option>
                 <option>
                     <name>MacFile</name>
-                    <state></state>
+                    <state>$PROJ_DIR$/evkmimxrt1060_sdram_init.mac</state>
                 </option>
                 <option>
                     <name>MemOverride</name>
@@ -4479,7 +4479,7 @@
                 </option>
                 <option>
                     <name>MacFile</name>
-                    <state></state>
+                    <state>$PROJ_DIR$/evkmimxrt1060_sdram_init.mac</state>
                 </option>
                 <option>
                     <name>MemOverride</name>
@@ -5956,11 +5956,11 @@
                 </option>
                 <option>
                     <name>MacOverride</name>
-                    <state>0</state>
+                    <state>1</state>
                 </option>
                 <option>
                     <name>MacFile</name>
-                    <state></state>
+                    <state>$PROJ_DIR$/evkmimxrt1060_sdram_init.mac</state>
                 </option>
                 <option>
                     <name>MemOverride</name>
@@ -5968,7 +5968,7 @@
                 </option>
                 <option>
                     <name>MemFile</name>
-                    <state>$TOOLKIT_DIR$\CONFIG\debugger\NXP\MIMXRT1062xxx6A.ddf</state>
+                    <state>$TOOLKIT_DIR$\CONFIG\debugger\NXP\MIMXRT1052xxx6B.ddf</state>
                 </option>
                 <option>
                     <name>RunToEnable</name>
@@ -5980,7 +5980,7 @@
                 </option>
                 <option>
                     <name>CExtraOptionsCheck</name>
-                    <state>1</state>
+                    <state>0</state>
                 </option>
                 <option>
                     <name>CExtraOptions</name>
@@ -6008,7 +6008,7 @@
                 </option>
                 <option>
                     <name>OCDynDriverList</name>
-                    <state>JLINK_ID</state>
+                    <state>CMSISDAP_ID</state>
                 </option>
                 <option>
                     <name>OCLastSavedByProductVersion</name>
@@ -6036,7 +6036,7 @@
                 </option>
                 <option>
                     <name>FlashLoadersV3</name>
-                    <state>$TOOLKIT_DIR$\config\flashloader\NXP\FlashIMXRT1060_EVK_FlexSPI.board</state>
+                    <state>$TOOLKIT_DIR$\config\flashloader\NXP\FlashIMXRT1050_EVK_FlexSPI.board</state>
                 </option>
                 <option>
                     <name>OCImagesSuppressCheck1</name>
@@ -7437,11 +7437,11 @@
                 </option>
                 <option>
                     <name>MacOverride</name>
-                    <state>0</state>
+                    <state>1</state>
                 </option>
                 <option>
                     <name>MacFile</name>
-                    <state></state>
+                    <state>$PROJ_DIR$/evkmimxrt1060_sdram_init.mac</state>
                 </option>
                 <option>
                     <name>MemOverride</name>
@@ -7449,7 +7449,7 @@
                 </option>
                 <option>
                     <name>MemFile</name>
-                    <state>$TOOLKIT_DIR$\CONFIG\debugger\NXP\MIMXRT1062xxx6A.ddf</state>
+                    <state>$TOOLKIT_DIR$\CONFIG\debugger\NXP\MIMXRT1052xxx6B.ddf</state>
                 </option>
                 <option>
                     <name>RunToEnable</name>
@@ -7461,7 +7461,7 @@
                 </option>
                 <option>
                     <name>CExtraOptionsCheck</name>
-                    <state>1</state>
+                    <state>0</state>
                 </option>
                 <option>
                     <name>CExtraOptions</name>
@@ -7489,7 +7489,7 @@
                 </option>
                 <option>
                     <name>OCDynDriverList</name>
-                    <state>JLINK_ID</state>
+                    <state>CMSISDAP_ID</state>
                 </option>
                 <option>
                     <name>OCLastSavedByProductVersion</name>
@@ -7517,7 +7517,7 @@
                 </option>
                 <option>
                     <name>FlashLoadersV3</name>
-                    <state>$TOOLKIT_DIR$\config\flashloader\NXP\FlashIMXRT1060_EVK_FlexSPI.board</state>
+                    <state>$TOOLKIT_DIR$\config\flashloader\NXP\FlashIMXRT1050_EVK_FlexSPI.board</state>
                 </option>
                 <option>
                     <name>OCImagesSuppressCheck1</name>
@@ -8918,11 +8918,11 @@
                 </option>
                 <option>
                     <name>MacOverride</name>
-                    <state>0</state>
+                    <state>1</state>
                 </option>
                 <option>
                     <name>MacFile</name>
-                    <state></state>
+                    <state>$PROJ_DIR$/evkmimxrt1060_sdram_init.mac</state>
                 </option>
                 <option>
                     <name>MemOverride</name>
@@ -8930,7 +8930,7 @@
                 </option>
                 <option>
                     <name>MemFile</name>
-                    <state>$TOOLKIT_DIR$\CONFIG\debugger\NXP\MIMXRT1062xxx6A.ddf</state>
+                    <state>$TOOLKIT_DIR$\CONFIG\debugger\NXP\MIMXRT1052xxx6B.ddf</state>
                 </option>
                 <option>
                     <name>RunToEnable</name>
@@ -8942,7 +8942,7 @@
                 </option>
                 <option>
                     <name>CExtraOptionsCheck</name>
-                    <state>1</state>
+                    <state>0</state>
                 </option>
                 <option>
                     <name>CExtraOptions</name>
@@ -8970,7 +8970,7 @@
                 </option>
                 <option>
                     <name>OCDynDriverList</name>
-                    <state>JLINK_ID</state>
+                    <state>CMSISDAP_ID</state>
                 </option>
                 <option>
                     <name>OCLastSavedByProductVersion</name>
@@ -8998,7 +8998,7 @@
                 </option>
                 <option>
                     <name>FlashLoadersV3</name>
-                    <state>$TOOLKIT_DIR$\config\flashloader\NXP\FlashIMXRT1060_EVK_FlexSPI.board</state>
+                    <state>$TOOLKIT_DIR$\config\flashloader\NXP\FlashIMXRT1050_EVK_FlexSPI.board</state>
                 </option>
                 <option>
                     <name>OCImagesSuppressCheck1</name>
@@ -10399,11 +10399,11 @@
                 </option>
                 <option>
                     <name>MacOverride</name>
-                    <state>0</state>
+                    <state>1</state>
                 </option>
                 <option>
                     <name>MacFile</name>
-                    <state></state>
+                    <state>$PROJ_DIR$/evkmimxrt1060_sdram_init.mac</state>
                 </option>
                 <option>
                     <name>MemOverride</name>
@@ -10411,7 +10411,7 @@
                 </option>
                 <option>
                     <name>MemFile</name>
-                    <state>$TOOLKIT_DIR$\CONFIG\debugger\NXP\MIMXRT1062xxx6A.ddf</state>
+                    <state>$TOOLKIT_DIR$\CONFIG\debugger\NXP\MIMXRT1052xxx6B.ddf</state>
                 </option>
                 <option>
                     <name>RunToEnable</name>
@@ -10423,7 +10423,7 @@
                 </option>
                 <option>
                     <name>CExtraOptionsCheck</name>
-                    <state>1</state>
+                    <state>0</state>
                 </option>
                 <option>
                     <name>CExtraOptions</name>
@@ -10451,7 +10451,7 @@
                 </option>
                 <option>
                     <name>OCDynDriverList</name>
-                    <state>JLINK_ID</state>
+                    <state>CMSISDAP_ID</state>
                 </option>
                 <option>
                     <name>OCLastSavedByProductVersion</name>
@@ -10479,7 +10479,7 @@
                 </option>
                 <option>
                     <name>FlashLoadersV3</name>
-                    <state>$TOOLKIT_DIR$\config\flashloader\NXP\FlashIMXRT1060_EVK_FlexSPI.board</state>
+                    <state>$TOOLKIT_DIR$\config\flashloader\NXP\FlashIMXRT1050_EVK_FlexSPI.board</state>
                 </option>
                 <option>
                     <name>OCImagesSuppressCheck1</name>

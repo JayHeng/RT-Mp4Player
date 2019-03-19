@@ -65,8 +65,13 @@
 #define BOARD_USER_BUTTON_IRQ_HANDLER GPIO5_Combined_0_15_IRQHandler
 #define BOARD_USER_BUTTON_NAME "SW8"
 
+#if FLASH_TYPE_HYPER == 1
+/*! @brief The hyper flash size */
+#define BOARD_FLASH_SIZE    (0x4000000U)
+#else //#if FLASH_TYPE_QSPI == 1
 /*! @brief The board flash size */
 #define BOARD_FLASH_SIZE    (0x800000U)
+#endif
 
 /*! @brief The ENET PHY address. */
 #define BOARD_ENET0_PHY_ADDRESS (0x02U) /* Phy address of enet port 0. */

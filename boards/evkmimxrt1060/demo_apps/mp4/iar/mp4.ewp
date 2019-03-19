@@ -4352,7 +4352,7 @@
                 </option>
                 <option>
                     <name>OGChipSelectEditMenu</name>
-                    <state>MIMXRT1062xxx6A	NXP MIMXRT1062xxx6A</state>
+                    <state>MIMXRT1052xxx6B	NXP MIMXRT1052xxx6B</state>
                 </option>
                 <option>
                     <name>GenLowLevelInterface</name>
@@ -4412,7 +4412,7 @@
                 </option>
                 <option>
                     <name>GFPUDeviceSlave</name>
-                    <state>MIMXRT1062xxx6A	NXP MIMXRT1062xxx6A</state>
+                    <state>MIMXRT1052xxx6B	NXP MIMXRT1052xxx6B</state>
                 </option>
                 <option>
                     <name>FPU2</name>
@@ -4503,6 +4503,7 @@
                     <state>SDK_I2C_BASED_COMPONENT_USED=1</state>
                     <state>FSL_SDK_ENABLE_DRIVER_CACHE_CONTROL=1</state>
                     <state>BOARD_USE_CODEC=1</state>
+                    <state>FLASH_TYPE_HYPER=1</state>
                 </option>
                 <option>
                     <name>CCPreprocFile</name>
@@ -5375,11 +5376,11 @@
                 </option>
                 <option>
                     <name>Input description</name>
-                    <state>Automatic choice of formatter.</state>
+                    <state>No specifier n, no float nor long long, no scan set, no assignment suppressing, without multibyte support.</state>
                 </option>
                 <option>
                     <name>Output description</name>
-                    <state>Automatic choice of formatter.</state>
+                    <state>No specifier a, A, no specifier n, no float nor long long, without multibyte support.</state>
                 </option>
                 <option>
                     <name>GOutputBinary</name>
@@ -5401,7 +5402,7 @@
                 </option>
                 <option>
                     <name>RTDescription</name>
-                    <state>0</state>
+                    <state>Use the normal configuration of the C/C++ runtime library. No locale interface, C locale, no file descriptor support, no multibytes in printf and scanf, and no hex floats in strtod.</state>
                 </option>
                 <option>
                     <name>OGProductVersion</name>
@@ -5421,7 +5422,7 @@
                 </option>
                 <option>
                     <name>OGChipSelectEditMenu</name>
-                    <state>MIMXRT1062xxx6A	NXP MIMXRT1062xxx6A</state>
+                    <state>MIMXRT1052xxx6B	NXP MIMXRT1052xxx6B</state>
                 </option>
                 <option>
                     <name>GenLowLevelInterface</name>
@@ -5481,7 +5482,7 @@
                 </option>
                 <option>
                     <name>GFPUDeviceSlave</name>
-                    <state>MIMXRT1062xxx6A	NXP MIMXRT1062xxx6A</state>
+                    <state>MIMXRT1052xxx6B	NXP MIMXRT1052xxx6B</state>
                 </option>
                 <option>
                     <name>FPU2</name>
@@ -5572,6 +5573,7 @@
                     <state>SDK_I2C_BASED_COMPONENT_USED=1</state>
                     <state>FSL_SDK_ENABLE_DRIVER_CACHE_CONTROL=1</state>
                     <state>BOARD_USE_CODEC=1</state>
+                    <state>FLASH_TYPE_HYPER=1</state>
                 </option>
                 <option>
                     <name>CCPreprocFile</name>
@@ -6489,7 +6491,7 @@
                 </option>
                 <option>
                     <name>OGChipSelectEditMenu</name>
-                    <state>MIMXRT1062xxx6A	NXP MIMXRT1062xxx6A</state>
+                    <state>MIMXRT1052xxx6B	NXP MIMXRT1052xxx6B</state>
                 </option>
                 <option>
                     <name>GenLowLevelInterface</name>
@@ -6549,7 +6551,7 @@
                 </option>
                 <option>
                     <name>GFPUDeviceSlave</name>
-                    <state>MIMXRT1062xxx6A	NXP MIMXRT1062xxx6A</state>
+                    <state>MIMXRT1052xxx6B	NXP MIMXRT1052xxx6B</state>
                 </option>
                 <option>
                     <name>FPU2</name>
@@ -6640,6 +6642,8 @@
                     <state>SDK_I2C_BASED_COMPONENT_USED=1</state>
                     <state>FSL_SDK_ENABLE_DRIVER_CACHE_CONTROL=1</state>
                     <state>BOARD_USE_CODEC=1</state>
+                    <state>RECONFIG_FLEXRAM_384KB_TCM=1</state>
+                    <state>FLASH_TYPE_HYPER=1</state>
                 </option>
                 <option>
                     <name>CCPreprocFile</name>
@@ -7512,11 +7516,11 @@
                 </option>
                 <option>
                     <name>Input description</name>
-                    <state>Automatic choice of formatter.</state>
+                    <state>No specifier n, no float nor long long, no scan set, no assignment suppressing, without multibyte support.</state>
                 </option>
                 <option>
                     <name>Output description</name>
-                    <state>Automatic choice of formatter.</state>
+                    <state>No specifier a, A, no specifier n, no float nor long long, without multibyte support.</state>
                 </option>
                 <option>
                     <name>GOutputBinary</name>
@@ -7538,7 +7542,7 @@
                 </option>
                 <option>
                     <name>RTDescription</name>
-                    <state>0</state>
+                    <state>Use the normal configuration of the C/C++ runtime library. No locale interface, C locale, no file descriptor support, no multibytes in printf and scanf, and no hex floats in strtod.</state>
                 </option>
                 <option>
                     <name>OGProductVersion</name>
@@ -7558,7 +7562,7 @@
                 </option>
                 <option>
                     <name>OGChipSelectEditMenu</name>
-                    <state>MIMXRT1062xxx6A	NXP MIMXRT1062xxx6A</state>
+                    <state>MIMXRT1052xxx6B	NXP MIMXRT1052xxx6B</state>
                 </option>
                 <option>
                     <name>GenLowLevelInterface</name>
@@ -7618,7 +7622,7 @@
                 </option>
                 <option>
                     <name>GFPUDeviceSlave</name>
-                    <state>MIMXRT1062xxx6A	NXP MIMXRT1062xxx6A</state>
+                    <state>MIMXRT1052xxx6B	NXP MIMXRT1052xxx6B</state>
                 </option>
                 <option>
                     <name>FPU2</name>
@@ -7709,6 +7713,8 @@
                     <state>SDK_I2C_BASED_COMPONENT_USED=1</state>
                     <state>FSL_SDK_ENABLE_DRIVER_CACHE_CONTROL=1</state>
                     <state>BOARD_USE_CODEC=1</state>
+                    <state>RECONFIG_FLEXRAM_384KB_TCM=1</state>
+                    <state>FLASH_TYPE_HYPER=1</state>
                 </option>
                 <option>
                     <name>CCPreprocFile</name>
