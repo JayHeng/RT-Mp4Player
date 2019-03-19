@@ -20,6 +20,12 @@
 */*/*/*/*/release/
 */*/*/*/*/sdram_debug/
 */*/*/*/*/sdram_release/
+*/*/*/*/*/flexram_sdram_debug/
+*/*/*/*/*/flexram_sdram_release/
+*/*/*/*/*/flexspinor_sdram_debug/
+*/*/*/*/*/flexspinor_sdram_release/
+*/*/*/*/*/flexspinor_flexram_sdram_debug/
+*/*/*/*/*/flexspinor_flexram_sdram_release/
 
 # IAR temp files
 EW*.tmp
