@@ -6642,7 +6642,7 @@
                     <state>SDK_I2C_BASED_COMPONENT_USED=1</state>
                     <state>FSL_SDK_ENABLE_DRIVER_CACHE_CONTROL=1</state>
                     <state>BOARD_USE_CODEC=1</state>
-                    <state>RECONFIG_FLEXRAM_384KB_TCM=1</state>
+                    <state>RECONFIG_FLEXRAM_512KB_TCM=1</state>
                     <state>FLASH_TYPE_HYPER=1</state>
                 </option>
                 <option>
@@ -7713,7 +7713,7 @@
                     <state>SDK_I2C_BASED_COMPONENT_USED=1</state>
                     <state>FSL_SDK_ENABLE_DRIVER_CACHE_CONTROL=1</state>
                     <state>BOARD_USE_CODEC=1</state>
-                    <state>RECONFIG_FLEXRAM_384KB_TCM=1</state>
+                    <state>RECONFIG_FLEXRAM_512KB_TCM=1</state>
                     <state>FLASH_TYPE_HYPER=1</state>
                 </option>
                 <option>

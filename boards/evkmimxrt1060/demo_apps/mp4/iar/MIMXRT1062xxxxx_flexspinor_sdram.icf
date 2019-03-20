@@ -47,17 +47,22 @@
 ** ###################################################################
 */
 
-define symbol m_flash_interrupts_start = 0x60002000;
-define symbol m_flash_interrupts_end   = 0x600023FF;
+define exported symbol m_boot_hdr_conf_start = 0x60000000;
+define symbol m_boot_hdr_ivt_start           = 0x60001000;
+define symbol m_boot_hdr_boot_data_start     = 0x60001020;
+define symbol m_boot_hdr_dcd_data_start      = 0x60001030;
 
-define symbol m_flash_start            = 0x60002400;
-define symbol m_flash_end              = 0x600FFFFF;
+define symbol m_flash_interrupts_start       = 0x60002000;
+define symbol m_flash_interrupts_end         = 0x600023FF;
 
-define symbol m_sdram_start            = 0x80000000;
-define symbol m_sdram_end              = 0x814FFFFF;
+define symbol m_flash_start                  = 0x60002400;
+define symbol m_flash_end                    = 0x600FFFFF;
 
-define symbol m_sdram_ncache_start     = 0x81500000;
-define symbol m_sdram_ncache_end       = 0x81FFFFFF;
+define symbol m_sdram_start                  = 0x80000000;
+define symbol m_sdram_end                    = 0x814FFFFF;
+
+define symbol m_sdram_ncache_start           = 0x81500000;
+define symbol m_sdram_ncache_end             = 0x81FFFFFF;
 
 /* Sizes */
 if (isdefinedsymbol(__stack_size__)) {
@@ -92,6 +97,12 @@ define block NCACHE_VAR with size = 0xb00000 , alignment = 0x100000  { section N
 
 initialize by copy { readwrite, section .textrw };
 do not initialize  { section .noinit };
+
+place at address mem: m_boot_hdr_conf_start       { section .boot_hdr.conf };
+place at address mem: m_boot_hdr_ivt_start        { section .boot_hdr.ivt };
+place at address mem: m_boot_hdr_boot_data_start  { readonly section .boot_hdr.boot_data };
+place at address mem: m_boot_hdr_dcd_data_start   { readonly section .boot_hdr.dcd_data };
+keep{ section .boot_hdr.conf, section .boot_hdr.ivt, section .boot_hdr.boot_data, section .boot_hdr.dcd_data };
 
 place at address mem: m_flash_interrupts_start    { readonly section .intvec };
 place in FLASH_region                             { readonly };
