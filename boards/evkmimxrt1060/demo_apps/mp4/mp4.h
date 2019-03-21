@@ -52,3 +52,7 @@ typedef enum _conv_audio_format
 // Set video pixel format
 #define VIDEO_PIXEL_FMT_RGB888  0
 #define VIDEO_PIXEL_FMT_RGB565  1
+
+// Set video refresh frequency
+#define VIDEO_REFRESH_FREG_60Hz  0
+#define VIDEO_REFRESH_FREG_30Hz  1

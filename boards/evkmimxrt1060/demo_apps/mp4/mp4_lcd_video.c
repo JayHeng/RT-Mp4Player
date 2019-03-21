@@ -145,7 +145,7 @@ void BOARD_InitLcd(void)
     GPIO_PinInit(LCD_BL_GPIO, LCD_BL_GPIO_PIN, &config);
 }
 
-#if VIDEO_RESOLUTION_272P
+#if VIDEO_REFRESH_FREG_60Hz
 void BOARD_InitLcdifPixelClock(void)
 {
     /*
@@ -178,7 +178,7 @@ void BOARD_InitLcdifPixelClock(void)
 
     CLOCK_SetDiv(kCLOCK_LcdifDiv, 1);
 }
-#elif VIDEO_RESOLUTION_720HD
+#elif VIDEO_REFRESH_FREG_30Hz
 void BOARD_InitLcdifPixelClock(void)
 {
     /*
