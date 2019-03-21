@@ -29,7 +29,7 @@
 static uint32_t s_gptFreq;
 const uint32_t s_gptCompareValue = 0xffffffff;
 volatile uint32_t s_highCounter;
-static uint64_t s_gptLastTicks = 0;
+volatile uint64_t s_gptLastTicks = 0;
 
 /*******************************************************************************
  * Code

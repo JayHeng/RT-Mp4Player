@@ -126,6 +126,10 @@ static uint32_t s_saiTransIndex = 0;
 
 void sai_audio_play(uint8_t *audioData, uint32_t audioBytes)
 {
+#if MP4_FF_TIME_ENABLE
+    return;
+#endif
+
     sai_transfer_t xfer = {0};
 
     while (s_txBufferQueueIndex >= AUDIO_BUFFER_QUEUE - 1)

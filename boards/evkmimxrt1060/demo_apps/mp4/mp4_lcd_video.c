@@ -291,11 +291,17 @@ static void APP_InitLcdif(void)
     APP_ELCDIF->CTRL2 = 0x00700000;
 #endif
 
+#if !MP4_FF_TIME_ENABLE
     ELCDIF_RgbModeStart(APP_ELCDIF);
+#endif
 }
 
 void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
 {
+#if MP4_FF_TIME_ENABLE
+    return;
+#endif
+
     static uint8_t curLcdBufferIdx = 1U;
     static bool isPxpFirstStart = true;
     static bool isLcdCurFrameDone = true;
@@ -378,11 +384,9 @@ void config_lcd(void)
     BOARD_InitLcdifPixelClock();
     BOARD_InitLcd();
 
-    ELCDIF_EnableInterrupts(APP_ELCDIF, kELCDIF_CurFrameDoneInterruptEnable);
-    ELCDIF_RgbModeStart(APP_ELCDIF);
-
     APP_InitPxp();
     APP_InitLcdif();
+    ELCDIF_EnableInterrupts(APP_ELCDIF, kELCDIF_CurFrameDoneInterruptEnable);
     BOARD_EnableLcdInterrupt();
 
     set_lcd_master_priority(15);

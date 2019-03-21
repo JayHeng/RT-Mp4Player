@@ -267,24 +267,34 @@ static void flush_audio_data_cache(void)
 #if MP4_FF_TIME_ENABLE
 extern void time_measure_start(void);
 extern uint64_t time_measure_done(void);
-#define FF_MEASURE_PACKETS 10
-#define FF_MEASURE_FRAMES 50
+#define FF_MEASURE_FRAMES 500
+AT_NONCACHEABLE_SECTION(static FIL toutputFil);
 typedef struct _ff_measure_context
 {
     uint64_t readFrame_ns;
-    uint64_t decodeAudio_ns[FF_MEASURE_PACKETS];
-    uint64_t cachePlayAudio_ns[FF_MEASURE_PACKETS];
-    uint64_t decodeVideo_ns[FF_MEASURE_PACKETS];
-    uint64_t playVideo_ns[FF_MEASURE_PACKETS];
+    uint64_t decodeAudio_ns;
+    uint64_t cachePlayAudio_ns;
+    uint64_t decodeVideo_ns;
+    uint64_t playVideo_ns;
     bool isAudioStream;
 } ff_measure_context_t;
-static ff_measure_context_t s_ffMeasureContext[FF_MEASURE_FRAMES];
+static ff_measure_context_t s_ffMeasureContext;
 static uint32_t s_ffMeasureIndex = 0;
-void ff_measure_increase(void)
+static uint8_t s_hexStrBuffer[59] = "0x0000000000000000,0x0000000000000000,0x0000000000000000,\r\n";
+static void byte_to_hex_str(uint8_t *hexBuf, uint64_t data)
 {
-    if (s_ffMeasureIndex < FF_MEASURE_FRAMES)
+    for (uint32_t i = 0; i < 16; i++)
     {
-        s_ffMeasureIndex++;
+        uint8_t loc = (15 - i) * 4;
+        uint8_t hex = (data & ((uint64_t)0xf << loc)) >> loc;
+        if (hex < 0xa)
+        {
+            hexBuf[i] = hex + '0';
+        }
+        else
+        {
+            hexBuf[i] = hex - 0xa + 'a';
+        }
     }
 }
 #endif // #if MP4_FF_TIME_ENABLE
@@ -376,6 +386,12 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
     AVFrame *frameyuv = av_frame_alloc();
 
 #if MP4_FF_TIME_ENABLE
+    char *toutfilename="/time.txt";
+    c = f_open(&toutputFil, toutfilename, FA_CREATE_ALWAYS | FA_WRITE);
+    if (c != FR_OK)
+    {
+        return;
+    }
     s_ffMeasureIndex = 0;
     time_measure_start();
 #endif
@@ -387,7 +403,7 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
     while (av_read_frame(pInFmtCtx, &packet) >= 0)
     {
 #if MP4_FF_TIME_ENABLE
-        s_ffMeasureContext[s_ffMeasureIndex].readFrame_ns = time_measure_done();
+        s_ffMeasureContext.readFrame_ns = time_measure_done();
 #endif
         if (packet.stream_index == audioStream)
         {
@@ -399,10 +415,10 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
             {
                 out_size = AVCODEC_MAX_AUDIO_FRAME_SIZE * 100;
 #if MP4_FF_TIME_ENABLE
-                s_ffMeasureContext[s_ffMeasureIndex].isAudioStream = true;
+                s_ffMeasureContext.isAudioStream = true;
                 time_measure_start();
                 len =avcodec_decode_audio4(pInCodecCtx_audio, frame, &out_size, &packet);
-                s_ffMeasureContext[s_ffMeasureIndex].decodeAudio_ns[0] = time_measure_done();
+                s_ffMeasureContext.decodeAudio_ns = time_measure_done();
 #else
                 len =avcodec_decode_audio4(pInCodecCtx_audio, frame, &out_size, &packet);
 #endif
@@ -445,7 +461,7 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
                             s_audioBufferQueueIndex++;
                             s_audioBufferQueueIndex %= AUDIO_BUFFER_QUEUE;
                         }
-                        s_ffMeasureContext[s_ffMeasureIndex].cachePlayAudio_ns[0] = time_measure_done();
+                        s_ffMeasureContext.cachePlayAudio_ns = time_measure_done();
 #else
                         if (s_cachedAudioFrames == AUDIO_CACHE_FRAMES)
                         {
@@ -478,10 +494,10 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
             {
                 out_sizeyuv = AVCODEC_MAX_VIDEO_FRAME_SIZE * 100;
 #if MP4_FF_TIME_ENABLE
-                s_ffMeasureContext[s_ffMeasureIndex].isAudioStream = false;
+                s_ffMeasureContext.isAudioStream = false;
                 time_measure_start();
                 lenyuv =avcodec_decode_video2(pInCodecCtx_video, frameyuv, &out_sizeyuv, &packet);
-                s_ffMeasureContext[s_ffMeasureIndex].decodeVideo_ns[0] = time_measure_done();
+                s_ffMeasureContext.decodeVideo_ns = time_measure_done();
 #else
                 lenyuv =avcodec_decode_video2(pInCodecCtx_video, frameyuv, &out_sizeyuv, &packet);
 #endif
@@ -496,7 +512,7 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
 #if MP4_FF_TIME_ENABLE
                     time_measure_start();
                     lcd_video_display(frameyuv->data, frameyuv->width, frameyuv->height);
-                    s_ffMeasureContext[s_ffMeasureIndex].playVideo_ns[0] = time_measure_done();
+                    s_ffMeasureContext.playVideo_ns = time_measure_done();
 #else
                     lcd_video_display(frameyuv->data, frameyuv->width, frameyuv->height);
 #endif
@@ -514,10 +530,33 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
         av_packet_unref(&packet);
 
 #if MP4_FF_TIME_ENABLE
+        byte_to_hex_str(&s_hexStrBuffer[2], s_ffMeasureContext.readFrame_ns);
+        if (s_ffMeasureContext.isAudioStream)
+        {
+            byte_to_hex_str(&s_hexStrBuffer[21], s_ffMeasureContext.decodeAudio_ns);
+        }
+        else
+        {
+            byte_to_hex_str(&s_hexStrBuffer[40], s_ffMeasureContext.decodeVideo_ns);
+        }
+        f_write(&toutputFil, s_hexStrBuffer, sizeof(s_hexStrBuffer), &bw_wh);
+#if FF_MEASURE_FRAMES
+        if (s_ffMeasureIndex < FF_MEASURE_FRAMES)
+        {
+            s_ffMeasureIndex++;
+        }
+        else
+        {
+            break;
+        }
+#endif
         time_measure_start();
-        ff_measure_increase();
 #endif
     }
+
+#if MP4_FF_TIME_ENABLE
+    f_close(&toutputFil);
+#endif
 
 #if MP4_WAV_ENABLE
     wav_close();
