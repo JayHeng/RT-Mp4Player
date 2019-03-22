@@ -267,7 +267,7 @@ static void flush_audio_data_cache(void)
 #if MP4_FF_TIME_ENABLE
 extern void time_measure_start(void);
 extern uint64_t time_measure_done(void);
-#define FF_MEASURE_FRAMES 500
+#define FF_MEASURE_FRAMES 2000
 AT_NONCACHEABLE_SECTION(static FIL toutputFil);
 typedef struct _ff_measure_context
 {
@@ -280,7 +280,7 @@ typedef struct _ff_measure_context
 } ff_measure_context_t;
 static ff_measure_context_t s_ffMeasureContext;
 static uint32_t s_ffMeasureIndex = 0;
-static uint8_t s_hexStrBuffer[59] = "0x0000000000000000,0x0000000000000000,0x0000000000000000,\r\n";
+static uint8_t s_hexStrBuffer[78] = "0x0000000000000000,0x0000000000000000,0x0000000000000000,0x0000000000000000,\r\n";
 static void byte_to_hex_str(uint8_t *hexBuf, uint64_t data)
 {
     for (uint32_t i = 0; i < 16; i++)
@@ -534,10 +534,14 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
         if (s_ffMeasureContext.isAudioStream)
         {
             byte_to_hex_str(&s_hexStrBuffer[21], s_ffMeasureContext.decodeAudio_ns);
+            byte_to_hex_str(&s_hexStrBuffer[40], 0);
+            byte_to_hex_str(&s_hexStrBuffer[59], 0);
         }
         else
         {
+            byte_to_hex_str(&s_hexStrBuffer[21], 0);
             byte_to_hex_str(&s_hexStrBuffer[40], s_ffMeasureContext.decodeVideo_ns);
+            byte_to_hex_str(&s_hexStrBuffer[59], s_ffMeasureContext.playVideo_ns);
         }
         f_write(&toutputFil, s_hexStrBuffer, sizeof(s_hexStrBuffer), &bw_wh);
 #if FF_MEASURE_FRAMES

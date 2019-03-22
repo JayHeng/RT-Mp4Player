@@ -293,17 +293,11 @@ static void APP_InitLcdif(void)
     APP_ELCDIF->CTRL2 = 0x00700000;
 #endif
 
-#if !MP4_FF_TIME_ENABLE
     ELCDIF_RgbModeStart(APP_ELCDIF);
-#endif
 }
 
 void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
 {
-#if MP4_FF_TIME_ENABLE
-    return;
-#endif
-
     static uint8_t curLcdBufferIdx = 1U;
 #if !VIDEO_PXP_BLOCKING
     static bool isPxpFirstStart = true;
