@@ -107,7 +107,9 @@ static void *volatile activeBuf = NULL;
 
 static pxp_output_buffer_config_t outputBufferConfig;
 static pxp_ps_buffer_config_t psBufferConfig;
+#if !VIDEO_PXP_BLOCKING
 AT_NONCACHEABLE_SECTION(static uint8_t s_convBufferYUV[3][APP_IMG_HEIGHT][APP_IMG_WIDTH]);
+#endif
 AT_NONCACHEABLE_SECTION_ALIGN(static uint8_t s_psBufferLcd[APP_LCD_FB_NUM][APP_IMG_HEIGHT][APP_IMG_WIDTH][APP_BPP], FRAME_BUFFER_ALIGN);
 
 /*******************************************************************************
@@ -173,9 +175,7 @@ void BOARD_InitLcdifPixelClock(void)
      * 101 derive clock from PLL3 PFD1
      */
     CLOCK_SetMux(kCLOCK_LcdifPreMux, 2);
-
     CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 4);
-
     CLOCK_SetDiv(kCLOCK_LcdifDiv, 1);
 }
 #elif VIDEO_REFRESH_FREG_30Hz
@@ -184,12 +184,12 @@ void BOARD_InitLcdifPixelClock(void)
     /*
      * The desired output frame rate is 30Hz. So the pixel clock frequency is:
      * (1280 + 10 + 80 + 70) * (800 + 3 + 10 + 10) * 30 = 35.5M.
-     * Here set the LCDIF pixel clock to 70.5M.
+     * Here set the LCDIF pixel clock to 35.5M.
      */
 
     /*
      * Initialize the Video PLL.
-     * Video PLL output clock is OSC24M * (loopDivider + (denominator / numerator)) / postDivider = 35.2MHz.
+     * Video PLL output clock is OSC24M * (loopDivider + (denominator / numerator)) / postDivider = 70.5MHz.
      */
     clock_video_pll_config_t config = {
         .loopDivider = 47, .postDivider = 16, .numerator = 0, .denominator = 0,
@@ -206,9 +206,7 @@ void BOARD_InitLcdifPixelClock(void)
      * 101 derive clock from PLL3 PFD1
      */
     CLOCK_SetMux(kCLOCK_LcdifPreMux, 2);
-
     CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 0);
-
     CLOCK_SetDiv(kCLOCK_LcdifDiv, 1);
 }
 #endif
@@ -303,6 +301,7 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
 #endif
 
     static uint8_t curLcdBufferIdx = 1U;
+#if !VIDEO_PXP_BLOCKING
     static bool isPxpFirstStart = true;
     static bool isLcdCurFrameDone = true;
 
@@ -346,6 +345,11 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
     psBufferConfig.bufferAddr = (uint32_t)s_convBufferYUV[0];
     psBufferConfig.bufferAddrU = (uint32_t)s_convBufferYUV[1];
     psBufferConfig.bufferAddrV = (uint32_t)s_convBufferYUV[2];
+#else
+    psBufferConfig.bufferAddr = (uint32_t)buf[0];
+    psBufferConfig.bufferAddrU = (uint32_t)buf[1];
+    psBufferConfig.bufferAddrV = (uint32_t)buf[2];
+#endif
 
     // Start to convert next frame via PXP
     PXP_SetProcessSurfaceBufferConfig(APP_PXP, &psBufferConfig);
@@ -358,6 +362,21 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
     outputBufferConfig.buffer0Addr = (uint32_t)s_psBufferLcd[curLcdBufferIdx];
     PXP_SetOutputBufferConfig(APP_PXP, &outputBufferConfig);
     PXP_Start(APP_PXP);
+
+#if VIDEO_PXP_BLOCKING
+    /* Wait for process complete. */
+    while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(APP_PXP)))
+    {
+    }
+    PXP_ClearStatusFlags(APP_PXP, kPXP_CompleteFlag);
+    ELCDIF_SetNextBufferAddr(APP_ELCDIF, (uint32_t)s_psBufferLcd[curLcdBufferIdx]);
+    ELCDIF_ClearInterruptStatus(APP_ELCDIF, kELCDIF_CurFrameDone);
+    while (!(kELCDIF_CurFrameDone & ELCDIF_GetInterruptStatus(APP_ELCDIF)))
+    {
+    }
+    curLcdBufferIdx++;
+    curLcdBufferIdx %= APP_LCD_FB_NUM;
+#endif
 }
 
 void set_pxp_master_priority(uint32_t priority)

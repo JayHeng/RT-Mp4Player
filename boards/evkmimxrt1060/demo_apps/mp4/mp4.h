@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 NXP
+ * Copyright 2019 NXP
  * All rights reserved.
  *
  *
@@ -20,6 +20,8 @@
 #define MP4_SAI_TIME_ENABLE 0
 // The detected error time in ns for one frame
 #define AUDIO_FRAME_ERR_NS 1000000
+
+////////////////////////////////////////////////////////////////////////////////
 
 // Set audio frame size according to source media
 #define AUDIO_FRAME_SIZE   0x400
@@ -44,6 +46,11 @@ typedef enum _conv_audio_format
 #define AUDIO_SAMP_WIDTH   kSAI_WordWidth16bits
 #define AUDIO_SAMP_RATE    kSAI_SampleRate48KHz
 #define AUDIO_SAMP_CHANNEL kSAI_Stereo
+
+////////////////////////////////////////////////////////////////////////////////
+
+// Set PXP conversation method for video
+#define VIDEO_PXP_BLOCKING 1
 
 // Set video resolution
 #define VIDEO_RESOLUTION_272P   0  // For 480*272 LCD
