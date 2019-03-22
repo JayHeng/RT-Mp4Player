@@ -618,11 +618,11 @@ int main(void)
     //char *filepath_in="/test.h264";
     //char *filepath_in="/1.h64";
     //char *filepath_out="/test-out.yuv";
-#if VIDEO_RESOLUTION_272P
+#if VIDEO_SRC_RESOLUTION_272P
     char *filepath_in="/bunny.mp4";
     char *filepath_aout="/bunny.pcm";
     char *filepath_vout="/bunny.yuv";
-#elif VIDEO_RESOLUTION_720HD
+#elif VIDEO_SRC_RESOLUTION_720HD
     char *filepath_in="/bunnyhd.mp4";
     char *filepath_aout="/bunnyhd.pcm";
     char *filepath_vout="/bunnyhd.yuv";

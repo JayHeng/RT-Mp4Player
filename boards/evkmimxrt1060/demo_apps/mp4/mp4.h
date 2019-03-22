@@ -19,7 +19,7 @@
 // Set to measure SAI transfer time for cached frames
 #define MP4_SAI_TIME_ENABLE 0
 // The detected error time in ns for one frame
-#define AUDIO_FRAME_ERR_NS 1000000
+#define AUDIO_FRAME_ERR_NS  1000000
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -50,17 +50,21 @@ typedef enum _conv_audio_format
 ////////////////////////////////////////////////////////////////////////////////
 
 // Set PXP conversation method for video
-#define VIDEO_PXP_BLOCKING 1
+#define VIDEO_PXP_BLOCKING          1
 
 // Set video resolution
-#define VIDEO_RESOLUTION_272P   0  // For 480*272 LCD
-#define VIDEO_RESOLUTION_720HD  1  // For 1280*800 LCD
+#define VIDEO_SRC_RESOLUTION_272P   1  // For 480*272 video
+#define VIDEO_SRC_RESOLUTION_720HD  0  // For 1280*800 video
 
-// Set video pixel format
-#define VIDEO_PIXEL_FMT_RGB888  0
-#define VIDEO_PIXEL_FMT_RGB565  1
+// Set LCD resolution
+#define VIDEO_LCD_RESOLUTION_272P   0  // For 480*272 LCD
+#define VIDEO_LCD_RESOLUTION_720HD  1  // For 1280*800 LCD
 
-// Set video refresh frequency
-#define VIDEO_REFRESH_FREG_60Hz  0
-#define VIDEO_REFRESH_FREG_30Hz  0
-#define VIDEO_REFRESH_FREG_25Hz  1
+// Set PXP converted pixel format
+#define VIDEO_PIXEL_FMT_RGB888      0
+#define VIDEO_PIXEL_FMT_RGB565      1
+
+// Set LCD refresh frequency
+#define VIDEO_LCD_REFRESH_FREG_60Hz 0
+#define VIDEO_LCD_REFRESH_FREG_30Hz 0
+#define VIDEO_LCD_REFRESH_FREG_25Hz 1

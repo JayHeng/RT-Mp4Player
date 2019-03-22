@@ -23,7 +23,7 @@
  ******************************************************************************/
 #define APP_ELCDIF LCDIF
 
-#if VIDEO_RESOLUTION_272P
+#if VIDEO_LCD_RESOLUTION_272P
 #define APP_IMG_HEIGHT 272
 #define APP_IMG_WIDTH 480
 #define APP_HSW 41
@@ -32,7 +32,7 @@
 #define APP_VSW 10
 #define APP_VFP 4
 #define APP_VBP 2
-#elif VIDEO_RESOLUTION_720HD
+#elif VIDEO_LCD_RESOLUTION_720HD
 #define APP_IMG_HEIGHT 800
 #define APP_IMG_WIDTH 1280
 #define APP_HSW 10
@@ -60,7 +60,6 @@
  * For better performance, three frame buffers are used in this demo.
  */
 #define APP_LCD_FB_NUM 2 /* LCD frame buffer number. */
-#define APP_LCD_FB_BPP 3 /* LCD frame buffer byte per pixel, RGB888 format, 24-bit. */
 
 /* Cache line size. */
 #ifndef FSL_FEATURE_L2CACHE_LINESIZE_BYTE
@@ -77,9 +76,9 @@
 #endif
 
 #define APP_PXP PXP
-#if VIDEO_RESOLUTION_272P
+#if VIDEO_SRC_RESOLUTION_272P
 #define APP_PS_WIDTH 480/* 720,352,image resolution*/
-#elif VIDEO_RESOLUTION_720HD
+#elif VIDEO_SRC_RESOLUTION_720HD
 #define APP_PS_WIDTH 1280/* 1280,800,image resolution*/
 #endif
 
@@ -129,7 +128,7 @@ void BOARD_InitLcd(void)
         kGPIO_DigitalOutput, 0,
     };
 
-#if VIDEO_RESOLUTION_272P
+#if VIDEO_LCD_RESOLUTION_272P
     /* Reset the LCD. */
     GPIO_PinInit(LCD_DISP_GPIO, LCD_DISP_GPIO_PIN, &config);
     GPIO_PinWrite(LCD_DISP_GPIO, LCD_DISP_GPIO_PIN, 0);
@@ -138,7 +137,7 @@ void BOARD_InitLcd(void)
     {
     }
     GPIO_PinWrite(LCD_DISP_GPIO, LCD_DISP_GPIO_PIN, 1);
-#elif VIDEO_RESOLUTION_720HD
+#elif VIDEO_LCD_RESOLUTION_720HD
     // Do nothing
 #endif
 
@@ -149,7 +148,7 @@ void BOARD_InitLcd(void)
 
 void BOARD_InitLcdifPixelClock(void)
 {
-#if VIDEO_RESOLUTION_272P
+#if VIDEO_LCD_RESOLUTION_272P
     /*
      * The desired output frame rate is 60Hz. So the pixel clock frequency is:
      * (480 + 41 + 4 + 18) * (272 + 10 + 4 + 2) * 60,30,25 = 9.2M,4.6M,3.83M.
@@ -163,7 +162,7 @@ void BOARD_InitLcdifPixelClock(void)
     clock_video_pll_config_t config = {
         .loopDivider = 31, .postDivider = 8, .numerator = 0, .denominator = 0,
     };
-#elif VIDEO_RESOLUTION_720HD
+#elif VIDEO_LCD_RESOLUTION_720HD
     /*
      * The desired output frame rate is 30Hz. So the pixel clock frequency is:
      * (1280 + 10 + 80 + 70) * (800 + 3 + 10 + 10) * 60,30,25 = 71M,35.5M,29.58M.
@@ -190,25 +189,25 @@ void BOARD_InitLcdifPixelClock(void)
      * 101 derive clock from PLL3 PFD1
      */
     CLOCK_SetMux(kCLOCK_LcdifPreMux, 2);
-#if VIDEO_RESOLUTION_272P
-#if VIDEO_REFRESH_FREG_60Hz
+#if VIDEO_LCD_RESOLUTION_272P
+#if VIDEO_LCD_REFRESH_FREG_60Hz
     CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 4);
     CLOCK_SetDiv(kCLOCK_LcdifDiv, 1);
-#elif VIDEO_REFRESH_FREG_30Hz
+#elif VIDEO_LCD_REFRESH_FREG_30Hz
     CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 4);
     CLOCK_SetDiv(kCLOCK_LcdifDiv, 3);
-#elif VIDEO_REFRESH_FREG_25Hz
+#elif VIDEO_LCD_REFRESH_FREG_25Hz
     CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 3);
     CLOCK_SetDiv(kCLOCK_LcdifDiv, 5);
 #endif
-#elif VIDEO_RESOLUTION_720HD
-#if VIDEO_REFRESH_FREG_60Hz
+#elif VIDEO_LCD_RESOLUTION_720HD
+#if VIDEO_LCD_REFRESH_FREG_60Hz
     CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 3);
     CLOCK_SetDiv(kCLOCK_LcdifDiv, 0);
-#elif VIDEO_REFRESH_FREG_30Hz
+#elif VIDEO_LCD_REFRESH_FREG_30Hz
     CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 3);
     CLOCK_SetDiv(kCLOCK_LcdifDiv, 1);
-#elif VIDEO_REFRESH_FREG_25Hz
+#elif VIDEO_LCD_REFRESH_FREG_25Hz
     CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 2);
     CLOCK_SetDiv(kCLOCK_LcdifDiv, 2);
 #endif
@@ -286,9 +285,9 @@ static void APP_InitLcdif(void)
 
     ELCDIF_RgbModeInit(APP_ELCDIF, &config);
 
-#if VIDEO_RESOLUTION_272P
+#if VIDEO_LCD_RESOLUTION_272P
     // Do nothing
-#elif VIDEO_RESOLUTION_720HD
+#elif VIDEO_LCD_RESOLUTION_720HD
     /* Update the eLCDIF AXI master features for better performance */
     APP_ELCDIF->CTRL2 = 0x00700000;
 #endif
