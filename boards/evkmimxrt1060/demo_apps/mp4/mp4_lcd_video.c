@@ -147,13 +147,13 @@ void BOARD_InitLcd(void)
     GPIO_PinInit(LCD_BL_GPIO, LCD_BL_GPIO_PIN, &config);
 }
 
-#if VIDEO_REFRESH_FREG_60Hz
 void BOARD_InitLcdifPixelClock(void)
 {
+#if VIDEO_RESOLUTION_272P
     /*
      * The desired output frame rate is 60Hz. So the pixel clock frequency is:
-     * (480 + 41 + 4 + 18) * (272 + 10 + 4 + 2) * 60 = 9.2M.
-     * Here set the LCDIF pixel clock to 9.3M.
+     * (480 + 41 + 4 + 18) * (272 + 10 + 4 + 2) * 60,30,25 = 9.2M,4.6M,3.83M.
+     * Here set the LCDIF pixel clock to 9.3M,4.65M,3.875M.
      */
 
     /*
@@ -163,37 +163,21 @@ void BOARD_InitLcdifPixelClock(void)
     clock_video_pll_config_t config = {
         .loopDivider = 31, .postDivider = 8, .numerator = 0, .denominator = 0,
     };
-
-    CLOCK_InitVideoPll(&config);
-
-    /*
-     * 000 derive clock from PLL2
-     * 001 derive clock from PLL3 PFD3
-     * 010 derive clock from PLL5
-     * 011 derive clock from PLL2 PFD0
-     * 100 derive clock from PLL2 PFD1
-     * 101 derive clock from PLL3 PFD1
-     */
-    CLOCK_SetMux(kCLOCK_LcdifPreMux, 2);
-    CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 4);
-    CLOCK_SetDiv(kCLOCK_LcdifDiv, 1);
-}
-#elif VIDEO_REFRESH_FREG_30Hz
-void BOARD_InitLcdifPixelClock(void)
-{
+#elif VIDEO_RESOLUTION_720HD
     /*
      * The desired output frame rate is 30Hz. So the pixel clock frequency is:
-     * (1280 + 10 + 80 + 70) * (800 + 3 + 10 + 10) * 30 = 35.5M.
-     * Here set the LCDIF pixel clock to 35.5M.
+     * (1280 + 10 + 80 + 70) * (800 + 3 + 10 + 10) * 60,30,25 = 71M,35.5M,29.58M.
+     * Here set the LCDIF pixel clock to 70.5M,35.25M,31.33M.
      */
 
     /*
      * Initialize the Video PLL.
-     * Video PLL output clock is OSC24M * (loopDivider + (denominator / numerator)) / postDivider = 70.5MHz.
+     * Video PLL output clock is OSC24M * (loopDivider + (denominator / numerator)) / postDivider = 282MHz.
      */
     clock_video_pll_config_t config = {
-        .loopDivider = 47, .postDivider = 16, .numerator = 0, .denominator = 0,
+        .loopDivider = 47, .postDivider = 4, .numerator = 0, .denominator = 0,
     };
+#endif
 
     CLOCK_InitVideoPll(&config);
 
@@ -206,10 +190,30 @@ void BOARD_InitLcdifPixelClock(void)
      * 101 derive clock from PLL3 PFD1
      */
     CLOCK_SetMux(kCLOCK_LcdifPreMux, 2);
-    CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 0);
+#if VIDEO_RESOLUTION_272P
+#if VIDEO_REFRESH_FREG_60Hz
+    CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 4);
     CLOCK_SetDiv(kCLOCK_LcdifDiv, 1);
-}
+#elif VIDEO_REFRESH_FREG_30Hz
+    CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 4);
+    CLOCK_SetDiv(kCLOCK_LcdifDiv, 3);
+#elif VIDEO_REFRESH_FREG_25Hz
+    CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 3);
+    CLOCK_SetDiv(kCLOCK_LcdifDiv, 5);
 #endif
+#elif VIDEO_RESOLUTION_720HD
+#if VIDEO_REFRESH_FREG_60Hz
+    CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 3);
+    CLOCK_SetDiv(kCLOCK_LcdifDiv, 0);
+#elif VIDEO_REFRESH_FREG_30Hz
+    CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 3);
+    CLOCK_SetDiv(kCLOCK_LcdifDiv, 1);
+#elif VIDEO_REFRESH_FREG_25Hz
+    CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 2);
+    CLOCK_SetDiv(kCLOCK_LcdifDiv, 2);
+#endif
+#endif
+}
 
 /* Put the unused frame buffer to the s_fbList. */
 static void APP_PutFrameBuffer(void *fb)

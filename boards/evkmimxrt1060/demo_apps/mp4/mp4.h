@@ -62,4 +62,5 @@ typedef enum _conv_audio_format
 
 // Set video refresh frequency
 #define VIDEO_REFRESH_FREG_60Hz  0
-#define VIDEO_REFRESH_FREG_30Hz  1
+#define VIDEO_REFRESH_FREG_30Hz  0
+#define VIDEO_REFRESH_FREG_25Hz  1
