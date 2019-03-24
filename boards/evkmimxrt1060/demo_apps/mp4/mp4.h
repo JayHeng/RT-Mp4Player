@@ -79,21 +79,22 @@ typedef enum _conv_audio_format
 ////////////////////////////////////////////////////////////////////////////////
 
 // Set PXP conversation method for video
-#define VIDEO_PXP_BLOCKING          1
+#define VIDEO_PXP_BLOCKING            1
 
 // Set video resolution
-#define VIDEO_SRC_RESOLUTION_272P   1  // For 480*272 video
-#define VIDEO_SRC_RESOLUTION_720HD  0  // For 1280*800 video
+#define VIDEO_SRC_RESOLUTION_CGA200   1  // For 320*200 video
+#define VIDEO_SRC_RESOLUTION_HVGA272  0  // For 480*272 video
+#define VIDEO_SRC_RESOLUTION_WXGA800  0  // For 1280*800 video
 
 // Set LCD resolution
-#define VIDEO_LCD_RESOLUTION_272P   0  // For 480*272 LCD
-#define VIDEO_LCD_RESOLUTION_720HD  1  // For 1280*800 LCD
+#define VIDEO_LCD_RESOLUTION_HVGA272  0  // For 480*272 LCD
+#define VIDEO_LCD_RESOLUTION_WXGA800  1  // For 1280*800 LCD
 
 // Set PXP converted pixel format
-#define VIDEO_PIXEL_FMT_RGB888      0
-#define VIDEO_PIXEL_FMT_RGB565      1
+#define VIDEO_PIXEL_FMT_RGB888        0
+#define VIDEO_PIXEL_FMT_RGB565        1
 
 // Set LCD refresh frequency
-#define VIDEO_LCD_REFRESH_FREG_60Hz 0
-#define VIDEO_LCD_REFRESH_FREG_30Hz 0
-#define VIDEO_LCD_REFRESH_FREG_25Hz 1
+#define VIDEO_LCD_REFRESH_FREG_60Hz   0
+#define VIDEO_LCD_REFRESH_FREG_30Hz   0
+#define VIDEO_LCD_REFRESH_FREG_25Hz   1

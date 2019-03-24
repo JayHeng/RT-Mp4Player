@@ -23,7 +23,7 @@
  ******************************************************************************/
 #define APP_ELCDIF LCDIF
 
-#if VIDEO_LCD_RESOLUTION_272P
+#if VIDEO_LCD_RESOLUTION_HVGA272 == 1
 #define APP_IMG_HEIGHT 272
 #define APP_IMG_WIDTH 480
 #define APP_HSW 41
@@ -32,7 +32,7 @@
 #define APP_VSW 10
 #define APP_VFP 4
 #define APP_VBP 2
-#elif VIDEO_LCD_RESOLUTION_720HD
+#elif VIDEO_LCD_RESOLUTION_WXGA800 == 1
 #define APP_IMG_HEIGHT 800
 #define APP_IMG_WIDTH 1280
 #define APP_HSW 10
@@ -76,15 +76,20 @@
 #endif
 
 #define APP_PXP PXP
-#if VIDEO_SRC_RESOLUTION_272P
-#define APP_PS_WIDTH 480  /* 480,272,image resolution*/
-#elif VIDEO_SRC_RESOLUTION_720HD
-#define APP_PS_WIDTH 1280 /* 1280,800,image resolution*/
+#if VIDEO_SRC_RESOLUTION_CGA200 == 1
+#define APP_PS_WIDTH  320  /* 320,200,image resolution*/
+#define APP_PS_HEIGHT 200  /* 320,200,image resolution*/
+#elif VIDEO_SRC_RESOLUTION_HVGA272 == 1
+#define APP_PS_WIDTH  480  /* 480,272,image resolution*/
+#define APP_PS_HEIGHT 272  /* 480,272,image resolution*/
+#elif VIDEO_SRC_RESOLUTION_WXGA800 == 1
+#define APP_PS_WIDTH  1280 /* 1280,800,image resolution*/
+#define APP_PS_HEIGHT 800  /* 1280,800,image resolution*/
 #endif
 
-#if VIDEO_PIXEL_FMT_RGB888
+#if VIDEO_PIXEL_FMT_RGB888 == 1
 #define APP_BPP 4U
-#elif VIDEO_PIXEL_FMT_RGB565
+#elif VIDEO_PIXEL_FMT_RGB565 == 1
 #define APP_BPP 2U
 #endif
 
@@ -106,8 +111,8 @@ static void *volatile activeBuf = NULL;
 
 static pxp_output_buffer_config_t outputBufferConfig;
 static pxp_ps_buffer_config_t psBufferConfig;
-#if !VIDEO_PXP_BLOCKING
-AT_NONCACHEABLE_SECTION(static uint8_t s_convBufferYUV[3][APP_IMG_HEIGHT][APP_IMG_WIDTH]);
+#if VIDEO_PXP_BLOCKING == 0
+AT_NONCACHEABLE_SECTION(static uint8_t s_convBufferYUV[3][APP_PS_HEIGHT][APP_PS_WIDTH]);
 #endif
 AT_NONCACHEABLE_SECTION_ALIGN(static uint8_t s_psBufferLcd[APP_LCD_FB_NUM][APP_IMG_HEIGHT][APP_IMG_WIDTH][APP_BPP], FRAME_BUFFER_ALIGN);
 
@@ -128,7 +133,7 @@ void BOARD_InitLcd(void)
         kGPIO_DigitalOutput, 0,
     };
 
-#if VIDEO_LCD_RESOLUTION_272P
+#if VIDEO_LCD_RESOLUTION_HVGA272 == 1
     /* Reset the LCD. */
     GPIO_PinInit(LCD_DISP_GPIO, LCD_DISP_GPIO_PIN, &config);
     GPIO_PinWrite(LCD_DISP_GPIO, LCD_DISP_GPIO_PIN, 0);
@@ -137,7 +142,7 @@ void BOARD_InitLcd(void)
     {
     }
     GPIO_PinWrite(LCD_DISP_GPIO, LCD_DISP_GPIO_PIN, 1);
-#elif VIDEO_LCD_RESOLUTION_720HD
+#elif VIDEO_LCD_RESOLUTION_WXGA800 == 1
     // Do nothing
 #endif
 
@@ -148,7 +153,7 @@ void BOARD_InitLcd(void)
 
 void BOARD_InitLcdifPixelClock(void)
 {
-#if VIDEO_LCD_RESOLUTION_272P
+#if VIDEO_LCD_RESOLUTION_HVGA272 == 1
     /*
      * The desired output frame rate is 60Hz. So the pixel clock frequency is:
      * (480 + 41 + 4 + 18) * (272 + 10 + 4 + 2) * 60,30,25 = 9.2M,4.6M,3.83M.
@@ -162,7 +167,7 @@ void BOARD_InitLcdifPixelClock(void)
     clock_video_pll_config_t config = {
         .loopDivider = 31, .postDivider = 8, .numerator = 0, .denominator = 0,
     };
-#elif VIDEO_LCD_RESOLUTION_720HD
+#elif VIDEO_LCD_RESOLUTION_WXGA800 == 1
     /*
      * The desired output frame rate is 30Hz. So the pixel clock frequency is:
      * (1280 + 10 + 80 + 70) * (800 + 3 + 10 + 10) * 60,30,25 = 71M,35.5M,29.58M.
@@ -189,25 +194,25 @@ void BOARD_InitLcdifPixelClock(void)
      * 101 derive clock from PLL3 PFD1
      */
     CLOCK_SetMux(kCLOCK_LcdifPreMux, 2);
-#if VIDEO_LCD_RESOLUTION_272P
-#if VIDEO_LCD_REFRESH_FREG_60Hz
+#if VIDEO_LCD_RESOLUTION_HVGA272 == 1
+#if VIDEO_LCD_REFRESH_FREG_60Hz == 1
     CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 4);
     CLOCK_SetDiv(kCLOCK_LcdifDiv, 1);
-#elif VIDEO_LCD_REFRESH_FREG_30Hz
+#elif VIDEO_LCD_REFRESH_FREG_30Hz == 1
     CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 4);
     CLOCK_SetDiv(kCLOCK_LcdifDiv, 3);
-#elif VIDEO_LCD_REFRESH_FREG_25Hz
+#elif VIDEO_LCD_REFRESH_FREG_25Hz == 1
     CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 3);
     CLOCK_SetDiv(kCLOCK_LcdifDiv, 5);
 #endif
-#elif VIDEO_LCD_RESOLUTION_720HD
-#if VIDEO_LCD_REFRESH_FREG_60Hz
+#elif VIDEO_LCD_RESOLUTION_WXGA800 == 1
+#if VIDEO_LCD_REFRESH_FREG_60Hz == 1
     CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 3);
     CLOCK_SetDiv(kCLOCK_LcdifDiv, 0);
-#elif VIDEO_LCD_REFRESH_FREG_30Hz
+#elif VIDEO_LCD_REFRESH_FREG_30Hz == 1
     CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 3);
     CLOCK_SetDiv(kCLOCK_LcdifDiv, 1);
-#elif VIDEO_LCD_REFRESH_FREG_25Hz
+#elif VIDEO_LCD_REFRESH_FREG_25Hz == 1
     CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 2);
     CLOCK_SetDiv(kCLOCK_LcdifDiv, 2);
 #endif
@@ -238,9 +243,9 @@ static void APP_InitPxp(void)
     PXP_SetAlphaSurfacePosition(APP_PXP, 0xFFFFU, 0xFFFFU, 0U, 0U);
 
     /* Output config. */
-#if VIDEO_PIXEL_FMT_RGB888
+#if VIDEO_PIXEL_FMT_RGB888 == 1
     outputBufferConfig.pixelFormat = kPXP_OutputPixelFormatRGB888;
-#elif VIDEO_PIXEL_FMT_RGB565
+#elif VIDEO_PIXEL_FMT_RGB565 == 1
     outputBufferConfig.pixelFormat = kPXP_OutputPixelFormatRGB565;
 #endif
     outputBufferConfig.interlacedMode = kPXP_OutputProgressive;
@@ -269,9 +274,9 @@ static void APP_InitLcdif(void)
         .vbp = APP_VBP,
         .polarityFlags = APP_POL_FLAGS,
         .bufferAddr = (uint32_t)s_psBufferLcd[0],
-#if VIDEO_PIXEL_FMT_RGB888
+#if VIDEO_PIXEL_FMT_RGB888 == 1
         .pixelFormat = kELCDIF_PixelFormatXRGB8888,
-#elif VIDEO_PIXEL_FMT_RGB565
+#elif VIDEO_PIXEL_FMT_RGB565 == 1
         .pixelFormat = kELCDIF_PixelFormatRGB565,
 #endif
         .dataBus = APP_LCDIF_DATA_BUS,
@@ -285,9 +290,9 @@ static void APP_InitLcdif(void)
 
     ELCDIF_RgbModeInit(APP_ELCDIF, &config);
 
-#if VIDEO_LCD_RESOLUTION_272P
+#if VIDEO_LCD_RESOLUTION_HVGA272 == 1
     // Do nothing
-#elif VIDEO_LCD_RESOLUTION_720HD
+#elif VIDEO_LCD_RESOLUTION_WXGA800 == 1
     /* Update the eLCDIF AXI master features for better performance */
     APP_ELCDIF->CTRL2 = 0x00700000;
 #endif
@@ -295,7 +300,7 @@ static void APP_InitLcdif(void)
     ELCDIF_RgbModeStart(APP_ELCDIF);
 }
 
-#if MP4_LCD_TIME_ENABLE
+#if MP4_LCD_TIME_ENABLE == 1
 extern void time_measure_start(void);
 extern uint64_t time_measure_done(void);
 lcd_measure_context_t g_lcdMeasureContext;
@@ -304,13 +309,13 @@ lcd_measure_context_t g_lcdMeasureContext;
 void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
 {
     static uint8_t curLcdBufferIdx = 1U;
-#if !VIDEO_PXP_BLOCKING
+#if VIDEO_PXP_BLOCKING == 0
     static bool isPxpFirstStart = true;
     static bool isLcdCurFrameDone = true;
 
     if (!isPxpFirstStart)
     {
-#if MP4_LCD_TIME_ENABLE
+#if MP4_LCD_TIME_ENABLE == 1
         time_measure_start();
         // Wait util PXP complete, As it is not first frame
         while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(APP_PXP)))
@@ -326,7 +331,7 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
 
         if (!isLcdCurFrameDone)
         {
-#if MP4_LCD_TIME_ENABLE
+#if MP4_LCD_TIME_ENABLE == 1
             time_measure_start();
             // Wait util last LCD frame done, then we can show current frame
             while (!(kELCDIF_CurFrameDone & ELCDIF_GetInterruptStatus(APP_ELCDIF)))
@@ -382,9 +387,9 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
     PXP_SetOutputBufferConfig(APP_PXP, &outputBufferConfig);
     PXP_Start(APP_PXP);
 
-#if VIDEO_PXP_BLOCKING
+#if VIDEO_PXP_BLOCKING == 1
     /* Wait for process complete. */
-#if MP4_LCD_TIME_ENABLE
+#if MP4_LCD_TIME_ENABLE == 1
     time_measure_start();
     while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(APP_PXP)))
     {
@@ -398,7 +403,7 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
     PXP_ClearStatusFlags(APP_PXP, kPXP_CompleteFlag);
     ELCDIF_SetNextBufferAddr(APP_ELCDIF, (uint32_t)s_psBufferLcd[curLcdBufferIdx]);
     ELCDIF_ClearInterruptStatus(APP_ELCDIF, kELCDIF_CurFrameDone);
-#if MP4_LCD_TIME_ENABLE
+#if MP4_LCD_TIME_ENABLE == 1
     time_measure_start();
     while (!(kELCDIF_CurFrameDone & ELCDIF_GetInterruptStatus(APP_ELCDIF)))
     {

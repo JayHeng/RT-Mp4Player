@@ -109,7 +109,7 @@ static void txCallback(I2S_Type *base, sai_edma_handle_t *handle, status_t statu
     }
 }
 
-#if MP4_SAI_TIME_ENABLE
+#if MP4_SAI_TIME_ENABLE == 1
 extern void time_measure_start(void);
 extern uint64_t time_measure_done(void);
 #define SAI_MEASURE_TRANS 100
@@ -120,7 +120,7 @@ static uint32_t s_saiTransIndex = 0;
 
 void sai_audio_play(uint8_t *audioData, uint32_t audioBytes)
 {
-#if MP4_FF_TIME_ENABLE
+#if MP4_FF_TIME_ENABLE == 1
     return;
 #endif
 
@@ -130,7 +130,7 @@ void sai_audio_play(uint8_t *audioData, uint32_t audioBytes)
     {
     }
 
-#if MP4_SAI_TIME_ENABLE
+#if MP4_SAI_TIME_ENABLE == 1
     if (s_saiMeasureIndex < SAI_MEASURE_TRANS)
     {
         if (s_saiMeasureIndex)

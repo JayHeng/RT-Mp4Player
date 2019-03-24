@@ -38,7 +38,7 @@ extern void config_gpt(void);
 
 static void flush_audio_data_cache(void);
 
-#if MP4_WAV_ENABLE
+#if MP4_WAV_ENABLE == 1
 static void wav_start(uint32_t bitWidth, uint32_t sampleRate_Hz, uint32_t channels, uint32_t fileSize);
 static void wav_write(uint8_t *data, uint32_t bytes);
 static void wav_close(void);
@@ -264,7 +264,7 @@ static void flush_audio_data_cache(void)
     }
 }
 
-#if MP4_FF_TIME_ENABLE
+#if MP4_FF_TIME_ENABLE == 1
 extern void time_measure_start(void);
 extern uint64_t time_measure_done(void);
 #define FF_MEASURE_FRAMES 2000
@@ -288,7 +288,7 @@ static void byte_to_hex_str(uint8_t *hexBuf, uint64_t data)
         }
     }
 }
-#if MP4_LCD_TIME_ENABLE
+#if MP4_LCD_TIME_ENABLE == 1
 extern lcd_measure_context_t g_lcdMeasureContext;
 #endif
 #endif // #if MP4_FF_TIME_ENABLE
@@ -379,7 +379,7 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
     AVFrame *frame = av_frame_alloc();
     AVFrame *frameyuv = av_frame_alloc();
 
-#if MP4_FF_TIME_ENABLE
+#if MP4_FF_TIME_ENABLE == 1
     char *toutfilename="/time.txt";
     c = f_open(&toutputFil, toutfilename, FA_CREATE_ALWAYS | FA_WRITE);
     if (c != FR_OK)
@@ -390,13 +390,13 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
     time_measure_start();
 #endif
 
-#if MP4_WAV_ENABLE
+#if MP4_WAV_ENABLE == 1
     wav_start(kSAI_WordWidth16bits, kSAI_SampleRate44100Hz, 1, 3874877);
 #endif
 
     while (av_read_frame(pInFmtCtx, &packet) >= 0)
     {
-#if MP4_FF_TIME_ENABLE
+#if MP4_FF_TIME_ENABLE == 1
         s_ffMeasureContext.readFrame_ns = time_measure_done();
 #endif
         if (packet.stream_index == audioStream)
@@ -408,7 +408,7 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
             while (pktsize > 0)
             {
                 out_size = AVCODEC_MAX_AUDIO_FRAME_SIZE * 100;
-#if MP4_FF_TIME_ENABLE
+#if MP4_FF_TIME_ENABLE == 1
                 s_ffMeasureContext.isAudioStream = true;
                 time_measure_start();
                 len =avcodec_decode_audio4(pInCodecCtx_audio, frame, &out_size, &packet);
@@ -453,7 +453,7 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
                             s_audioBufferQueueIndex++;
                             s_audioBufferQueueIndex %= AUDIO_BUFFER_QUEUE;
                         }
-#if MP4_WAV_ENABLE
+#if MP4_WAV_ENABLE == 1
                         wav_write(audioBuffer, sizeof(AUDIO_CONV_SIZE) * frame->nb_samples * AUDIO_CONV_CHANNEL);
 #endif
                         //for (int i = 0; i < frame->nb_samples; i++)
@@ -476,7 +476,7 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
             while (pktsizeyuv > 0)
             {
                 out_sizeyuv = AVCODEC_MAX_VIDEO_FRAME_SIZE * 100;
-#if MP4_FF_TIME_ENABLE
+#if MP4_FF_TIME_ENABLE == 1
                 s_ffMeasureContext.isAudioStream = false;
                 time_measure_start();
                 lenyuv =avcodec_decode_video2(pInCodecCtx_video, frameyuv, &out_sizeyuv, &packet);
@@ -506,7 +506,7 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
         //av_free_packet(&packet);
         av_packet_unref(&packet);
 
-#if MP4_FF_TIME_ENABLE
+#if MP4_FF_TIME_ENABLE == 1
         byte_to_hex_str(&s_hexStrBuffer[2], s_ffMeasureContext.readFrame_ns);
         if (s_ffMeasureContext.isAudioStream)
         {
@@ -519,7 +519,7 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
         {
             byte_to_hex_str(&s_hexStrBuffer[21], 0);
             byte_to_hex_str(&s_hexStrBuffer[40], s_ffMeasureContext.decodeVideo_ns);
-#if MP4_LCD_TIME_ENABLE
+#if MP4_LCD_TIME_ENABLE == 1
             byte_to_hex_str(&s_hexStrBuffer[59], g_lcdMeasureContext.costTimePxp_ns);
             byte_to_hex_str(&s_hexStrBuffer[78], g_lcdMeasureContext.costTimeLcd_ns);
 #endif
@@ -539,11 +539,11 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
 #endif
     }
 
-#if MP4_FF_TIME_ENABLE
+#if MP4_FF_TIME_ENABLE == 1
     f_close(&toutputFil);
 #endif
 
-#if MP4_WAV_ENABLE
+#if MP4_WAV_ENABLE == 1
     wav_close();
 #endif
 
@@ -582,7 +582,7 @@ int main(void)
         return -1;
     }
 
-#if MP4_SAI_TIME_ENABLE || MP4_LCD_TIME_ENABLE || MP4_FF_TIME_ENABLE
+#if (MP4_SAI_TIME_ENABLE == 1) || (MP4_LCD_TIME_ENABLE == 1) || (MP4_FF_TIME_ENABLE == 1)
     // Init GPT module
     config_gpt();
 #endif
@@ -599,14 +599,18 @@ int main(void)
     //char *filepath_in="/test.h264";
     //char *filepath_in="/1.h64";
     //char *filepath_out="/test-out.yuv";
-#if VIDEO_SRC_RESOLUTION_272P
-    char *filepath_in="/bunny.mp4";
-    char *filepath_aout="/bunny.pcm";
-    char *filepath_vout="/bunny.yuv";
-#elif VIDEO_SRC_RESOLUTION_720HD
-    char *filepath_in="/bunnyhd.mp4";
-    char *filepath_aout="/bunnyhd.pcm";
-    char *filepath_vout="/bunnyhd.yuv";
+#if VIDEO_SRC_RESOLUTION_CGA200 == 1
+    char *filepath_in="/bunny_c.mp4";
+    char *filepath_aout="/bunny_c.pcm";
+    char *filepath_vout="/bunny_c.yuv";
+#elif VIDEO_SRC_RESOLUTION_HVGA272 == 1
+    char *filepath_in="/bunny_h.mp4";
+    char *filepath_aout="/bunny_h.pcm";
+    char *filepath_vout="/bunny_h.yuv";
+#elif VIDEO_SRC_RESOLUTION_WXGA800 == 1
+    char *filepath_in="/bunny_w.mp4";
+    char *filepath_aout="/bunny_w.pcm";
+    char *filepath_vout="/bunny_w.yuv";
 #endif
     //while(1)
     h264_video_decode(filepath_in, filepath_aout, filepath_vout);
