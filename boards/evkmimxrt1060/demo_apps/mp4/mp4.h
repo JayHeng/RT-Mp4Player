@@ -7,6 +7,7 @@
  */
 
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 /*******************************************************************************
  * Definitions
@@ -14,12 +15,40 @@
 
 // Set to save decoded audio data into .wav file
 #define MP4_WAV_ENABLE      0
+
+typedef struct _ff_measure_context
+{
+    uint64_t readFrame_ns;
+    uint64_t decodeAudio_ns;
+    uint64_t decodeVideo_ns;
+    bool isAudioStream;
+} ff_measure_context_t;
+
 // Set to measure FFmpeg decode time for each frame
 #define MP4_FF_TIME_ENABLE  0
+
+typedef struct _sai_measure_context
+{
+    uint32_t transIndex;
+    uint32_t costBytes;
+    uint64_t costTimeSai_ns;
+} sai_measure_context_t;
+
 // Set to measure SAI transfer time for cached frames
+// !!!Note: it can NOT be enabled along with MP4_FF_TIME_ENABLE
 #define MP4_SAI_TIME_ENABLE 0
 // The detected error time in ns for one frame
 #define AUDIO_FRAME_ERR_NS  1000000
+
+typedef struct _lcd_measure_context
+{
+    uint64_t costTimePxp_ns;
+    uint64_t costTimeLcd_ns;
+} lcd_measure_context_t;
+
+// Set to measure LCD display time for each frame
+// !!!Note: it can be enabled along with MP4_FF_TIME_ENABLE
+#define MP4_LCD_TIME_ENABLE 0
 
 ////////////////////////////////////////////////////////////////////////////////
 

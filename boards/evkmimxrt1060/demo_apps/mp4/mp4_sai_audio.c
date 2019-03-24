@@ -113,12 +113,6 @@ static void txCallback(I2S_Type *base, sai_edma_handle_t *handle, status_t statu
 extern void time_measure_start(void);
 extern uint64_t time_measure_done(void);
 #define SAI_MEASURE_TRANS 100
-typedef struct _sai_measure_context
-{
-    uint32_t transIndex;
-    uint32_t costBytes;
-    uint64_t costTime_ns;
-} sai_measure_context_t;
 static sai_measure_context_t s_saiMeasureContext[SAI_MEASURE_TRANS];
 static uint32_t s_saiMeasureIndex = 0;
 static uint32_t s_saiTransIndex = 0;
@@ -148,7 +142,7 @@ void sai_audio_play(uint8_t *audioData, uint32_t audioBytes)
             {
                 // Note: Only record those transfers which error is more than AUDIO_FRAME_ERR_NS
                 s_saiMeasureContext[s_saiMeasureIndex -1].transIndex = s_saiTransIndex;
-                s_saiMeasureContext[s_saiMeasureIndex -1].costTime_ns = costTime_ns;
+                s_saiMeasureContext[s_saiMeasureIndex -1].costTimeSai_ns = costTime_ns;
             }
             else
             {

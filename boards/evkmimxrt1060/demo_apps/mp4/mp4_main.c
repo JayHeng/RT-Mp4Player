@@ -269,18 +269,9 @@ extern void time_measure_start(void);
 extern uint64_t time_measure_done(void);
 #define FF_MEASURE_FRAMES 2000
 AT_NONCACHEABLE_SECTION(static FIL toutputFil);
-typedef struct _ff_measure_context
-{
-    uint64_t readFrame_ns;
-    uint64_t decodeAudio_ns;
-    uint64_t cachePlayAudio_ns;
-    uint64_t decodeVideo_ns;
-    uint64_t playVideo_ns;
-    bool isAudioStream;
-} ff_measure_context_t;
 static ff_measure_context_t s_ffMeasureContext;
 static uint32_t s_ffMeasureIndex = 0;
-static uint8_t s_hexStrBuffer[78] = "0x0000000000000000,0x0000000000000000,0x0000000000000000,0x0000000000000000,\r\n";
+static uint8_t s_hexStrBuffer[97] = "0x0000000000000000,0x0000000000000000,0x0000000000000000,0x0000000000000000,0x0000000000000000,\r\n";
 static void byte_to_hex_str(uint8_t *hexBuf, uint64_t data)
 {
     for (uint32_t i = 0; i < 16; i++)
@@ -297,6 +288,9 @@ static void byte_to_hex_str(uint8_t *hexBuf, uint64_t data)
         }
     }
 }
+#if MP4_LCD_TIME_ENABLE
+extern lcd_measure_context_t g_lcdMeasureContext;
+#endif
 #endif // #if MP4_FF_TIME_ENABLE
 
 static void h264_video_decode(const char *infilename, const char *aoutfilename, const char *voutfilename)
@@ -453,23 +447,12 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
                         s_cachedAudioBuffer = audioBuffer;
                         s_cachedAudioBytes += sizeof(AUDIO_CONV_SIZE) * frame->nb_samples * AUDIO_CONV_CHANNEL;
                         s_cachedAudioFrames++;
-#if MP4_FF_TIME_ENABLE
-                        time_measure_start();
                         if (s_cachedAudioFrames == AUDIO_CACHE_FRAMES)
                         {
                             flush_audio_data_cache();
                             s_audioBufferQueueIndex++;
                             s_audioBufferQueueIndex %= AUDIO_BUFFER_QUEUE;
                         }
-                        s_ffMeasureContext.cachePlayAudio_ns = time_measure_done();
-#else
-                        if (s_cachedAudioFrames == AUDIO_CACHE_FRAMES)
-                        {
-                            flush_audio_data_cache();
-                            s_audioBufferQueueIndex++;
-                            s_audioBufferQueueIndex %= AUDIO_BUFFER_QUEUE;
-                        }
-#endif
 #if MP4_WAV_ENABLE
                         wav_write(audioBuffer, sizeof(AUDIO_CONV_SIZE) * frame->nb_samples * AUDIO_CONV_CHANNEL);
 #endif
@@ -509,13 +492,7 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
                 if (out_sizeyuv > 0)
                 {
                     // Show video (yuv444p) via LCD, note: PXP can only support YUV444->RGB24
-#if MP4_FF_TIME_ENABLE
-                    time_measure_start();
                     lcd_video_display(frameyuv->data, frameyuv->width, frameyuv->height);
-                    s_ffMeasureContext.playVideo_ns = time_measure_done();
-#else
-                    lcd_video_display(frameyuv->data, frameyuv->width, frameyuv->height);
-#endif
                     // Save YUV data (yuv420p) in file
                     //int y_size = frameyuv->width * frameyuv->height;
                     //f_write(&voutputFil, frameyuv->data[0], y_size, &bw_wh);
@@ -536,12 +513,16 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
             byte_to_hex_str(&s_hexStrBuffer[21], s_ffMeasureContext.decodeAudio_ns);
             byte_to_hex_str(&s_hexStrBuffer[40], 0);
             byte_to_hex_str(&s_hexStrBuffer[59], 0);
+            byte_to_hex_str(&s_hexStrBuffer[78], 0);
         }
         else
         {
             byte_to_hex_str(&s_hexStrBuffer[21], 0);
             byte_to_hex_str(&s_hexStrBuffer[40], s_ffMeasureContext.decodeVideo_ns);
-            byte_to_hex_str(&s_hexStrBuffer[59], s_ffMeasureContext.playVideo_ns);
+#if MP4_LCD_TIME_ENABLE
+            byte_to_hex_str(&s_hexStrBuffer[59], g_lcdMeasureContext.costTimePxp_ns);
+            byte_to_hex_str(&s_hexStrBuffer[78], g_lcdMeasureContext.costTimeLcd_ns);
+#endif
         }
         f_write(&toutputFil, s_hexStrBuffer, sizeof(s_hexStrBuffer), &bw_wh);
 #if FF_MEASURE_FRAMES
@@ -601,7 +582,7 @@ int main(void)
         return -1;
     }
 
-#if MP4_SAI_TIME_ENABLE || MP4_FF_TIME_ENABLE
+#if MP4_SAI_TIME_ENABLE || MP4_LCD_TIME_ENABLE || MP4_FF_TIME_ENABLE
     // Init GPT module
     config_gpt();
 #endif

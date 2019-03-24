@@ -4,10 +4,10 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 def GetMax(lst):
-   return max(lst)
+   return ("%.3f" % max(lst))
 
 def GetMin(lst):
-   return min(lst)
+   return ("%.3f" % min(lst))
 
 def GetMedian(lst):
    data = sorted(lst)
@@ -16,13 +16,13 @@ def GetMedian(lst):
       median = (data[size//2]+data[size//2-1])/2
    if size % 2 == 1:
       median = data[(size-1)//2]
-   return median
+   return ("%.3f" % median)
 
 def GetAverage(lst):
    sum = 0.0
    for item in lst:
       sum += item
-   return sum/len(lst)
+   return ("%.3f" % (sum/len(lst)))
 
 class ShowFFmpegTime(object):
     def __init__(self):
@@ -39,14 +39,15 @@ class ShowFFmpegTime(object):
         self.readFrameList = []
         self.decodeAudioList = []
         self.decodeVideoList = []
-        self.playVideoList = []
+        self.pxpConvVideoList = []
+        self.lcdShowVideoList = []
 
         with open(self._inputFile, 'r') as fileObj:
             try:
                 while(True):
                     # one line frame data like this:
-                    #        read            decode audio       decode video        play video
-                    # '0x0000000000006000,0x0000000000000000,0x0000100000006000,0x0000200000006000,'
+                    #        read            decode audio       decode video      PXP conv video     LCD show video
+                    # '0x0000000000006000,0x0000000000000000,0x0000100000006000,0x0000200000006000,0x0000200000006000,'
                     frameData = fileObj.readline()
                     if frameData:
                         readFrameIndex = frameData.find(',')
@@ -66,11 +67,17 @@ class ShowFFmpegTime(object):
                             if decodeVideoTime:
                                 self.decodeVideoList.extend([decodeVideoTime / 1000000.0])
 
-                        playVideoIndex = frameData.find(',', decodeVideoIndex + 1)
-                        if playVideoIndex != -1:
-                            playVideoTime = int(frameData[decodeVideoIndex + 3:playVideoIndex], 16)
-                            if playVideoTime:
-                                self.playVideoList.extend([playVideoTime / 1000000.0])
+                        pxpConvVideoIndex = frameData.find(',', decodeVideoIndex + 1)
+                        if pxpConvVideoIndex != -1:
+                            pxpConvVideoTime = int(frameData[decodeVideoIndex + 3:pxpConvVideoIndex], 16)
+                            if pxpConvVideoTime:
+                                self.pxpConvVideoList.extend([pxpConvVideoTime / 1000000.0])
+
+                        lcdShowVideoIndex = frameData.find(',', pxpConvVideoIndex + 1)
+                        if lcdShowVideoIndex != -1:
+                            lcdShowVideoTime = int(frameData[pxpConvVideoIndex + 3:lcdShowVideoIndex], 16)
+                            if lcdShowVideoTime:
+                                self.lcdShowVideoList.extend([lcdShowVideoTime / 1000000.0])
                     else:
                         break
             finally:
@@ -81,53 +88,73 @@ class ShowFFmpegTime(object):
 
     def _show(self):
         dt = 1
-        fig, axs = plt.subplots(4, 1)
-        axs[0].set_title(self._projBuild, color='b')
+        fig, axs = plt.subplots(3, 2)
+        axs[0][0].set_title(self._projBuild, color='b')
         #axs[0].set_title('Text & Data & Heap & Stack & frameBuffer in SDRAM', color='b')
         #axs[0].set_title('Text in FlexRAM,  Data & Heap & Stack & frameBuffer in SDRAM', color='b')
         #axs[0].set_title('Text in Hyper, Data & Heap & Stack & frameBuffer in SDRAM', color='b')
         #axs[0].set_title('Text in Hyper, Data in FlexRAM, Heap & Stack & frameBuffer in SDRAM', color='b')
 
-        readFrames = np.arange(0, len(self.readFrameList), dt)
-        axs[0].plot(readFrames, self.readFrameList)
-        vinfo = 'media frame(' + self._videoInfo  + ') index \n'
-        statistics0 = 'Max=' + str(GetMax(self.readFrameList)) + \
-                    ', Min=' + str(GetMin(self.readFrameList)) + \
-                    ', Median=' + str(GetMedian(self.readFrameList)) + \
-                    ', Average=' + str(GetAverage(self.readFrameList))
-        axs[0].set_xlabel(vinfo + statistics0)
-        axs[0].set_ylabel('read time (us)')
-        axs[0].grid(True)
+        if len(self.readFrameList):
+            readFrames = np.arange(0, len(self.readFrameList), dt)
+            statistics0 = 'Max=' + GetMax(self.readFrameList) + \
+                        '\nMin=' + GetMin(self.readFrameList) + \
+                        '\nMedian=' + GetMedian(self.readFrameList) + \
+                        '\nAverage=' + GetAverage(self.readFrameList)
+            axs[0][0].plot(readFrames, self.readFrameList, label=statistics0)
+            vinfo = 'media frame(' + self._videoInfo  + ') index \n'
+            axs[0][0].legend(loc='upper right', fontsize=6, shadow=True, fancybox=True)
+            axs[0][0].set_xlabel(vinfo)
+            axs[0][0].set_ylabel('read time (us)')
+            axs[0][0].grid(True)
 
-        audioFrames = np.arange(0, len(self.decodeAudioList), dt)
-        axs[1].plot(audioFrames, self.decodeAudioList)
-        statistics1 = 'Max=' + str(GetMax(self.decodeAudioList)) + \
-                    ', Min=' + str(GetMin(self.decodeAudioList)) + \
-                    ', Median=' + str(GetMedian(self.decodeAudioList)) + \
-                    ', Average=' + str(GetAverage(self.decodeAudioList))
-        axs[1].set_xlabel('audio frame index \n' + statistics1)
-        axs[1].set_ylabel('decode time (ms)')
-        axs[1].grid(True)
+        if len(self.decodeAudioList):
+            audioFrames = np.arange(0, len(self.decodeAudioList), dt)
+            statistics1 = 'Max=' + GetMax(self.decodeAudioList) + \
+                        '\nMin=' + GetMin(self.decodeAudioList) + \
+                        '\nMedian=' + GetMedian(self.decodeAudioList) + \
+                        '\nAverage=' + GetAverage(self.decodeAudioList)
+            axs[1][0].plot(audioFrames, self.decodeAudioList, label=statistics1)
+            axs[1][0].legend(loc='upper right', fontsize=6, shadow=True, fancybox=True)
+            axs[1][0].set_xlabel('audio frame index')
+            axs[1][0].set_ylabel('decode time (ms)')
+            axs[1][0].grid(True)
 
-        dVideoFrames = np.arange(0, len(self.decodeVideoList), dt)
-        axs[2].plot(dVideoFrames, self.decodeVideoList)
-        statistics2 = 'Max=' + str(GetMax(self.decodeVideoList)) + \
-                    ', Min=' + str(GetMin(self.decodeVideoList)) + \
-                    ', Median=' + str(GetMedian(self.decodeVideoList)) + \
-                    ', Average=' + str(GetAverage(self.decodeVideoList))
-        axs[2].set_xlabel('video frame index \n' + statistics2)
-        axs[2].set_ylabel('decode time (ms)')
-        axs[2].grid(True)
+        if len(self.decodeVideoList):
+            dVideoFrames = np.arange(0, len(self.decodeVideoList), dt)
+            statistics2 = 'Max=' + GetMax(self.decodeVideoList) + \
+                        '\nMin=' + GetMin(self.decodeVideoList) + \
+                        '\nMedian=' + GetMedian(self.decodeVideoList) + \
+                        '\nAverage=' + GetAverage(self.decodeVideoList)
+            axs[0][1].plot(dVideoFrames, self.decodeVideoList, label=statistics2)
+            axs[0][1].legend(loc='upper right', fontsize=6, shadow=True, fancybox=True)
+            axs[0][1].set_xlabel('video frame index')
+            axs[0][1].set_ylabel('decode time (ms)')
+            axs[0][1].grid(True)
 
-        pVideoFrames = np.arange(0, len(self.playVideoList), dt)
-        axs[3].plot(pVideoFrames, self.playVideoList)
-        statistics3 = 'Max=' + str(GetMax(self.playVideoList)) + \
-                    ', Min=' + str(GetMin(self.playVideoList)) + \
-                    ', Median=' + str(GetMedian(self.playVideoList)) + \
-                    ', Average=' + str(GetAverage(self.playVideoList))
-        axs[3].set_xlabel('video frame index \n ' + statistics3)
-        axs[3].set_ylabel('play time (ms)')
-        axs[3].grid(True)
+        if len(self.pxpConvVideoList):
+            pxpVideoFrames = np.arange(0, len(self.pxpConvVideoList), dt)
+            statistics3 = 'Max=' + GetMax(self.pxpConvVideoList) + \
+                        '\nMin=' + GetMin(self.pxpConvVideoList) + \
+                        '\nMedian=' + GetMedian(self.pxpConvVideoList) + \
+                        '\nAverage=' + GetAverage(self.pxpConvVideoList)
+            axs[1][1].plot(pxpVideoFrames, self.pxpConvVideoList, label=statistics3)
+            axs[1][1].legend(loc='upper right', fontsize=6, shadow=True, fancybox=True)
+            axs[1][1].set_xlabel('video frame index')
+            axs[1][1].set_ylabel('PXP Convert time (ms)')
+            axs[1][1].grid(True)
+
+        if len(self.lcdShowVideoList):
+            lcdVideoFrames = np.arange(0, len(self.lcdShowVideoList), dt)
+            statistics4 = 'Max=' + GetMax(self.lcdShowVideoList) + \
+                        '\nMin=' + GetMin(self.lcdShowVideoList) + \
+                        '\nMedian=' + GetMedian(self.lcdShowVideoList) + \
+                        '\nAverage=' + GetAverage(self.lcdShowVideoList)
+            axs[2][1].plot(lcdVideoFrames, self.lcdShowVideoList, label=statistics4)
+            axs[2][1].legend(loc='upper right', fontsize=6, shadow=True, fancybox=True)
+            axs[2][1].set_xlabel('video frame index')
+            axs[2][1].set_ylabel('LCD Show time (ms)')
+            axs[2][1].grid(True)
 
         fig.tight_layout()
         plt.show()
