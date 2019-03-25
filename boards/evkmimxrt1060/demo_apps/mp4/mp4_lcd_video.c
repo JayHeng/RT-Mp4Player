@@ -125,7 +125,7 @@ static void *volatile activeBuf = NULL;
 
 static pxp_output_buffer_config_t outputBufferConfig;
 static pxp_ps_buffer_config_t psBufferConfig;
-#if VIDEO_PXP_BLOCKING == 0
+#if VIDEO_PXP_CONV_BLOCKING == 0
 AT_NONCACHEABLE_SECTION(static uint8_t s_convBufferYUV[3][APP_PS_HEIGHT][APP_PS_WIDTH]);
 #endif
 AT_NONCACHEABLE_SECTION_ALIGN(static uint8_t s_psBufferLcd[APP_LCD_FB_NUM][APP_IMG_HEIGHT][APP_IMG_WIDTH][APP_BPP], FRAME_BUFFER_ALIGN);
@@ -375,10 +375,11 @@ static void lcd_time_measure_utility(lcd_time_type_t type)
 void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
 {
     static uint8_t curLcdBufferIdx = 1U;
-#if VIDEO_PXP_BLOCKING == 0
-    static bool isPxpFirstStart = true;
+#if VIDEO_LCD_DISP_BLOCKING == 0
     static bool isLcdCurFrameDone = true;
 
+#if VIDEO_PXP_CONV_BLOCKING == 0
+    static bool isPxpFirstStart = true;
     if (!isPxpFirstStart)
     {
         lcd_time_measure_utility(kLcdTimeType_Start);
@@ -388,6 +389,7 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
         }
         lcd_time_measure_utility(kLcdTimeType_Pxp);
         PXP_ClearStatusFlags(APP_PXP, kPXP_CompleteFlag);
+#endif // #if VIDEO_PXP_CONV_BLOCKING == 0
 
         if (!isLcdCurFrameDone)
         {
@@ -403,6 +405,7 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
             isLcdCurFrameDone = false;
         }
 
+#if VIDEO_PXP_CONV_BLOCKING == 0
         // Start to show current frame via LCD
         ELCDIF_SetNextBufferAddr(APP_ELCDIF, (uint32_t)s_psBufferLcd[curLcdBufferIdx]);
         ELCDIF_ClearInterruptStatus(APP_ELCDIF, kELCDIF_CurFrameDone);
@@ -423,11 +426,20 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
     psBufferConfig.bufferAddr = (uint32_t)s_convBufferYUV[0];
     psBufferConfig.bufferAddrU = (uint32_t)s_convBufferYUV[1];
     psBufferConfig.bufferAddrV = (uint32_t)s_convBufferYUV[2];
-#else
+#else // #if VIDEO_PXP_CONV_BLOCKING == 1
     psBufferConfig.bufferAddr = (uint32_t)buf[0];
     psBufferConfig.bufferAddrU = (uint32_t)buf[1];
     psBufferConfig.bufferAddrV = (uint32_t)buf[2];
-#endif
+#endif // #if VIDEO_PXP_CONV_BLOCKING == 0
+#else  // #if VIDEO_LCD_DISP_BLOCKING == 1
+#if VIDEO_PXP_CONV_BLOCKING == 1
+    psBufferConfig.bufferAddr = (uint32_t)buf[0];
+    psBufferConfig.bufferAddrU = (uint32_t)buf[1];
+    psBufferConfig.bufferAddrV = (uint32_t)buf[2];
+#else // #if VIDEO_PXP_CONV_BLOCKING == 0
+#error "Unsupported PXP_CONV_BLOCKING=0, LCD_DISP_BLOCKING=1 configuration case"
+#endif // #if VIDEO_PXP_CONV_BLOCKING == 1
+#endif // #if VIDEO_LCD_DISP_BLOCKING == 0
 
     // Start to convert next frame via PXP
     PXP_SetProcessSurfaceBufferConfig(APP_PXP, &psBufferConfig);
@@ -441,7 +453,7 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
     PXP_SetOutputBufferConfig(APP_PXP, &outputBufferConfig);
     PXP_Start(APP_PXP);
 
-#if VIDEO_PXP_BLOCKING == 1
+#if VIDEO_PXP_CONV_BLOCKING == 1
     /* Wait for process complete. */
     lcd_time_measure_utility(kLcdTimeType_Start);
     while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(APP_PXP)))
@@ -452,15 +464,18 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
 
     ELCDIF_SetNextBufferAddr(APP_ELCDIF, (uint32_t)s_psBufferLcd[curLcdBufferIdx]);
     ELCDIF_ClearInterruptStatus(APP_ELCDIF, kELCDIF_CurFrameDone);
+
+    curLcdBufferIdx++;
+    curLcdBufferIdx %= APP_LCD_FB_NUM;
+
+#if VIDEO_LCD_DISP_BLOCKING == 1
     lcd_time_measure_utility(kLcdTimeType_Start);
     while (!(kELCDIF_CurFrameDone & ELCDIF_GetInterruptStatus(APP_ELCDIF)))
     {
     }
     lcd_time_measure_utility(kLcdTimeType_Lcd);
-
-    curLcdBufferIdx++;
-    curLcdBufferIdx %= APP_LCD_FB_NUM;
-#endif
+#endif // #if VIDEO_LCD_DISP_BLOCKING == 1
+#endif // #if VIDEO_PXP_CONV_BLOCKING == 1
 }
 
 void set_pxp_master_priority(uint32_t priority)
