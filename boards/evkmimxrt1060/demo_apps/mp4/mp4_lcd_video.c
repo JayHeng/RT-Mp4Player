@@ -345,6 +345,33 @@ extern uint64_t time_measure_done(void);
 lcd_measure_context_t g_lcdMeasureContext;
 #endif //#if MP4_LCD_TIME_ENABLE
 
+typedef enum _lcd_time_type
+{
+    kLcdTimeType_Start = 0U,
+    kLcdTimeType_Pxp   = 1U,
+    kLcdTimeType_Lcd   = 2U,
+} lcd_time_type_t;
+
+static void lcd_time_measure_utility(lcd_time_type_t type)
+{
+#if MP4_LCD_TIME_ENABLE == 1
+    if (type == kLcdTimeType_Start)
+    {
+        time_measure_start();
+    }
+    else if (type == kLcdTimeType_Pxp)
+    {
+        g_lcdMeasureContext.costTimePxp_ns = time_measure_done();
+    }
+    else if (type == kLcdTimeType_Lcd)
+    {
+        g_lcdMeasureContext.costTimeLcd_ns = time_measure_done();
+    }
+#else
+    // Do nothing
+#endif
+}
+
 void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
 {
     static uint8_t curLcdBufferIdx = 1U;
@@ -354,34 +381,22 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
 
     if (!isPxpFirstStart)
     {
-#if MP4_LCD_TIME_ENABLE == 1
-        time_measure_start();
+        lcd_time_measure_utility(kLcdTimeType_Start);
         // Wait util PXP complete, As it is not first frame
         while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(APP_PXP)))
         {
         }
-        g_lcdMeasureContext.costTimePxp_ns = time_measure_done();
-#else
-        while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(APP_PXP)))
-        {
-        }
-#endif
+        lcd_time_measure_utility(kLcdTimeType_Pxp);
         PXP_ClearStatusFlags(APP_PXP, kPXP_CompleteFlag);
 
         if (!isLcdCurFrameDone)
         {
-#if MP4_LCD_TIME_ENABLE == 1
-            time_measure_start();
+            lcd_time_measure_utility(kLcdTimeType_Start);
             // Wait util last LCD frame done, then we can show current frame
             while (!(kELCDIF_CurFrameDone & ELCDIF_GetInterruptStatus(APP_ELCDIF)))
             {
             }
-            g_lcdMeasureContext.costTimeLcd_ns = time_measure_done();
-#else
-            while (!(kELCDIF_CurFrameDone & ELCDIF_GetInterruptStatus(APP_ELCDIF)))
-            {
-            }
-#endif
+            lcd_time_measure_utility(kLcdTimeType_Lcd);
         }
         else
         {
@@ -428,31 +443,21 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
 
 #if VIDEO_PXP_BLOCKING == 1
     /* Wait for process complete. */
-#if MP4_LCD_TIME_ENABLE == 1
-    time_measure_start();
+    lcd_time_measure_utility(kLcdTimeType_Start);
     while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(APP_PXP)))
     {
     }
-    g_lcdMeasureContext.costTimePxp_ns = time_measure_done();
-#else
-    while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(APP_PXP)))
-    {
-    }
-#endif
+    lcd_time_measure_utility(kLcdTimeType_Pxp);
     PXP_ClearStatusFlags(APP_PXP, kPXP_CompleteFlag);
+
     ELCDIF_SetNextBufferAddr(APP_ELCDIF, (uint32_t)s_psBufferLcd[curLcdBufferIdx]);
     ELCDIF_ClearInterruptStatus(APP_ELCDIF, kELCDIF_CurFrameDone);
-#if MP4_LCD_TIME_ENABLE == 1
-    time_measure_start();
+    lcd_time_measure_utility(kLcdTimeType_Start);
     while (!(kELCDIF_CurFrameDone & ELCDIF_GetInterruptStatus(APP_ELCDIF)))
     {
     }
-    g_lcdMeasureContext.costTimeLcd_ns = time_measure_done();
-#else
-    while (!(kELCDIF_CurFrameDone & ELCDIF_GetInterruptStatus(APP_ELCDIF)))
-    {
-    }
-#endif
+    lcd_time_measure_utility(kLcdTimeType_Lcd);
+
     curLcdBufferIdx++;
     curLcdBufferIdx %= APP_LCD_FB_NUM;
 #endif

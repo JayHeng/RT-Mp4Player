@@ -293,6 +293,40 @@ extern lcd_measure_context_t g_lcdMeasureContext;
 #endif
 #endif // #if MP4_FF_TIME_ENABLE
 
+typedef enum _ff_time_type
+{
+    kFfTimeType_Start       = 0U,
+    kFfTimeType_ReadFrame   = 1U,
+    kFfTimeType_DecodeAudio = 2U,
+    kFfTimeType_DecodeVideo = 3U,
+} ff_time_type_t;
+
+static void ff_time_measure_utility(ff_time_type_t type)
+{
+#if MP4_FF_TIME_ENABLE == 1
+    if (type == kFfTimeType_Start)
+    {
+        time_measure_start();
+    }
+    else if (type == kFfTimeType_ReadFrame)
+    {
+        s_ffMeasureContext.readFrame_ns = time_measure_done();
+    }
+    else if (type == kFfTimeType_DecodeAudio)
+    {
+        s_ffMeasureContext.isAudioStream = true;
+        s_ffMeasureContext.decodeAudio_ns = time_measure_done();
+    }
+    else if (type == kFfTimeType_DecodeVideo)
+    {
+        s_ffMeasureContext.isAudioStream = false;
+        s_ffMeasureContext.decodeVideo_ns = time_measure_done();
+    }
+#else
+    // Do nothing
+#endif
+}
+
 static void h264_video_decode(const char *infilename, const char *aoutfilename, const char *voutfilename)
 {
     printf("Decode file '%s' to '%s' and '%s'\n", infilename, aoutfilename, voutfilename);
@@ -387,8 +421,8 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
         return;
     }
     s_ffMeasureIndex = 0;
-    time_measure_start();
 #endif
+    ff_time_measure_utility(kFfTimeType_Start);
 
 #if MP4_WAV_ENABLE == 1
     wav_start(kSAI_WordWidth16bits, kSAI_SampleRate44100Hz, 1, 3874877);
@@ -396,9 +430,7 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
 
     while (av_read_frame(pInFmtCtx, &packet) >= 0)
     {
-#if MP4_FF_TIME_ENABLE == 1
-        s_ffMeasureContext.readFrame_ns = time_measure_done();
-#endif
+        ff_time_measure_utility(kFfTimeType_ReadFrame);
         if (packet.stream_index == audioStream)
         {
             uint8_t *pktdata = packet.data;
@@ -408,14 +440,9 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
             while (pktsize > 0)
             {
                 out_size = AVCODEC_MAX_AUDIO_FRAME_SIZE * 100;
-#if MP4_FF_TIME_ENABLE == 1
-                s_ffMeasureContext.isAudioStream = true;
-                time_measure_start();
+                ff_time_measure_utility(kFfTimeType_Start);
                 len =avcodec_decode_audio4(pInCodecCtx_audio, frame, &out_size, &packet);
-                s_ffMeasureContext.decodeAudio_ns = time_measure_done();
-#else
-                len =avcodec_decode_audio4(pInCodecCtx_audio, frame, &out_size, &packet);
-#endif
+                ff_time_measure_utility(kFfTimeType_DecodeAudio);
                 if (len < 0)
                 {
                     printf("Error while decoding audio.\n");
@@ -476,14 +503,9 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
             while (pktsizeyuv > 0)
             {
                 out_sizeyuv = AVCODEC_MAX_VIDEO_FRAME_SIZE * 100;
-#if MP4_FF_TIME_ENABLE == 1
-                s_ffMeasureContext.isAudioStream = false;
-                time_measure_start();
+                ff_time_measure_utility(kFfTimeType_Start);
                 lenyuv =avcodec_decode_video2(pInCodecCtx_video, frameyuv, &out_sizeyuv, &packet);
-                s_ffMeasureContext.decodeVideo_ns = time_measure_done();
-#else
-                lenyuv =avcodec_decode_video2(pInCodecCtx_video, frameyuv, &out_sizeyuv, &packet);
-#endif
+                ff_time_measure_utility(kFfTimeType_DecodeVideo);
                 if (lenyuv < 0)
                 {
                     printf("Error while decoding video.\n");
@@ -535,8 +557,8 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
             break;
         }
 #endif
-        time_measure_start();
 #endif
+        ff_time_measure_utility(kFfTimeType_Start);
     }
 
 #if MP4_FF_TIME_ENABLE == 1

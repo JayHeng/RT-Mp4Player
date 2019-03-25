@@ -40,7 +40,7 @@ class ShowFFmpegTime(object):
         self.decodeAudioList = []
         self.decodeVideoList = []
         self.pxpConvVideoList = []
-        self.lcdShowVideoList = []
+        self.lcdDispVideoList = []
 
         with open(self._inputFile, 'r') as fileObj:
             try:
@@ -73,11 +73,11 @@ class ShowFFmpegTime(object):
                             if pxpConvVideoTime:
                                 self.pxpConvVideoList.extend([pxpConvVideoTime / 1000000.0])
 
-                        lcdShowVideoIndex = frameData.find(',', pxpConvVideoIndex + 1)
-                        if lcdShowVideoIndex != -1:
-                            lcdShowVideoTime = int(frameData[pxpConvVideoIndex + 3:lcdShowVideoIndex], 16)
-                            if lcdShowVideoTime:
-                                self.lcdShowVideoList.extend([lcdShowVideoTime / 1000000.0])
+                        lcdDispVideoIndex = frameData.find(',', pxpConvVideoIndex + 1)
+                        if lcdDispVideoIndex != -1:
+                            lcdDispVideoTime = int(frameData[pxpConvVideoIndex + 3:lcdDispVideoIndex], 16)
+                            if lcdDispVideoTime:
+                                self.lcdDispVideoList.extend([lcdDispVideoTime / 1000000.0])
                     else:
                         break
             finally:
@@ -144,16 +144,16 @@ class ShowFFmpegTime(object):
             axs[1][1].set_ylabel('PXP Convert time (ms)')
             axs[1][1].grid(True)
 
-        if len(self.lcdShowVideoList):
-            lcdVideoFrames = np.arange(0, len(self.lcdShowVideoList), dt)
-            statistics4 = 'Max=' + GetMax(self.lcdShowVideoList) + \
-                        '\nMin=' + GetMin(self.lcdShowVideoList) + \
-                        '\nMedian=' + GetMedian(self.lcdShowVideoList) + \
-                        '\nAverage=' + GetAverage(self.lcdShowVideoList)
-            axs[2][1].plot(lcdVideoFrames, self.lcdShowVideoList, label=statistics4)
+        if len(self.lcdDispVideoList):
+            lcdVideoFrames = np.arange(0, len(self.lcdDispVideoList), dt)
+            statistics4 = 'Max=' + GetMax(self.lcdDispVideoList) + \
+                        '\nMin=' + GetMin(self.lcdDispVideoList) + \
+                        '\nMedian=' + GetMedian(self.lcdDispVideoList) + \
+                        '\nAverage=' + GetAverage(self.lcdDispVideoList)
+            axs[2][1].plot(lcdVideoFrames, self.lcdDispVideoList, label=statistics4)
             axs[2][1].legend(loc='upper right', fontsize=6, shadow=True, fancybox=True)
             axs[2][1].set_xlabel('video frame index')
-            axs[2][1].set_ylabel('LCD Show time (ms)')
+            axs[2][1].set_ylabel('LCD Display time (ms)')
             axs[2][1].grid(True)
 
         fig.tight_layout()
