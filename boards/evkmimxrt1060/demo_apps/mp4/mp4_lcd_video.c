@@ -375,30 +375,34 @@ static void lcd_time_measure_utility(lcd_time_type_t type)
 void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
 {
     static uint8_t curLcdBufferIdx = 1U;
+    static bool isPxpFirstStart = true;
 #if VIDEO_LCD_DISP_BLOCKING == 0
     static bool isLcdCurFrameDone = true;
 
 #if VIDEO_PXP_CONV_BLOCKING == 0
-    static bool isPxpFirstStart = true;
     if (!isPxpFirstStart)
     {
+#if VIDEO_PXP_CONV_WAITING == 1
         lcd_time_measure_utility(kLcdTimeType_Start);
         // Wait util PXP complete, As it is not first frame
         while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(APP_PXP)))
         {
         }
         lcd_time_measure_utility(kLcdTimeType_Pxp);
+#endif // #if VIDEO_PXP_CONV_WAITING == 1
         PXP_ClearStatusFlags(APP_PXP, kPXP_CompleteFlag);
 #endif // #if VIDEO_PXP_CONV_BLOCKING == 0
 
         if (!isLcdCurFrameDone)
         {
+#if VIDEO_LCD_DISP_WAITING == 1
             lcd_time_measure_utility(kLcdTimeType_Start);
             // Wait util last LCD frame done, then we can show current frame
             while (!(kELCDIF_CurFrameDone & ELCDIF_GetInterruptStatus(APP_ELCDIF)))
             {
             }
             lcd_time_measure_utility(kLcdTimeType_Lcd);
+#endif // #if VIDEO_LCD_DISP_WAITING == 1
         }
         else
         {
@@ -454,6 +458,7 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
     PXP_Start(APP_PXP);
 
 #if VIDEO_PXP_CONV_BLOCKING == 1
+#if VIDEO_PXP_CONV_WAITING == 1
     /* Wait for process complete. */
     lcd_time_measure_utility(kLcdTimeType_Start);
     while (!(kPXP_CompleteFlag & PXP_GetStatusFlags(APP_PXP)))
@@ -461,6 +466,16 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
     }
     lcd_time_measure_utility(kLcdTimeType_Pxp);
     PXP_ClearStatusFlags(APP_PXP, kPXP_CompleteFlag);
+#else // #if VIDEO_PXP_CONV_WAITING == 0
+    if (!isPxpFirstStart)
+    {
+        PXP_ClearStatusFlags(APP_PXP, kPXP_CompleteFlag);
+    }
+    else
+    {
+        isPxpFirstStart = false;
+    }
+#endif // #if VIDEO_PXP_CONV_WAITING == 1
 
     ELCDIF_SetNextBufferAddr(APP_ELCDIF, (uint32_t)s_psBufferLcd[curLcdBufferIdx]);
     ELCDIF_ClearInterruptStatus(APP_ELCDIF, kELCDIF_CurFrameDone);
@@ -469,11 +484,13 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
     curLcdBufferIdx %= APP_LCD_FB_NUM;
 
 #if VIDEO_LCD_DISP_BLOCKING == 1
+#if VIDEO_LCD_DISP_WAITING == 1
     lcd_time_measure_utility(kLcdTimeType_Start);
     while (!(kELCDIF_CurFrameDone & ELCDIF_GetInterruptStatus(APP_ELCDIF)))
     {
     }
     lcd_time_measure_utility(kLcdTimeType_Lcd);
+#endif // #if VIDEO_LCD_DISP_WAITING == 1
 #endif // #if VIDEO_LCD_DISP_BLOCKING == 1
 #endif // #if VIDEO_PXP_CONV_BLOCKING == 1
 }

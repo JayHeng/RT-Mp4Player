@@ -80,8 +80,10 @@ typedef enum _conv_audio_format
 
 // Set PXP conversation method for video
 #define VIDEO_PXP_CONV_BLOCKING       1
+#define VIDEO_PXP_CONV_WAITING        0
 // Set LCD display method for video
 #define VIDEO_LCD_DISP_BLOCKING       1
+#define VIDEO_LCD_DISP_WAITING        0
 
 // Set video resolution
 #define VIDEO_SRC_RESOLUTION_CGA200   1  // For 320*200 video
