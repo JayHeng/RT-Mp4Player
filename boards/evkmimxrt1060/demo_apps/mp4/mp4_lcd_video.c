@@ -32,6 +32,15 @@
 #define APP_VSW 10
 #define APP_VFP 4
 #define APP_VBP 2
+#elif VIDEO_LCD_RESOLUTION_SVGA600 == 1
+#define APP_IMG_HEIGHT 600
+#define APP_IMG_WIDTH 800
+#define APP_HSW 48
+#define APP_HFP 112
+#define APP_HBP 88
+#define APP_VSW 3
+#define APP_VFP 21
+#define APP_VBP 39
 #elif VIDEO_LCD_RESOLUTION_WXGA800 == 1
 #define APP_IMG_HEIGHT 800
 #define APP_IMG_WIDTH 1280
@@ -42,8 +51,13 @@
 #define APP_VFP 10
 #define APP_VBP 10
 #endif
+#if (VIDEO_LCD_RESOLUTION_HVGA272 == 1) || (VIDEO_LCD_RESOLUTION_WXGA800 == 1)
 #define APP_POL_FLAGS \
     (kELCDIF_DataEnableActiveHigh | kELCDIF_VsyncActiveLow | kELCDIF_HsyncActiveLow | kELCDIF_DriveDataOnRisingClkEdge)
+#elif (VIDEO_LCD_RESOLUTION_SVGA600 == 1)
+#define APP_POL_FLAGS \
+    (kELCDIF_DataEnableActiveHigh | kELCDIF_VsyncActiveHigh | kELCDIF_HsyncActiveHigh | kELCDIF_DriveDataOnFallingClkEdge)
+#endif
 
 #define APP_LCDIF_DATA_BUS kELCDIF_DataBus16Bit
 
@@ -133,7 +147,7 @@ void BOARD_InitLcd(void)
         kGPIO_DigitalOutput, 0,
     };
 
-#if VIDEO_LCD_RESOLUTION_HVGA272 == 1
+#if (VIDEO_LCD_RESOLUTION_HVGA272 == 1) || (VIDEO_LCD_RESOLUTION_SVGA600 == 1)
     /* Reset the LCD. */
     GPIO_PinInit(LCD_DISP_GPIO, LCD_DISP_GPIO_PIN, &config);
     GPIO_PinWrite(LCD_DISP_GPIO, LCD_DISP_GPIO_PIN, 0);
@@ -166,6 +180,20 @@ void BOARD_InitLcdifPixelClock(void)
      */
     clock_video_pll_config_t config = {
         .loopDivider = 31, .postDivider = 8, .numerator = 0, .denominator = 0,
+    };
+#elif VIDEO_LCD_RESOLUTION_SVGA600 == 1
+    /*
+     * The desired output frame rate is 60Hz. So the pixel clock frequency is:
+     * (800 + 48 + 88 + 112) * (600 + 3 + 39 + 21) * 60,30,25 = 39.8M,19.9M,16.58M.
+     * Here set the LCDIF pixel clock to 40M,20M,17.14M.
+     */
+
+    /*
+     * Initialize the Video PLL.
+     * Video PLL output clock is OSC24M * (loopDivider + (denominator / numerator)) / postDivider = 120MHz.
+     */
+    clock_video_pll_config_t config = {
+        .loopDivider = 40, .postDivider = 8, .numerator = 0, .denominator = 0,
     };
 #elif VIDEO_LCD_RESOLUTION_WXGA800 == 1
     /*
@@ -204,6 +232,17 @@ void BOARD_InitLcdifPixelClock(void)
 #elif VIDEO_LCD_REFRESH_FREG_25Hz == 1
     CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 3);
     CLOCK_SetDiv(kCLOCK_LcdifDiv, 5);
+#endif
+#elif VIDEO_LCD_RESOLUTION_SVGA600 == 1
+#if VIDEO_LCD_REFRESH_FREG_60Hz == 1
+    CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 2);
+    CLOCK_SetDiv(kCLOCK_LcdifDiv, 0);
+#elif VIDEO_LCD_REFRESH_FREG_30Hz == 1
+    CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 2);
+    CLOCK_SetDiv(kCLOCK_LcdifDiv, 1);
+#elif VIDEO_LCD_REFRESH_FREG_25Hz == 1
+    CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 6);
+    CLOCK_SetDiv(kCLOCK_LcdifDiv, 0);
 #endif
 #elif VIDEO_LCD_RESOLUTION_WXGA800 == 1
 #if VIDEO_LCD_REFRESH_FREG_60Hz == 1
@@ -292,7 +331,7 @@ static void APP_InitLcdif(void)
 
 #if VIDEO_LCD_RESOLUTION_HVGA272 == 1
     // Do nothing
-#elif VIDEO_LCD_RESOLUTION_WXGA800 == 1
+#elif (VIDEO_LCD_RESOLUTION_WXGA800 == 1) || (VIDEO_LCD_RESOLUTION_SVGA600 == 1)
     /* Update the eLCDIF AXI master features for better performance */
     APP_ELCDIF->CTRL2 = 0x00700000;
 #endif

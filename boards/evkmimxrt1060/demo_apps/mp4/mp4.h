@@ -88,7 +88,8 @@ typedef enum _conv_audio_format
 
 // Set LCD resolution
 #define VIDEO_LCD_RESOLUTION_HVGA272  0  // For 480*272 LCD
-#define VIDEO_LCD_RESOLUTION_WXGA800  1  // For 1280*800 LCD
+#define VIDEO_LCD_RESOLUTION_SVGA600  1  // For 800*600 LCD
+#define VIDEO_LCD_RESOLUTION_WXGA800  0  // For 1280*800 LCD
 
 // Set PXP converted pixel format
 #define VIDEO_PIXEL_FMT_RGB888        0
