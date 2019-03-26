@@ -621,7 +621,15 @@ int main(void)
     //char *filepath_in="/test.h264";
     //char *filepath_in="/1.h64";
     //char *filepath_out="/test-out.yuv";
-#if VIDEO_SRC_RESOLUTION_CGA200 == 1
+#if VIDEO_SRC_RESOLUTION_TGA120 == 1
+    char *filepath_in="/bunny_t.mp4";
+    char *filepath_aout="/bunny_t.pcm";
+    char *filepath_vout="/bunny_t.yuv";
+#elif VIDEO_SRC_RESOLUTION_MGA180 == 1
+    char *filepath_in="/bunny_m.mp4";
+    char *filepath_aout="/bunny_m.pcm";
+    char *filepath_vout="/bunny_m.yuv";
+#elif VIDEO_SRC_RESOLUTION_CGA240 == 1
     char *filepath_in="/bunny_c.mp4";
     char *filepath_aout="/bunny_c.pcm";
     char *filepath_vout="/bunny_c.yuv";
@@ -629,6 +637,10 @@ int main(void)
     char *filepath_in="/bunny_h.mp4";
     char *filepath_aout="/bunny_h.pcm";
     char *filepath_vout="/bunny_h.yuv";
+#elif VIDEO_SRC_RESOLUTION_SVGA600 == 1
+    char *filepath_in="/bunny_s.mp4";
+    char *filepath_aout="/bunny_s.pcm";
+    char *filepath_vout="/bunny_s.yuv";
 #elif VIDEO_SRC_RESOLUTION_WXGA800 == 1
     char *filepath_in="/bunny_w.mp4";
     char *filepath_aout="/bunny_w.pcm";

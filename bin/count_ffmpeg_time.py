@@ -88,7 +88,8 @@ class ShowFFmpegTime(object):
 
     def _show(self):
         dt = 1
-        fig, axs = plt.subplots(3, 2)
+        #fig, axs = plt.subplots(3, 2)
+        fig, axs = plt.subplots(2, 2)
         axs[0][0].set_title(self._projBuild, color='b')
         #axs[0].set_title('Text & Data & Heap & Stack & frameBuffer in SDRAM', color='b')
         #axs[0].set_title('Text in FlexRAM,  Data & Heap & Stack & frameBuffer in SDRAM', color='b')
@@ -144,17 +145,17 @@ class ShowFFmpegTime(object):
             axs[1][1].set_ylabel('PXP Convert time (ms)')
             axs[1][1].grid(True)
 
-        if len(self.lcdDispVideoList):
-            lcdVideoFrames = np.arange(0, len(self.lcdDispVideoList), dt)
-            statistics4 = 'Max=' + GetMax(self.lcdDispVideoList) + \
-                        '\nMin=' + GetMin(self.lcdDispVideoList) + \
-                        '\nMedian=' + GetMedian(self.lcdDispVideoList) + \
-                        '\nAverage=' + GetAverage(self.lcdDispVideoList)
-            axs[2][1].plot(lcdVideoFrames, self.lcdDispVideoList, label=statistics4)
-            axs[2][1].legend(loc='upper right', fontsize=6, shadow=True, fancybox=True)
-            axs[2][1].set_xlabel('video frame index')
-            axs[2][1].set_ylabel('LCD Display time (ms)')
-            axs[2][1].grid(True)
+        #if len(self.lcdDispVideoList):
+        #    lcdVideoFrames = np.arange(0, len(self.lcdDispVideoList), dt)
+        #    statistics4 = 'Max=' + GetMax(self.lcdDispVideoList) + \
+        #                '\nMin=' + GetMin(self.lcdDispVideoList) + \
+        #                '\nMedian=' + GetMedian(self.lcdDispVideoList) + \
+        #                '\nAverage=' + GetAverage(self.lcdDispVideoList)
+        #    axs[2][1].plot(lcdVideoFrames, self.lcdDispVideoList, label=statistics4)
+        #    axs[2][1].legend(loc='upper right', fontsize=6, shadow=True, fancybox=True)
+        #    axs[2][1].set_xlabel('video frame index')
+        #    axs[2][1].set_ylabel('LCD Display time (ms)')
+        #    axs[2][1].grid(True)
 
         fig.tight_layout()
         plt.show()

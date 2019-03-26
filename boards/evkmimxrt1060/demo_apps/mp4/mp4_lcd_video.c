@@ -90,12 +90,21 @@
 #endif
 
 #define APP_PXP PXP
-#if VIDEO_SRC_RESOLUTION_CGA200 == 1
-#define APP_PS_WIDTH  320  /* 320,200,image resolution*/
-#define APP_PS_HEIGHT 200  /* 320,200,image resolution*/
+#if VIDEO_SRC_RESOLUTION_TGA120 == 1
+#define APP_PS_WIDTH  192  /* 192,120,image resolution*/
+#define APP_PS_HEIGHT 120  /* 192,120,image resolution*/
+#elif VIDEO_SRC_RESOLUTION_MGA180 == 1
+#define APP_PS_WIDTH  288  /* 288,180,image resolution*/
+#define APP_PS_HEIGHT 180  /* 288,180,image resolution*/
+#elif VIDEO_SRC_RESOLUTION_CGA240 == 1
+#define APP_PS_WIDTH  320  /* 320,240,image resolution*/
+#define APP_PS_HEIGHT 240  /* 320,240,image resolution*/
 #elif VIDEO_SRC_RESOLUTION_HVGA272 == 1
 #define APP_PS_WIDTH  480  /* 480,272,image resolution*/
 #define APP_PS_HEIGHT 272  /* 480,272,image resolution*/
+#elif VIDEO_SRC_RESOLUTION_SVGA600 == 1
+#define APP_PS_WIDTH  800  /* 800,600,image resolution*/
+#define APP_PS_HEIGHT 600  /* 800,600,image resolution*/
 #elif VIDEO_SRC_RESOLUTION_WXGA800 == 1
 #define APP_PS_WIDTH  1280 /* 1280,800,image resolution*/
 #define APP_PS_HEIGHT 800  /* 1280,800,image resolution*/
