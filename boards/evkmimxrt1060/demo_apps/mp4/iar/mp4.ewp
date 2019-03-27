@@ -9989,16 +9989,16 @@
     <group>
         <name>xip</name>
         <file>
-            <name>$PROJ_DIR$\..\..\..\xip\evkmimxrt1060_flexspi_nor_config.c</name>
-        </file>
-        <file>
             <name>$PROJ_DIR$\..\..\..\xip\evkmimxrt1060_flexspi_nor_config.h</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\xip\evkmimxrt1060_sdram_ini_dcd.c</name>
+            <name>$PROJ_DIR$\..\..\..\xip\evkmimxrt1060_hyper_nor_config_166mhz.c</name>
         </file>
         <file>
             <name>$PROJ_DIR$\..\..\..\xip\evkmimxrt1060_sdram_ini_dcd.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\..\..\xip\evkmimxrt1060_sdram_ini_dcd_166mhz.c</name>
         </file>
         <file>
             <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1062\xip\fsl_flexspi_nor_boot.c</name>
