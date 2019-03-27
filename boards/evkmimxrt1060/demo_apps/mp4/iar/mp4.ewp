@@ -9992,7 +9992,7 @@
             <name>$PROJ_DIR$\..\..\..\xip\evkmimxrt1060_flexspi_nor_config.h</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\xip\evkmimxrt1060_hyper_nor_config_166mhz.c</name>
+            <name>$PROJ_DIR$\..\..\..\xip\evkmimxrt1060_hyper_nor_config_133mhz.c</name>
         </file>
         <file>
             <name>$PROJ_DIR$\..\..\..\xip\evkmimxrt1060_sdram_ini_dcd.h</name>
