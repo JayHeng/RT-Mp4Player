@@ -36,7 +36,7 @@
                 </option>
                 <option>
                     <name>MacFile</name>
-                    <state>$PROJ_DIR$/evkmimxrt1060_sdram_init.mac</state>
+                    <state>$PROJ_DIR$/evkmimxrt1060_sdram_init_166mhz.mac</state>
                 </option>
                 <option>
                     <name>MemOverride</name>
@@ -60,7 +60,7 @@
                 </option>
                 <option>
                     <name>CExtraOptions</name>
-                    <state>--jlink_script_file=$PROJ_DIR$/../evkmimxrt1060_sdram_init.jlinkscript</state>
+                    <state>--jlink_script_file=$PROJ_DIR$/evkmimxrt1060_sdram_init_166mhz.jlinkscript</state>
                 </option>
                 <option>
                     <name>CFpuProcessor</name>
@@ -1517,7 +1517,7 @@
                 </option>
                 <option>
                     <name>MacFile</name>
-                    <state>$PROJ_DIR$/evkmimxrt1060_sdram_init.mac</state>
+                    <state>$PROJ_DIR$/evkmimxrt1060_sdram_init_166mhz.mac</state>
                 </option>
                 <option>
                     <name>MemOverride</name>
@@ -1541,7 +1541,7 @@
                 </option>
                 <option>
                     <name>CExtraOptions</name>
-                    <state>--jlink_script_file=$PROJ_DIR$/../evkmimxrt1060_sdram_init.jlinkscript</state>
+                    <state>--jlink_script_file=$PROJ_DIR$/evkmimxrt1060_sdram_init_166mhz.jlinkscript</state>
                 </option>
                 <option>
                     <name>CFpuProcessor</name>
@@ -2998,7 +2998,7 @@
                 </option>
                 <option>
                     <name>MacFile</name>
-                    <state>$PROJ_DIR$/evkmimxrt1060_sdram_init.mac</state>
+                    <state>$PROJ_DIR$/evkmimxrt1060_sdram_init_166mhz.mac</state>
                 </option>
                 <option>
                     <name>MemOverride</name>
@@ -3022,7 +3022,7 @@
                 </option>
                 <option>
                     <name>CExtraOptions</name>
-                    <state>--jlink_script_file=$PROJ_DIR$/../evkmimxrt1060_sdram_init.jlinkscript</state>
+                    <state>--jlink_script_file=$PROJ_DIR$/evkmimxrt1060_sdram_init_166mhz.jlinkscript</state>
                 </option>
                 <option>
                     <name>CFpuProcessor</name>
@@ -4479,7 +4479,7 @@
                 </option>
                 <option>
                     <name>MacFile</name>
-                    <state>$PROJ_DIR$/evkmimxrt1060_sdram_init.mac</state>
+                    <state>$PROJ_DIR$/evkmimxrt1060_sdram_init_166mhz.mac</state>
                 </option>
                 <option>
                     <name>MemOverride</name>
@@ -4503,7 +4503,7 @@
                 </option>
                 <option>
                     <name>CExtraOptions</name>
-                    <state>--jlink_script_file=$PROJ_DIR$/../evkmimxrt1060_sdram_init.jlinkscript</state>
+                    <state>--jlink_script_file=$PROJ_DIR$/evkmimxrt1060_sdram_init_166mhz.jlinkscript</state>
                 </option>
                 <option>
                     <name>CFpuProcessor</name>
@@ -5960,7 +5960,7 @@
                 </option>
                 <option>
                     <name>MacFile</name>
-                    <state>$PROJ_DIR$/evkmimxrt1060_sdram_init.mac</state>
+                    <state>$PROJ_DIR$/evkmimxrt1060_sdram_init_166mhz.mac</state>
                 </option>
                 <option>
                     <name>MemOverride</name>
@@ -5984,7 +5984,7 @@
                 </option>
                 <option>
                     <name>CExtraOptions</name>
-                    <state>--jlink_script_file=$PROJ_DIR$/../evkmimxrt1060_sdram_init.jlinkscript</state>
+                    <state>--jlink_script_file=$PROJ_DIR$/evkmimxrt1060_sdram_init_166mhz.jlinkscript</state>
                 </option>
                 <option>
                     <name>CFpuProcessor</name>
@@ -7441,7 +7441,7 @@
                 </option>
                 <option>
                     <name>MacFile</name>
-                    <state>$PROJ_DIR$/evkmimxrt1060_sdram_init.mac</state>
+                    <state>$PROJ_DIR$/evkmimxrt1060_sdram_init_166mhz.mac</state>
                 </option>
                 <option>
                     <name>MemOverride</name>
@@ -7465,7 +7465,7 @@
                 </option>
                 <option>
                     <name>CExtraOptions</name>
-                    <state>--jlink_script_file=$PROJ_DIR$/../evkmimxrt1060_sdram_init.jlinkscript</state>
+                    <state>--jlink_script_file=$PROJ_DIR$/evkmimxrt1060_sdram_init_166mhz.jlinkscript</state>
                 </option>
                 <option>
                     <name>CFpuProcessor</name>
@@ -8922,7 +8922,7 @@
                 </option>
                 <option>
                     <name>MacFile</name>
-                    <state>$PROJ_DIR$/evkmimxrt1060_sdram_init.mac</state>
+                    <state>$PROJ_DIR$/evkmimxrt1060_sdram_init_166mhz.mac</state>
                 </option>
                 <option>
                     <name>MemOverride</name>
@@ -8946,7 +8946,7 @@
                 </option>
                 <option>
                     <name>CExtraOptions</name>
-                    <state>--jlink_script_file=$PROJ_DIR$/../evkmimxrt1060_sdram_init.jlinkscript</state>
+                    <state>--jlink_script_file=$PROJ_DIR$/evkmimxrt1060_sdram_init_166mhz.jlinkscript</state>
                 </option>
                 <option>
                     <name>CFpuProcessor</name>
@@ -10403,7 +10403,7 @@
                 </option>
                 <option>
                     <name>MacFile</name>
-                    <state>$PROJ_DIR$/evkmimxrt1060_sdram_init.mac</state>
+                    <state>$PROJ_DIR$/evkmimxrt1060_sdram_init_166mhz.mac</state>
                 </option>
                 <option>
                     <name>MemOverride</name>
@@ -10427,7 +10427,7 @@
                 </option>
                 <option>
                     <name>CExtraOptions</name>
-                    <state>--jlink_script_file=$PROJ_DIR$/../evkmimxrt1060_sdram_init.jlinkscript</state>
+                    <state>--jlink_script_file=$PROJ_DIR$/evkmimxrt1060_sdram_init_166mhz.jlinkscript</state>
                 </option>
                 <option>
                     <name>CFpuProcessor</name>
