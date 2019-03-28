@@ -28,6 +28,8 @@
 */*/*/*/*/flexspinor_flexram_sdram_release/
 */*/*/*/*/sdram_flexram_debug/
 */*/*/*/*/sdram_flexram_release/
+*/*/*/*/*/opt_level0_debug/
+*/*/*/*/*/opt_level0_release/
 
 # IAR temp files
 EW*.tmp
