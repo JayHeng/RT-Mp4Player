@@ -74,7 +74,7 @@ define symbol m_sdram_ncache_end             = 0x81FFFFFF;
 if (isdefinedsymbol(__stack_size__)) {
   define symbol __size_cstack__        = __stack_size__;
 } else {
-  define symbol __size_cstack__        = 0x200000;
+  define symbol __size_cstack__        = 0x8000;
 }
 
 if (isdefinedsymbol(__heap_size__)) {
@@ -92,9 +92,8 @@ define region FLASH_region        = mem:[from m_flash_interrupts_start to m_flas
                                   | mem:[from m_flash_start to m_flash_end];
 define region FLEXRAM_region      = mem:[from m_itcm_start to m_itcm_end]
                                   | mem:[from m_ocram_start to m_ocram_end];
-define region SDRAM_region        = mem:[from m_sdram_start to m_sdram_end-__size_heap__-__size_cstack__];
-define region SDRAM_HEAP_region   = mem:[from m_sdram_end-__size_heap__-__size_cstack__+1 to m_sdram_end-__size_cstack__];
-define region SDRAM_CSTACK_region = mem:[from m_sdram_end-__size_cstack__+1 to m_sdram_end];
+define region SDRAM_region        = mem:[from m_sdram_start to m_sdram_end-__size_heap__];
+define region SDRAM_HEAP_region   = mem:[from m_sdram_end-__size_heap__+1 to m_sdram_end];
 define region SDRAM_NCACHE_region = mem:[from m_sdram_ncache_start to m_sdram_ncache_end];
 
 define block CSTACK    with alignment = 8, size = __size_cstack__   { };
@@ -115,6 +114,6 @@ keep{ section .boot_hdr.conf, section .boot_hdr.ivt, section .boot_hdr.boot_data
 place at address mem: m_flash_interrupts_start    { readonly section .intvec };
 place in FLASH_region                             { readonly };
 place in FLEXRAM_region                           { readwrite, zi };
+place in SDRAM_region                             { block CSTACK };
 place in SDRAM_HEAP_region                        { last block HEAP };
-place in SDRAM_CSTACK_region                      { block CSTACK };
 place in SDRAM_NCACHE_region                      { block NCACHE_VAR };
