@@ -49,6 +49,7 @@ typedef struct _lcd_measure_context
 // Set to measure LCD display time for each frame
 // !!!Note: it can be enabled along with MP4_FF_TIME_ENABLE
 #define MP4_LCD_TIME_ENABLE 0
+#define MP4_LCD_DISP_OFF    0
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -86,17 +87,17 @@ typedef enum _conv_audio_format
 #define VIDEO_LCD_DISP_WAITING        0
 
 // Set video resolution
-#define VIDEO_SRC_RESOLUTION_TGA120   0  // For 192*120 video
+#define VIDEO_SRC_RESOLUTION_TGA120   1  // For 192*120 video
 #define VIDEO_SRC_RESOLUTION_MGA180   0  // For 288*180 video
-#define VIDEO_SRC_RESOLUTION_CGA240   1  // For 320*240 video
+#define VIDEO_SRC_RESOLUTION_CGA240   0  // For 320*240 video
 #define VIDEO_SRC_RESOLUTION_HVGA272  0  // For 480*272 video
 #define VIDEO_SRC_RESOLUTION_SVGA600  0  // For 800*600 video
 #define VIDEO_SRC_RESOLUTION_WXGA800  0  // For 1280*800 video
 
 // Set LCD resolution
 #define VIDEO_LCD_RESOLUTION_HVGA272  0  // For 480*272 LCD
-#define VIDEO_LCD_RESOLUTION_SVGA600  1  // For 800*600 LCD
-#define VIDEO_LCD_RESOLUTION_WXGA800  0  // For 1280*800 LCD
+#define VIDEO_LCD_RESOLUTION_SVGA600  0  // For 800*600 LCD
+#define VIDEO_LCD_RESOLUTION_WXGA800  1  // For 1280*800 LCD
 
 // Set PXP converted pixel format
 #define VIDEO_PIXEL_FMT_RGB888        0

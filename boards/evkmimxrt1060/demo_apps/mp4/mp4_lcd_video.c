@@ -345,7 +345,9 @@ static void APP_InitLcdif(void)
     APP_ELCDIF->CTRL2 = 0x00700000;
 #endif
 
+#if (MP4_LCD_TIME_ENABLE == 0) || (MP4_LCD_DISP_OFF == 0)
     ELCDIF_RgbModeStart(APP_ELCDIF);
+#endif
 }
 
 #if MP4_LCD_TIME_ENABLE == 1
