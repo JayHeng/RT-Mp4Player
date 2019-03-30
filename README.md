@@ -8,6 +8,33 @@ A multi-media player based on i.MXRT+emWin+FFmpeg4.1 | 一款基于i.MXRT的多�
 
 <img src="http://henjay724.com/image/github/RT-MPlayer_rt1060evk12_sch.PNG" style="zoom:100%" />  
 
+　　本应用实际性能与板载存储资源性能息息相关，在此列出各存储资源性能表，后面具体分配资源时可作参考：  
+
+<table><tbody>
+    <tr>
+        <th>模块</th>
+        <th>Core</th>
+        <th>I-cache</th>
+        <th>D-cache</th>
+        <th>ITCM</th>
+        <th>DTCM</th>
+        <th>OCRAM</th>
+        <th>Hyper NOR</th>
+        <th>SDRAM</th>
+    </tr>
+    <tr>
+        <td>性能</td>
+        <td>600MHz</td>
+        <td>64bit@600MHz</td>
+        <td>32bit@600MHz</td>
+        <td>64bit@600MHz</td>
+        <td>2x32bit@600MHz</td>
+        <td>64bit@133MHz</td>
+        <td>8bit@166MHz x 2(DDR)</td>
+        <td>16bit@166MHz</td>
+    </tr>
+</table>
+
 #### 1.2 SD卡
 　　本应用需要配合SD卡使用，SD中存放多媒体源文件（如xx.mp4）。  
 
@@ -90,7 +117,7 @@ A multi-media player based on i.MXRT+emWin+FFmpeg4.1 | 一款基于i.MXRT的多�
     </tr>
     <tr>
         <td>**flexram_sdram**</td>
-        <td>FlexRAM<br>-128KB ITCM<br>-128KB DTCM<br>-512KB OCRAM</td>
+        <td>FlexRAM<br>-128KB ITCM<br>-128KB DTCM<br>-786KB OCRAM</td>
         <td>SDRAM</td>
         <td>SDRAM</td>
         <td>SDRAM</td>
@@ -171,14 +198,20 @@ A multi-media player based on i.MXRT+emWin+FFmpeg4.1 | 一款基于i.MXRT的多�
 
 #### 2.3 下载程序
 ##### 2.3.1 使用外部J-Link
-　　推荐使用J-Link下载sdram和flexram_sdram工程，其中对于SDRAM的初始化配置由 \RT-MPlayer\boards\evkmimxrt1060\demo_apps\mp4\evkmimxrt1060_sdram_init.jlinkscript 脚本完成。  
+　　推荐使用J-Link下载sdram和flexram_sdram工程，其中对于SDRAM的初始化配置由 \RT-MPlayer\boards\evkmimxrt1060\demo_apps\mp4\evkmimxrt1060_sdram_init_166mhz.jlinkscript 脚本完成。  
 
 <img src="http://henjay724.com/image/github/RT-MPlayer_config_sdram_jlink.PNG" style="zoom:100%" />  
 
 ##### 2.3.2 使用板载CMSIS-DAP
-　　推荐使用CMSIS-DAP下载flexspinor_xxx工程（IAR v8.32.2 Flashloader不支持RT1060EVK Hyper NOR Flash），其中对于SDRAM的初始化配置由 \RT-MPlayer\boards\evkmimxrt1060\demo_apps\mp4\iar\evkmimxrt1060_sdram_init.mac 脚本完成。  
+　　推荐使用CMSIS-DAP下载flexspinor_xxx工程（IAR v8.32.2 Flashloader不支持RT1060EVK Hyper NOR Flash），其中对于SDRAM的初始化配置由 \RT-MPlayer\boards\evkmimxrt1060\demo_apps\mp4\iar\evkmimxrt1060_sdram_init_166mhz.mac 脚本完成。  
 
 <img src="http://henjay724.com/image/github/RT-MPlayer_config_sdram_cmsisdap.PNG" style="zoom:100%" />  
+
+##### 2.3.3 XIP启动配置
+　　XIP启动需要配置FlexSPI NOR Flash和SDRAM，这是由ROM来实现的，应用工程里如下两个源文件里指定了配置参数：  
+
+> FlexSPI NOR配置: \RT-MPlayer\boards\evkmimxrt1060\xip\evkmimxrt1060_hyper_nor_config_166mhz.c  
+> SDRAM配置: \RT-MPlayer\boards\evkmimxrt1060\xip\evkmimxrt1060_sdram_ini_dcd_166mhz.c  
 
 ### 3 其他功能
 #### 3.1 统计FFmpeg解码时间
@@ -216,19 +249,19 @@ A multi-media player based on i.MXRT+emWin+FFmpeg4.1 | 一款基于i.MXRT的多�
     </tr>
     <tr>
         <td>**TGA120（192x120）**</td>
-        <td>/</td>
-        <td>/</td>
+        <td>82.79</td>
+        <td>43.52</td>
         <td>23.44</td>
     </tr>
     <tr>
         <td>**MGA180（288x180）**</td>
-        <td>/</td>
-        <td>/</td>
+        <td>53.62</td>
+        <td>33.31</td>
         <td>19.94</td>
     </tr>
     <tr>
         <td>**CGA240（320x240）**</td>
-        <td>/</td>
+        <td>41.73</td>
         <td>27.76</td>
         <td>17.46</td>
     </tr>
