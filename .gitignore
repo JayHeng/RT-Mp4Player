@@ -30,6 +30,8 @@
 */*/*/*/*/sdram_flexram_release/
 */*/*/*/*/opt_level0_debug/
 */*/*/*/*/opt_level0_release/
+*/*/*/*/*/pxp_conv_debug/
+*/*/*/*/*/pxp_conv_release/
 
 # IAR temp files
 EW*.tmp
@@ -40,4 +42,9 @@ EW*.tmp.c
 *.pbi.cout
 *.pbd
 *.pbd.browse
+
+# MISC temp files
+*.mp4
+*.txt
+*.TXT
 
