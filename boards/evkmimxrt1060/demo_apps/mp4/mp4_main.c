@@ -70,7 +70,7 @@ static const sdmmchost_pwr_card_t s_sdCardPwrCtrl = {
 };
 #endif
 
-static uint8_t s_audioBufferQueue[AUDIO_BUFFER_QUEUE][4*AUDIO_CONV_CHANNEL*AUDIO_FRAME_SIZE*AUDIO_CACHE_FRAMES];
+static uint8_t s_audioBufferQueue[AUDIO_BUFFER_QUEUE][4*AUDIO_CONV_CHANNEL*AUDIO_FRAME_SIZE*AUDIO_CACHE_FRAMES] @ ".audioBufferQueue";
 static uint8_t s_audioBufferQueueIndex = 0;
 
 static uint8_t *s_cachedAudioBuffer;

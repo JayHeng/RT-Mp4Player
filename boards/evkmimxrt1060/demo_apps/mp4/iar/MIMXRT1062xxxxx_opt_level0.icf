@@ -113,6 +113,8 @@ place in OCRAM_region                             {
                                                     ro object mp4_lcd_video.o,
                                                     ro object mp4_sai_audio.o,
 
+                                                    readwrite section .audioBufferQueue,
+
                                                   };
 
 place in ITCM_region                              {
