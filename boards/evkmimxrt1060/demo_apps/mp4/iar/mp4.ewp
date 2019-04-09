@@ -4352,7 +4352,7 @@
                 </option>
                 <option>
                     <name>OGChipSelectEditMenu</name>
-                    <state>MIMXRT1052xxx6B	NXP MIMXRT1052xxx6B</state>
+                    <state>MIMXRT1062xxx6A	NXP MIMXRT1062xxx6A</state>
                 </option>
                 <option>
                     <name>GenLowLevelInterface</name>
@@ -4412,7 +4412,7 @@
                 </option>
                 <option>
                     <name>GFPUDeviceSlave</name>
-                    <state>MIMXRT1052xxx6B	NXP MIMXRT1052xxx6B</state>
+                    <state>MIMXRT1062xxx6A	NXP MIMXRT1062xxx6A</state>
                 </option>
                 <option>
                     <name>FPU2</name>
@@ -5422,7 +5422,7 @@
                 </option>
                 <option>
                     <name>OGChipSelectEditMenu</name>
-                    <state>MIMXRT1052xxx6B	NXP MIMXRT1052xxx6B</state>
+                    <state>MIMXRT1062xxx6A	NXP MIMXRT1062xxx6A</state>
                 </option>
                 <option>
                     <name>GenLowLevelInterface</name>
@@ -5482,7 +5482,7 @@
                 </option>
                 <option>
                     <name>GFPUDeviceSlave</name>
-                    <state>MIMXRT1052xxx6B	NXP MIMXRT1052xxx6B</state>
+                    <state>MIMXRT1062xxx6A	NXP MIMXRT1062xxx6A</state>
                 </option>
                 <option>
                     <name>FPU2</name>
@@ -6491,7 +6491,7 @@
                 </option>
                 <option>
                     <name>OGChipSelectEditMenu</name>
-                    <state>MIMXRT1052xxx6B	NXP MIMXRT1052xxx6B</state>
+                    <state>MIMXRT1062xxx6A	NXP MIMXRT1062xxx6A</state>
                 </option>
                 <option>
                     <name>GenLowLevelInterface</name>
@@ -6551,7 +6551,7 @@
                 </option>
                 <option>
                     <name>GFPUDeviceSlave</name>
-                    <state>MIMXRT1052xxx6B	NXP MIMXRT1052xxx6B</state>
+                    <state>MIMXRT1062xxx6A	NXP MIMXRT1062xxx6A</state>
                 </option>
                 <option>
                     <name>FPU2</name>
@@ -7562,7 +7562,7 @@
                 </option>
                 <option>
                     <name>OGChipSelectEditMenu</name>
-                    <state>MIMXRT1052xxx6B	NXP MIMXRT1052xxx6B</state>
+                    <state>MIMXRT1062xxx6A	NXP MIMXRT1062xxx6A</state>
                 </option>
                 <option>
                     <name>GenLowLevelInterface</name>
@@ -7622,7 +7622,7 @@
                 </option>
                 <option>
                     <name>GFPUDeviceSlave</name>
-                    <state>MIMXRT1052xxx6B	NXP MIMXRT1052xxx6B</state>
+                    <state>MIMXRT1062xxx6A	NXP MIMXRT1062xxx6A</state>
                 </option>
                 <option>
                     <name>FPU2</name>

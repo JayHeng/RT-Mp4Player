@@ -5968,7 +5968,7 @@
                 </option>
                 <option>
                     <name>MemFile</name>
-                    <state>$TOOLKIT_DIR$\CONFIG\debugger\NXP\MIMXRT1052xxx6B.ddf</state>
+                    <state>$TOOLKIT_DIR$\CONFIG\debugger\NXP\MIMXRT1062xxx6A.ddf</state>
                 </option>
                 <option>
                     <name>RunToEnable</name>
@@ -6036,7 +6036,7 @@
                 </option>
                 <option>
                     <name>FlashLoadersV3</name>
-                    <state>$TOOLKIT_DIR$\config\flashloader\NXP\FlashIMXRT1050_EVK_FlexSPI.board</state>
+                    <state>$PROJ_DIR$\FlashIMXRT1060_EVK_FlexSPI_hyper1v8.board</state>
                 </option>
                 <option>
                     <name>OCImagesSuppressCheck1</name>
@@ -6064,7 +6064,7 @@
                 </option>
                 <option>
                     <name>OverrideDefFlashBoard</name>
-                    <state>0</state>
+                    <state>1</state>
                 </option>
                 <option>
                     <name>OCImagesOffset1</name>
@@ -7449,7 +7449,7 @@
                 </option>
                 <option>
                     <name>MemFile</name>
-                    <state>$TOOLKIT_DIR$\CONFIG\debugger\NXP\MIMXRT1052xxx6B.ddf</state>
+                    <state>$TOOLKIT_DIR$\CONFIG\debugger\NXP\MIMXRT1062xxx6A.ddf</state>
                 </option>
                 <option>
                     <name>RunToEnable</name>
@@ -7517,7 +7517,7 @@
                 </option>
                 <option>
                     <name>FlashLoadersV3</name>
-                    <state>$TOOLKIT_DIR$\config\flashloader\NXP\FlashIMXRT1050_EVK_FlexSPI.board</state>
+                    <state>$PROJ_DIR$\FlashIMXRT1060_EVK_FlexSPI_hyper1v8.board</state>
                 </option>
                 <option>
                     <name>OCImagesSuppressCheck1</name>
@@ -7545,7 +7545,7 @@
                 </option>
                 <option>
                     <name>OverrideDefFlashBoard</name>
-                    <state>0</state>
+                    <state>1</state>
                 </option>
                 <option>
                     <name>OCImagesOffset1</name>
@@ -8930,7 +8930,7 @@
                 </option>
                 <option>
                     <name>MemFile</name>
-                    <state>$TOOLKIT_DIR$\CONFIG\debugger\NXP\MIMXRT1052xxx6B.ddf</state>
+                    <state>$TOOLKIT_DIR$\CONFIG\debugger\NXP\MIMXRT1062xxx6A.ddf</state>
                 </option>
                 <option>
                     <name>RunToEnable</name>
@@ -8998,7 +8998,7 @@
                 </option>
                 <option>
                     <name>FlashLoadersV3</name>
-                    <state>$TOOLKIT_DIR$\config\flashloader\NXP\FlashIMXRT1050_EVK_FlexSPI.board</state>
+                    <state>$PROJ_DIR$\FlashIMXRT1060_EVK_FlexSPI_hyper1v8.board</state>
                 </option>
                 <option>
                     <name>OCImagesSuppressCheck1</name>
@@ -9026,7 +9026,7 @@
                 </option>
                 <option>
                     <name>OverrideDefFlashBoard</name>
-                    <state>0</state>
+                    <state>1</state>
                 </option>
                 <option>
                     <name>OCImagesOffset1</name>
@@ -10411,7 +10411,7 @@
                 </option>
                 <option>
                     <name>MemFile</name>
-                    <state>$TOOLKIT_DIR$\CONFIG\debugger\NXP\MIMXRT1052xxx6B.ddf</state>
+                    <state>$TOOLKIT_DIR$\CONFIG\debugger\NXP\MIMXRT1062xxx6A.ddf</state>
                 </option>
                 <option>
                     <name>RunToEnable</name>
@@ -10479,7 +10479,7 @@
                 </option>
                 <option>
                     <name>FlashLoadersV3</name>
-                    <state>$TOOLKIT_DIR$\config\flashloader\NXP\FlashIMXRT1050_EVK_FlexSPI.board</state>
+                    <state>$PROJ_DIR$\FlashIMXRT1060_EVK_FlexSPI_hyper1v8.board</state>
                 </option>
                 <option>
                     <name>OCImagesSuppressCheck1</name>
@@ -10507,7 +10507,7 @@
                 </option>
                 <option>
                     <name>OverrideDefFlashBoard</name>
-                    <state>0</state>
+                    <state>1</state>
                 </option>
                 <option>
                     <name>OCImagesOffset1</name>
