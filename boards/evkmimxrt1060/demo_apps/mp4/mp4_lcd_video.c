@@ -134,15 +134,10 @@ static void *volatile activeBuf = NULL;
 
 static pxp_output_buffer_config_t outputBufferConfig;
 static pxp_ps_buffer_config_t psBufferConfig;
-#if MP4_PXP_CONV_TEST == 1
-static uint8_t s_convBufferYUV[3][APP_PS_HEIGHT][APP_PS_WIDTH] @ ".pxpYuvBuffer";
-static uint8_t s_psBufferLcd[APP_LCD_FB_NUM][APP_IMG_HEIGHT][APP_IMG_WIDTH][APP_BPP] @ ".pxpRgbBuffer";
-#else
 #if VIDEO_PXP_CONV_BLOCKING == 0
 AT_NONCACHEABLE_SECTION(static uint8_t s_convBufferYUV[3][APP_PS_HEIGHT][APP_PS_WIDTH]);
 #endif
 AT_NONCACHEABLE_SECTION_ALIGN(static uint8_t s_psBufferLcd[APP_LCD_FB_NUM][APP_IMG_HEIGHT][APP_IMG_WIDTH][APP_BPP], FRAME_BUFFER_ALIGN);
-#endif
 
 /*******************************************************************************
  * Code
@@ -453,19 +448,9 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
 #endif // #if VIDEO_PXP_CONV_BLOCKING == 0
 #else  // #if VIDEO_LCD_DISP_BLOCKING == 1
 #if VIDEO_PXP_CONV_BLOCKING == 1
-#if MP4_PXP_CONV_TEST == 1
-    for (uint32_t i = 0; i < 3; i++)
-    {
-        memcpy(s_convBufferYUV[i], buf[i], xsize * ysize);
-    }
-    psBufferConfig.bufferAddr = (uint32_t)s_convBufferYUV[0];
-    psBufferConfig.bufferAddrU = (uint32_t)s_convBufferYUV[1];
-    psBufferConfig.bufferAddrV = (uint32_t)s_convBufferYUV[2];
-#else
     psBufferConfig.bufferAddr = (uint32_t)buf[0];
     psBufferConfig.bufferAddrU = (uint32_t)buf[1];
     psBufferConfig.bufferAddrV = (uint32_t)buf[2];
-#endif
 #else // #if VIDEO_PXP_CONV_BLOCKING == 0
 #error "Unsupported PXP_CONV_BLOCKING=0, LCD_DISP_BLOCKING=1 configuration case"
 #endif // #if VIDEO_PXP_CONV_BLOCKING == 1

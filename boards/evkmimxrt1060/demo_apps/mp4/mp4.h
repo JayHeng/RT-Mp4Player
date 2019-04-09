@@ -51,9 +51,6 @@ typedef struct _lcd_measure_context
 #define MP4_LCD_TIME_ENABLE 0
 #define MP4_LCD_DISP_OFF    0
 
-// Set for PXP Conv test (only valid when VIDEO_PXP_CONV_BLOCKING =1 and VIDEO_PXP_CONV_WAITING=1)
-#define MP4_PXP_CONV_TEST   0
-
 ////////////////////////////////////////////////////////////////////////////////
 
 // Set audio frame size according to source media
