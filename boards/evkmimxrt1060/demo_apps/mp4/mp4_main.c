@@ -637,9 +637,9 @@ int main(void)
     g_audioSaiCfg.sampleWidth_bit = AUDIO_CONV_WIDTH;
     g_videoLcdCfg.isLcdConfigured = false;
 
-    char *filepath_in="/west_h.mp4";
-    char *filepath_aout="/west_h.pcm";
-    char *filepath_vout="/west_h.yuv";
+    char *filepath_in="/you_raise_me_up_480x272_faststart.mp4";
+    char *filepath_aout="/you_raise_me_up_480x272_faststart.pcm";
+    char *filepath_vout="/you_raise_me_up_480x272_faststart.yuv";
 
     //while(1)
     h264_video_decode(filepath_in, filepath_aout, filepath_vout);
