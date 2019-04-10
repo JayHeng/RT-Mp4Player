@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 NXP
+ * Copyright 2019 NXP
  * All rights reserved.
  *
  *
@@ -90,25 +90,8 @@
 #endif
 
 #define APP_PXP PXP
-#if VIDEO_SRC_RESOLUTION_TGA120 == 1
-#define APP_PS_WIDTH  192  /* 192,120,image resolution*/
-#define APP_PS_HEIGHT 120  /* 192,120,image resolution*/
-#elif VIDEO_SRC_RESOLUTION_MGA180 == 1
-#define APP_PS_WIDTH  288  /* 288,180,image resolution*/
-#define APP_PS_HEIGHT 180  /* 288,180,image resolution*/
-#elif VIDEO_SRC_RESOLUTION_CGA240 == 1
-#define APP_PS_WIDTH  320  /* 320,240,image resolution*/
-#define APP_PS_HEIGHT 240  /* 320,240,image resolution*/
-#elif VIDEO_SRC_RESOLUTION_HVGA272 == 1
-#define APP_PS_WIDTH  480  /* 480,272,image resolution*/
-#define APP_PS_HEIGHT 272  /* 480,272,image resolution*/
-#elif VIDEO_SRC_RESOLUTION_SVGA600 == 1
-#define APP_PS_WIDTH  800  /* 800,600,image resolution*/
-#define APP_PS_HEIGHT 600  /* 800,600,image resolution*/
-#elif VIDEO_SRC_RESOLUTION_WXGA800 == 1
 #define APP_PS_WIDTH  1280 /* 1280,800,image resolution*/
 #define APP_PS_HEIGHT 800  /* 1280,800,image resolution*/
-#endif
 
 #if VIDEO_PIXEL_FMT_RGB888 == 1
 #define APP_BPP 4U
@@ -127,6 +110,8 @@ void BOARD_EnableLcdInterrupt(void);
 /*******************************************************************************
  * Variables
  ******************************************************************************/
+video_lcd_cfg_t g_videoLcdCfg;
+
 static volatile bool g_lcdFramePending = false;
 static void *volatile s_fbList = NULL; /* List to the frame buffers. */
 static void *volatile inactiveBuf = NULL;
@@ -274,7 +259,7 @@ static void APP_PutFrameBuffer(void *fb)
     s_fbList = fb;
 }
 
-static void APP_InitPxp(void)
+static void APP_InitPxp(uint32_t psWidth)
 {
     PXP_Init(APP_PXP);
 
@@ -284,7 +269,7 @@ static void APP_InitPxp(void)
     psBufferConfig.bufferAddr = 0U;
     psBufferConfig.bufferAddrU = 0U;
     psBufferConfig.bufferAddrV = 0U;
-    psBufferConfig.pitchBytes = APP_PS_WIDTH;
+    psBufferConfig.pitchBytes = psWidth;
     PXP_SetProcessSurfaceBackGroundColor(APP_PXP, 0U);
     PXP_SetProcessSurfaceBufferConfig(APP_PXP, &psBufferConfig);
     /* Disable AS. */
@@ -525,12 +510,12 @@ void set_lcd_master_priority(uint32_t priority)
 /*!
  * @brief config_lcd function
  */
-void config_lcd(void)
+void config_lcd(video_lcd_cfg_t *lcdCfg)
 {
     BOARD_InitLcdifPixelClock();
     BOARD_InitLcd();
 
-    APP_InitPxp();
+    APP_InitPxp(lcdCfg->srcWidth);
     APP_InitLcdif();
     ELCDIF_EnableInterrupts(APP_ELCDIF, kELCDIF_CurFrameDoneInterruptEnable);
     BOARD_EnableLcdInterrupt();

@@ -1,6 +1,5 @@
 /*
- * Copyright (c) 2015, Freescale Semiconductor, Inc.
- * Copyright 2016-2017 NXP
+ * Copyright 2019 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -60,6 +59,8 @@ static void set_sai_clock_dividers(uint32_t bitWidth, uint32_t sampleRate_Hz, sa
 /*******************************************************************************
  * Variables
  ******************************************************************************/
+audio_sai_cfg_t g_audioSaiCfg;
+
 AT_NONCACHEABLE_SECTION_INIT(sai_edma_handle_t txHandle) = {0};
 edma_handle_t dmaTxHandle = {0};
 sai_transfer_format_t format = {0};
@@ -136,8 +137,8 @@ void sai_audio_play(uint8_t *audioData, uint32_t audioBytes)
         if (s_saiMeasureIndex)
         {
             uint64_t costTime_ns = time_measure_done();
-            uint32_t transSamples = audioBytes / sizeof(AUDIO_CONV_SIZE) / AUDIO_CONV_CHANNEL;
-            uint64_t expectedTime_ns = (uint64_t)transSamples * 1000000000 / AUDIO_SAMP_RATE;
+            uint32_t transSamples = audioBytes / (g_audioSaiCfg.sampleWidth_bit / 8) / g_audioSaiCfg.sampleChannel;
+            uint64_t expectedTime_ns = (uint64_t)transSamples * 1000000000 / g_audioSaiCfg.sampleRate_Hz;
             if ((costTime_ns > expectedTime_ns) && ((costTime_ns - expectedTime_ns) > (AUDIO_FRAME_ERR_NS * transSamples / AUDIO_FRAME_SIZE)))
             {
                 // Note: Only record those transfers which error is more than AUDIO_FRAME_ERR_NS
@@ -228,7 +229,7 @@ uint32_t get_sai_clock_freq(void)
 /*!
  * @brief config_sai function
  */
-void config_sai(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_stereo_t stereo)
+void config_sai(audio_sai_cfg_t *saiCfg)
 {
     sai_config_t config;
     uint32_t mclkSourceClockHz = 0U;
@@ -239,8 +240,17 @@ void config_sai(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_stereo_t ste
     CLOCK_SetMux(kCLOCK_Lpi2cMux, APP_LPI2C_CLOCK_SOURCE_SELECT);
     CLOCK_SetDiv(kCLOCK_Lpi2cDiv, APP_LPI2C_CLOCK_SOURCE_DIVIDER);
 
+    if (saiCfg->sampleChannel >= 2)
+    {
+        format.stereo = kSAI_Stereo;
+    }
+    else
+    {
+        format.stereo = kSAI_MonoRight;
+    }
+
     // Find best dividers for SAI clock setting
-    set_sai_clock_dividers(bitWidth, sampleRate_Hz, stereo);
+    set_sai_clock_dividers(saiCfg->sampleWidth_bit, saiCfg->sampleRate_Hz, format.stereo);
 
     /*Clock setting for SAI1*/
     CLOCK_SetMux(kCLOCK_Sai1Mux, APP_SAI1_CLOCK_SOURCE_SELECT);
@@ -280,16 +290,16 @@ void config_sai(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_stereo_t ste
     SAI_TxInit(APP_SAI, &config);
 
     /* Configure the audio format */
-    format.bitWidth = bitWidth;
+    format.bitWidth = saiCfg->sampleWidth_bit;
     format.channel = 0U;
     // Note: this is workaround for SDK SAI driver
-    if (stereo == kSAI_Stereo)
+    if (format.stereo == kSAI_Stereo)
     {
-        format.sampleRate_Hz = sampleRate_Hz;
+        format.sampleRate_Hz = saiCfg->sampleRate_Hz;
     }
     else
     {
-        format.sampleRate_Hz = sampleRate_Hz * 2;
+        format.sampleRate_Hz = saiCfg->sampleRate_Hz * 2;
     }
 #if (defined FSL_FEATURE_SAI_HAS_MCLKDIV_REGISTER && FSL_FEATURE_SAI_HAS_MCLKDIV_REGISTER) || \
     (defined FSL_FEATURE_PCC_HAS_SAI_DIVIDER && FSL_FEATURE_PCC_HAS_SAI_DIVIDER)
@@ -298,7 +308,6 @@ void config_sai(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_stereo_t ste
     format.masterClockHz = get_sai_clock_freq();
 #endif
     format.protocol = config.protocol;
-    format.stereo = stereo;
     format.isFrameSyncCompact = true;
 #if defined(FSL_FEATURE_SAI_FIFO_COUNT) && (FSL_FEATURE_SAI_FIFO_COUNT > 1)
     format.watermark = FSL_FEATURE_SAI_FIFO_COUNT / 2U;

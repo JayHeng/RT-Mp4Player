@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 NXP
+ * Copyright 2019 NXP
  * All rights reserved.
  *
  *
@@ -30,9 +30,11 @@
 static status_t sdcard_wait_insert(void);
 static int sdcard_mount(void);
 
-extern void config_sai(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_stereo_t stereo);
+extern audio_sai_cfg_t g_audioSaiCfg;
+extern void config_sai(audio_sai_cfg_t *saiCfg);
 extern void sai_audio_play(uint8_t *audioData, uint32_t audioBytes);
-extern void config_lcd(void);
+extern video_lcd_cfg_t g_videoLcdCfg;
+extern void config_lcd(video_lcd_cfg_t *lcdCfg);
 extern void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize);
 extern void config_gpt(void);
 
@@ -70,7 +72,8 @@ static const sdmmchost_pwr_card_t s_sdCardPwrCtrl = {
 };
 #endif
 
-static uint8_t s_audioBufferQueue[AUDIO_BUFFER_QUEUE][4*AUDIO_CONV_CHANNEL*AUDIO_FRAME_SIZE*AUDIO_CACHE_FRAMES] @ ".audioBufferQueue";
+// Audio format: 2 channel(Max) , int32_t(Max)
+static uint8_t s_audioBufferQueue[AUDIO_BUFFER_QUEUE][4*2*AUDIO_FRAME_SIZE*AUDIO_CACHE_FRAMES] @ ".audioBufferQueue";
 static uint8_t s_audioBufferQueueIndex = 0;
 
 static uint8_t *s_cachedAudioBuffer;
@@ -171,7 +174,7 @@ void convert_audio_format(float *src_l,
                           float *src_r,
                           uint8_t *dest,
                           uint32_t samples,
-                          conv_audio_format_t format)
+                          uint32_t format_intBits)
 {
     bool hasCh_l = src_l != 0;
     bool hasCh_r = src_r != 0;
@@ -196,19 +199,19 @@ void convert_audio_format(float *src_l,
             {
                 data_l = *src_l;
             }
-            if (format == kConvAudioFormat_Int16)
+            if (format_intBits == 16)
             {
                 int32_t temp = (int32_t)(data_l * ((int32_t)1 << 16));
                 *((int16_t *)dest) = (int16_t)temp;
                 dest +=sizeof(int16_t);
             }
-            else if (format == kConvAudioFormat_Int24)
+            else if (format_intBits == 24)
             {
                 int32_t temp = (int32_t)(data_l * ((int32_t)1 << 24));
                 *((int32_t *)dest) = (int32_t)temp;
                 dest +=sizeof(int32_t);
             }
-            else if (format == kConvAudioFormat_Int32)
+            else if (format_intBits == 32)
             {
                 int64_t temp = (int64_t)((double)data_l * ((int64_t)1 << 32));
                 *((int32_t *)dest) = (int32_t)temp;
@@ -230,19 +233,19 @@ void convert_audio_format(float *src_l,
             {
                 data_r = *src_r;
             }
-            if (format == kConvAudioFormat_Int16)
+            if (format_intBits == 16)
             {
                 int32_t temp = (int32_t)(data_r * ((int32_t)1 << 16));
                 *((int16_t *)dest) = (int16_t)temp;
                 dest +=sizeof(int16_t);
             }
-            else if (format == kConvAudioFormat_Int24)
+            else if (format_intBits == 24)
             {
                 int32_t temp = (int32_t)(data_r * ((int32_t)1 << 24));
                 *((int32_t *)dest) = (int32_t)temp;
                 dest +=sizeof(int32_t);
             }
-            else if (format == kConvAudioFormat_Int32)
+            else if (format_intBits == 32)
             {
                 int64_t temp = (int64_t)((double)data_r * ((int64_t)1 << 32));
                 *((int32_t *)dest) = (int32_t)temp;
@@ -450,6 +453,21 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
                 }
                 if (out_size > 0)
                 {
+                    if (!g_audioSaiCfg.isSaiConfigured)
+                    {
+                        g_audioSaiCfg.sampleRate_Hz = frame->sample_rate;
+                        if (frame->channels >= 2)
+                        {
+                            g_audioSaiCfg.sampleChannel = 2;
+                        }
+                        else
+                        {
+                            g_audioSaiCfg.sampleChannel = frame->channels;
+                        }
+                        config_sai(&g_audioSaiCfg);
+                        g_audioSaiCfg.isSaiConfigured = true;
+                    }
+
                     if (pInCodecCtx_audio->sample_fmt == AV_SAMPLE_FMT_S16P)
                     { // Audacity: 16bit PCM little endian stereo
                         int16_t* ptr_l = (int16_t*)frame->extended_data[0];
@@ -464,15 +482,14 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
                     { //Audacity: little endian 32bit stereo start offset 7 ()
                         float* ptr_l = (float*)frame->extended_data[0];
                         float* ptr_r = (float*)frame->extended_data[1];
-#if (AUDIO_CONV_CHANNEL == 1)
-                        ptr_r = 0;
-#elif (AUDIO_CONV_CHANNEL == 2)
-                        // Do nothing
-#endif
+                        if (g_audioSaiCfg.sampleChannel < 2)
+                        {
+                            ptr_r = 0;
+                        }
                         uint8_t *audioBuffer = s_audioBufferQueue[s_audioBufferQueueIndex];
-                        convert_audio_format(ptr_l, ptr_r, audioBuffer + s_cachedAudioBytes, frame->nb_samples, AUDIO_CONV_FORMAT);
+                        convert_audio_format(ptr_l, ptr_r, audioBuffer + s_cachedAudioBytes, frame->nb_samples, g_audioSaiCfg.sampleWidth_bit);
                         s_cachedAudioBuffer = audioBuffer;
-                        s_cachedAudioBytes += sizeof(AUDIO_CONV_SIZE) * frame->nb_samples * AUDIO_CONV_CHANNEL;
+                        s_cachedAudioBytes += (g_audioSaiCfg.sampleWidth_bit / 8) * frame->nb_samples * g_audioSaiCfg.sampleChannel;
                         s_cachedAudioFrames++;
                         if (s_cachedAudioFrames == AUDIO_CACHE_FRAMES)
                         {
@@ -481,7 +498,7 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
                             s_audioBufferQueueIndex %= AUDIO_BUFFER_QUEUE;
                         }
 #if MP4_WAV_ENABLE == 1
-                        wav_write(audioBuffer, sizeof(AUDIO_CONV_SIZE) * frame->nb_samples * AUDIO_CONV_CHANNEL);
+                        wav_write(audioBuffer, (g_audioSaiCfg.sampleWidth_bit / 8) * frame->nb_samples * g_audioSaiCfg.sampleChannel);
 #endif
                         //for (int i = 0; i < frame->nb_samples; i++)
                         //{
@@ -513,6 +530,13 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
                 }
                 if (out_sizeyuv > 0)
                 {
+                    if (!g_videoLcdCfg.isLcdConfigured)
+                    {
+                        g_videoLcdCfg.srcWidth = frameyuv->width;
+                        g_videoLcdCfg.srcHeight = frameyuv->height;
+                        config_lcd(&g_videoLcdCfg);
+                        g_videoLcdCfg.isLcdConfigured = true;
+                    }
                     // Show video (yuv444p) via LCD, note: PXP can only support YUV444->RGB24
                     lcd_video_display(frameyuv->data, frameyuv->width, frameyuv->height);
                     // Save YUV data (yuv420p) in file
@@ -609,43 +633,14 @@ int main(void)
     config_gpt();
 #endif
 
-    // Init SAI module
-    config_sai(AUDIO_SAMP_WIDTH, AUDIO_SAMP_RATE, AUDIO_SAMP_CHANNEL);
+    g_audioSaiCfg.isSaiConfigured = false;
+    g_audioSaiCfg.sampleWidth_bit = AUDIO_CONV_WIDTH;
+    g_videoLcdCfg.isLcdConfigured = false;
 
-    // Init LCD module
-    config_lcd();
+    char *filepath_in="/west_h.mp4";
+    char *filepath_aout="/west_h.pcm";
+    char *filepath_vout="/west_h.yuv";
 
-    //char *filepath_in="/bigbuckbunny_480x272.h264";
-    //char *filepath_in="/clown_720x576.h264";
-    //char *filepath_in="/formen_352x288.h264";
-    //char *filepath_in="/test.h264";
-    //char *filepath_in="/1.h64";
-    //char *filepath_out="/test-out.yuv";
-#if VIDEO_SRC_RESOLUTION_TGA120 == 1
-    char *filepath_in="/bunny_t.mp4";
-    char *filepath_aout="/bunny_t.pcm";
-    char *filepath_vout="/bunny_t.yuv";
-#elif VIDEO_SRC_RESOLUTION_MGA180 == 1
-    char *filepath_in="/bunny_m.mp4";
-    char *filepath_aout="/bunny_m.pcm";
-    char *filepath_vout="/bunny_m.yuv";
-#elif VIDEO_SRC_RESOLUTION_CGA240 == 1
-    char *filepath_in="/bunny_c.mp4";
-    char *filepath_aout="/bunny_c.pcm";
-    char *filepath_vout="/bunny_c.yuv";
-#elif VIDEO_SRC_RESOLUTION_HVGA272 == 1
-    char *filepath_in="/bunny_h.mp4";
-    char *filepath_aout="/bunny_h.pcm";
-    char *filepath_vout="/bunny_h.yuv";
-#elif VIDEO_SRC_RESOLUTION_SVGA600 == 1
-    char *filepath_in="/bunny_s.mp4";
-    char *filepath_aout="/bunny_s.pcm";
-    char *filepath_vout="/bunny_s.yuv";
-#elif VIDEO_SRC_RESOLUTION_WXGA800 == 1
-    char *filepath_in="/bunny_w.mp4";
-    char *filepath_aout="/bunny_w.pcm";
-    char *filepath_vout="/bunny_w.yuv";
-#endif
     //while(1)
     h264_video_decode(filepath_in, filepath_aout, filepath_vout);
 }

@@ -60,22 +60,16 @@ typedef struct _lcd_measure_context
 // Set audio buffer queue, it is important for SAI DMA transfer
 #define AUDIO_BUFFER_QUEUE 3
 
-typedef enum _conv_audio_format
-{
-    kConvAudioFormat_Int16 = 0U,
-    kConvAudioFormat_Int24 = 1U,
-    kConvAudioFormat_Int32 = 2U,
-} conv_audio_format_t;
-
-// Set converted audio data format
-#define AUDIO_CONV_FORMAT  kConvAudioFormat_Int16
-#define AUDIO_CONV_SIZE    int16_t
-#define AUDIO_CONV_CHANNEL 2
-
 // Set SAI configurations for audio
-#define AUDIO_SAMP_WIDTH   kSAI_WordWidth16bits
-#define AUDIO_SAMP_RATE    kSAI_SampleRate48KHz
-#define AUDIO_SAMP_CHANNEL kSAI_Stereo
+#define AUDIO_CONV_WIDTH   kSAI_WordWidth16bits
+
+typedef struct _audio_sai_cfg
+{
+    bool isSaiConfigured;
+    uint32_t sampleRate_Hz;
+    uint32_t sampleWidth_bit;
+    uint32_t sampleChannel;
+} audio_sai_cfg_t;
 
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -86,13 +80,12 @@ typedef enum _conv_audio_format
 #define VIDEO_LCD_DISP_BLOCKING       1
 #define VIDEO_LCD_DISP_WAITING        0
 
-// Set video resolution
-#define VIDEO_SRC_RESOLUTION_TGA120   0  // For 192*120 video
-#define VIDEO_SRC_RESOLUTION_MGA180   0  // For 288*180 video
-#define VIDEO_SRC_RESOLUTION_CGA240   0  // For 320*240 video
-#define VIDEO_SRC_RESOLUTION_HVGA272  1  // For 480*272 video
-#define VIDEO_SRC_RESOLUTION_SVGA600  0  // For 800*600 video
-#define VIDEO_SRC_RESOLUTION_WXGA800  0  // For 1280*800 video
+typedef struct _video_lcd_cfg
+{
+    bool isLcdConfigured;
+    uint32_t srcWidth;
+    uint32_t srcHeight;
+} video_lcd_cfg_t;
 
 // Set LCD resolution
 #define VIDEO_LCD_RESOLUTION_HVGA272  1  // For 480*272 LCD
