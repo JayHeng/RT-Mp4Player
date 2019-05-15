@@ -13,6 +13,7 @@
 #include "clock_config.h"
 #include "fsl_common.h"
 #include "fsl_debug_console.h"
+#include "fsl_gpio.h"
 #include "ff.h"
 #include "fsl_sd.h"
 #include "diskio.h"
@@ -586,6 +587,10 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
     }
 
 #if MP4_FF_TIME_ENABLE == 1
+    gpio_pin_config_t led_config = {kGPIO_DigitalOutput, 0, kGPIO_NoIntmode};
+    GPIO_PinInit(BOARD_USER_LED_GPIO, BOARD_USER_LED_GPIO_PIN, &led_config);
+    GPIO_PinWrite(BOARD_USER_LED_GPIO, BOARD_USER_LED_GPIO_PIN, 0U);
+
     f_close(&toutputFil);
 #endif
 
@@ -637,9 +642,9 @@ int main(void)
     g_audioSaiCfg.sampleWidth_bit = AUDIO_CONV_WIDTH;
     g_videoLcdCfg.isLcdConfigured = false;
 
-    char *filepath_in="/you_raise_me_up_480x272_faststart.mp4";
-    char *filepath_aout="/you_raise_me_up_480x272_faststart.pcm";
-    char *filepath_vout="/you_raise_me_up_480x272_faststart.yuv";
+    char *filepath_in="/bigbuckbunny_480x272_faststart.mp4";
+    char *filepath_aout="/bigbuckbunny_480x272_faststart.pcm";
+    char *filepath_vout="/bigbuckbunny_480x272_faststart.yuv";
 
     //while(1)
     h264_video_decode(filepath_in, filepath_aout, filepath_vout);
