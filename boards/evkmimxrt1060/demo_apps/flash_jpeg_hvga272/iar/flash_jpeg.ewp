@@ -2304,6 +2304,12 @@
         <file>
             <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1062\drivers\fsl_lpuart.h</name>
         </file>
+        <file>
+            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1062\drivers\fsl_pit.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1062\drivers\fsl_pit.h</name>
+        </file>
     </group>
     <group>
         <name>source</name>

@@ -16,6 +16,7 @@
 
 #include "pin_mux.h"
 #include "fsl_gpio.h"
+#include "fsl_pit.h"
 #include "clock_config.h"
 /*******************************************************************************
  * Definitions
@@ -77,6 +78,8 @@ static volatile bool g_lcdFramePending = false;
 
 const uint32_t s_imagePics = 18;
 const uint32_t s_imageStartAddr = 0x61000000;
+
+volatile uint32_t s_timerHighCounter = 0;
 
 /*******************************************************************************
  * Code
@@ -178,6 +181,51 @@ void APP_ELCDIF_Init(void)
     ELCDIF_RgbModeInit(APP_ELCDIF, &config);
 }
 
+void PIT_IRQ_HANDLER(void)
+{
+    /* Clear interrupt flag.*/
+    PIT_ClearStatusFlags(PIT, kPIT_Chnl_0, kPIT_TimerFlag);
+    s_timerHighCounter++;
+}
+
+void timer_pit_init(void)
+{
+    /* Structure of initialize PIT */
+    pit_config_t pitConfig;
+    PIT_GetDefaultConfig(&pitConfig);
+    /* Init pit module */
+    PIT_Init(PIT, &pitConfig);
+    /* Set max timer period for channel 0 */
+    PIT_SetTimerPeriod(PIT, kPIT_Chnl_0, (uint32_t)~0);
+    /* Enable timer interrupts for channel 0 */
+    PIT_EnableInterrupts(PIT, kPIT_Chnl_0, kPIT_TimerInterruptEnable);
+    /* Enable at the NVIC */
+    EnableIRQ(PIT_IRQn);
+    /* Start channel 0 */
+    PIT_StartTimer(PIT, kPIT_Chnl_0);
+
+    s_timerHighCounter = 0;
+}
+
+/* Porting : Timing functions
+    How to capture time and convert to seconds must be ported to whatever is supported by the platform.
+    e.g. Read value from on board RTC, read value from cpu clock cycles performance counter etc.
+    Sample implementation for standard time.h and windows.h definitions included.
+*/
+uint64_t timer_pit_get_ticks() {
+    uint64_t retVal;
+    uint32_t high;
+    uint32_t low;
+    do
+    {
+        high = s_timerHighCounter;
+        low = ~PIT_GetCurrentTimerCount(PIT, kPIT_Chnl_0);
+    } while (high != s_timerHighCounter);
+    retVal = ((uint64_t)high << 32U) + low;
+
+    return retVal;
+}
+
 /*!
  * @brief Main function
  */
@@ -185,6 +233,8 @@ int main(void)
 {
     uint8_t *imageAddr = (uint8_t *)s_imageStartAddr;
     uint32_t imageBytes = APP_IMG_HEIGHT * APP_IMG_WIDTH * APP_LCD_FB_BPP;
+    bool isTimerEnabled = false;
+    bool isTimeRecorded = false;
 
     BOARD_ConfigMPU();
     BOARD_InitPins();
@@ -213,11 +263,28 @@ int main(void)
 
         ELCDIF_SetNextBufferAddr(APP_ELCDIF, (uint32_t)imageAddr);
         g_lcdFramePending = true;
-        
+
         imageAddr += imageBytes;
         if ((uint32_t)imageAddr >= (s_imageStartAddr + imageBytes * s_imagePics))
         {
             imageAddr = (uint8_t *)s_imageStartAddr;
+            if (isTimerEnabled)
+            {
+                if (!isTimeRecorded)
+                {
+                    uint64_t ticks = timer_pit_get_ticks();
+                    PIT_StopTimer(PIT, kPIT_Chnl_0);
+                    double secs = ticks / 24000000.0;
+                    PRINTF("Seconds per Round: %2.6f \r\n", secs);
+                    
+                    isTimeRecorded = true;
+                }
+            }
+            else
+            {
+                timer_pit_init();
+                isTimerEnabled = true;
+            }
         }
     }
 }
