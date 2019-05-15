@@ -223,6 +223,7 @@
                     <state>SKIP_SYSCLK_INIT</state>
                     <state>DEBUG</state>
                     <state>CPU_MIMXRT1062DVL6A</state>
+                    <state>XIP_EXTERNAL_FLASH=1</state>
                     <state>FSL_SDK_ENABLE_DRIVER_CACHE_CONTROL=1</state>
                 </option>
                 <option>
@@ -680,7 +681,7 @@
                 </option>
                 <option>
                     <name>OOCOutputFile</name>
-                    <state></state>
+                    <state>flash_jpeg.srec</state>
                 </option>
                 <option>
                     <name>OOCCommandLineProducer</name>
@@ -688,7 +689,7 @@
                 </option>
                 <option>
                     <name>OOCObjCopyEnable</name>
-                    <state>0</state>
+                    <state>1</state>
                 </option>
             </data>
         </settings>
@@ -735,7 +736,7 @@
                 </option>
                 <option>
                     <name>IlinkOutputFile</name>
-                    <state>sd_jpeg.out</state>
+                    <state>flash_jpeg.elf</state>
                 </option>
                 <option>
                     <name>IlinkDebugInfoEnable</name>
@@ -1290,6 +1291,7 @@
                     <state>NDEBUG</state>
                     <state>SKIP_SYSCLK_INIT</state>
                     <state>CPU_MIMXRT1062DVL6A</state>
+                    <state>XIP_EXTERNAL_FLASH=1</state>
                     <state>FSL_SDK_ENABLE_DRIVER_CACHE_CONTROL=1</state>
                 </option>
                 <option>

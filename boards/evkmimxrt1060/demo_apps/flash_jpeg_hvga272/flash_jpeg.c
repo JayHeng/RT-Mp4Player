@@ -75,6 +75,9 @@ void BOARD_EnableLcdInterrupt(void);
 
 static volatile bool g_lcdFramePending = false;
 
+const uint32_t s_imagePics = 18;
+const uint32_t s_imageStartAddr = 0x61000000;
+
 /*******************************************************************************
  * Code
  ******************************************************************************/
@@ -180,8 +183,8 @@ void APP_ELCDIF_Init(void)
  */
 int main(void)
 {
-    int i = 0;
-    void *freeFb;
+    uint8_t *imageAddr = (uint8_t *)s_imageStartAddr;
+    uint32_t imageBytes = APP_IMG_HEIGHT * APP_IMG_WIDTH * APP_LCD_FB_BPP;
 
     BOARD_ConfigMPU();
     BOARD_InitPins();
@@ -190,7 +193,7 @@ int main(void)
     BOARD_InitDebugConsole();
     BOARD_InitLcd();
 
-    PRINTF("SD JPEG demo start:\r\n");
+    PRINTF("Flash JPEG demo start:\r\n");
 
     APP_ELCDIF_Init();
 
@@ -201,14 +204,20 @@ int main(void)
 
     while (1)
     {
-        DCACHE_CleanInvalidateByRange((uint32_t)freeFb, APP_IMG_HEIGHT * APP_IMG_WIDTH * APP_LCD_FB_BPP);
+        DCACHE_CleanInvalidateByRange((uint32_t)imageAddr, imageBytes);
 
         /* Make sure previous set frame buffer is actived and shown. */
         while (g_lcdFramePending)
         {
         }
 
-        ELCDIF_SetNextBufferAddr(APP_ELCDIF, (uint32_t)freeFb);
+        ELCDIF_SetNextBufferAddr(APP_ELCDIF, (uint32_t)imageAddr);
         g_lcdFramePending = true;
+        
+        imageAddr += imageBytes;
+        if ((uint32_t)imageAddr >= (s_imageStartAddr + imageBytes * s_imagePics))
+        {
+            imageAddr = (uint8_t *)s_imageStartAddr;
+        }
     }
 }
