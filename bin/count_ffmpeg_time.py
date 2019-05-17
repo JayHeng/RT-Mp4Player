@@ -30,6 +30,7 @@ class ShowFFmpegTime(object):
 
     def _read_options(self):
         parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
+        parser.add_argument("-v", "--version", help="ShowFFmpegTime 0.1")
         parser.add_argument("input", help="FFmpeg decode time data file."),
         parser.add_argument("vinfo", help="Video resolution info."),
         parser.add_argument("build", help="Project build info."),

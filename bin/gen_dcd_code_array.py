@@ -15,7 +15,7 @@ class ConvertBinToCcodeArray(object):
 
     def _read_options(self):
         parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
-        parser.add_argument("-v", "--version", help="bin2ccodearray 0.1.0")
+        parser.add_argument("-v", "--version", help="bin2ccodearray 0.1")
         parser.add_argument("-o", "--output", required=True, metavar="PATH", type=argparse.FileType('w+'), help="Specify the output file.")
         parser.add_argument("input", help="image bin file."),
 

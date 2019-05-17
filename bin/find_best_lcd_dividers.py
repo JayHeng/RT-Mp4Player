@@ -7,6 +7,7 @@ s_lcdifPreDiv = list(range(0, 8))
 s_lcdifDiv = list(range(0, 8))
 
 s_maxPixelClockFreq = 75000000
+s_maxFreqError_1GHz = 1000000000
 
 kLcdResolution_480x272 = '480x272'
 kLcdResolution_800x600 = '800x600'
@@ -22,7 +23,7 @@ class FindBestDividers(object):
 
     def _read_options(self):
         parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter)
-        parser.add_argument("-v", "--version", help="FindBestDividers 0.1")
+        parser.add_argument("-v", "--version", help="FindBestDividers 0.2")
         parser.add_argument("frequency", help="Desired LCD frequency."),
         parser.add_argument("resolution", help="Target LCD resolution."),
         return parser.parse_args()
@@ -36,7 +37,7 @@ class FindBestDividers(object):
         actualLcdFreq = 0
         actualPixelFreq = 0
 
-        freqError = int(self._freq)
+        freqError = s_maxFreqError_1GHz
 
         loopDivider = 0
         postDivider = 0
