@@ -98,5 +98,5 @@ typedef struct _video_lcd_cfg
 
 // Set LCD refresh frequency
 #define VIDEO_LCD_REFRESH_FREG_60Hz   0
-#define VIDEO_LCD_REFRESH_FREG_30Hz   0
-#define VIDEO_LCD_REFRESH_FREG_25Hz   1
+#define VIDEO_LCD_REFRESH_FREG_30Hz   1
+#define VIDEO_LCD_REFRESH_FREG_25Hz   0

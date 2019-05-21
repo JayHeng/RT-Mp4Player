@@ -47,8 +47,8 @@
 ** ###################################################################
 */
 
-define symbol m_itcm_interrupts_start = 0x80002000;
-define symbol m_itcm_interrupts_end   = 0x800023FF;
+define symbol m_sdram_interrupts_start = 0x80002000;
+define symbol m_sdram_interrupts_end   = 0x800023FF;
 
 define symbol m_itcm_start            = 0x00000000;
 define symbol m_itcm_end              = 0x0001FFFF;
@@ -78,13 +78,12 @@ if (isdefinedsymbol(__heap_size__)) {
   define symbol __size_heap__          = 0x1000000;
 }
 
-define exported symbol __VECTOR_TABLE  = m_itcm_interrupts_start;
-define exported symbol __VECTOR_RAM    = m_itcm_interrupts_start;
+define exported symbol __VECTOR_TABLE  = m_sdram_interrupts_start;
+define exported symbol __VECTOR_RAM    = m_sdram_interrupts_start;
 define exported symbol __RAM_VECTOR_TABLE_SIZE = 0x0;
 
 define memory mem with size = 4G;
-define region FLEXRAM_region      = mem:[from m_itcm_interrupts_start to m_itcm_interrupts_end]
-                                  | mem:[from m_itcm_start to m_itcm_end]
+define region FLEXRAM_region      = mem:[from m_itcm_start to m_itcm_end]
                                   | mem:[from m_dtcm_start to m_dtcm_end]
                                   | mem:[from m_ocram_start to m_ocram_end];
 define region SDRAM_region        = mem:[from m_sdram_start to m_sdram_end-__size_heap__];
@@ -100,7 +99,7 @@ define block NCACHE_VAR with size = 0xb00000 , alignment = 0x100000  { section N
 initialize by copy { readwrite, section .textrw };
 do not initialize  { section .noinit };
 
-place at address mem: m_itcm_interrupts_start     { readonly section .intvec };
+place at address mem: m_sdram_interrupts_start    { readonly section .intvec };
 place in SDRAM_region                             { readonly };
 place in FLEXRAM_region                           { readwrite, zi };
 place in SDRAM_region                             { block CSTACK };

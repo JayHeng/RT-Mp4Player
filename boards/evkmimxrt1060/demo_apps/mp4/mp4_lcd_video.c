@@ -520,8 +520,12 @@ void config_lcd(video_lcd_cfg_t *lcdCfg)
     ELCDIF_EnableInterrupts(APP_ELCDIF, kELCDIF_CurFrameDoneInterruptEnable);
     BOARD_EnableLcdInterrupt();
 
+#if (VIDEO_LCD_RESOLUTION_WXGA800 == 1) || (VIDEO_LCD_RESOLUTION_SVGA600 == 1)
     set_lcd_master_priority(15);
     set_pxp_master_priority(14);
+#elif VIDEO_LCD_RESOLUTION_HVGA272 == 1
+    // Do nothing
+#endif
 }
 
 void APP_LCDIF_IRQHandler(void)
