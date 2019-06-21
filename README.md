@@ -80,13 +80,19 @@ A multi-media player based on i.MXRT+emWin+FFmpeg4.1 | 一款基于i.MXRT的多�
 　　你可以下载1280x720分辨率版本（30MB）作为基础MP4，然后使用 \ffmpeg-4.1.1-win64-shared\bin\ffmpeg.exe工具对基础MP4进行处理：  
 
 > jay@pc /d/ffmpeg-4.1.1-win64-shared/bin
-> <font style="font-weight:bold;">.\ffmpeg.exe -i .\SampleVideo_1280x720_30mb.mp4 -vf scale=320:200 bunny.mp4 -hide_banner</font>
+> <font style="font-weight:bold;">.\ffmpeg.exe -i .\SampleVideo_1280x720_30mb.mp4 -vf scale=480:272 bunny_480x272.mp4 -hide_banner</font>
 
-##### 2.1.2 前移moov标志
+##### 2.1.2 转换采样率
+　　音频采样率越低，MP4应用越流畅，因为留给软件解码H.264的时间越长：  
+
+> jay@pc /d/ffmpeg-4.1.1-win64-shared/bin
+> <font style="font-weight:bold;">.\ffmpeg.exe -i bunny_480x272.mp4 -ar 8000 -ac 2 bunny_480x272_8KHz.mp4</font>
+
+##### 2.1.3 前移moov标志
 　　当前应用仅能播放moov标志在mdat标志前面的MP4（与移植的嵌入式ffmpeg配置有关），因此需要借助ffmpeg.exe对源MP4进行处理：  
 
 > jay@pc /d/ffmpeg-4.1.1-win64-shared/bin
-> <font style="font-weight:bold;">.\ffmpeg.exe -i bunny.mp4 -vcodec copy -acodec copy -movflags faststart bunny_out.mp4</font>
+> <font style="font-weight:bold;">.\ffmpeg.exe -i bunny_480x272_8KHz.mp4 -vcodec copy -acodec copy -movflags faststart bunny_480x272_faststart_8KHz.mp4</font>
 
 #### 2.2 配置程序
 　　本应用工程文件为 \RT-MPlayer\boards\evkmimxrt1060\demo_apps\mp4\iar\mp4.eww，在测试下载本应用时需要注意以下两处配置：  
