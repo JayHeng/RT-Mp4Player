@@ -642,9 +642,9 @@ int main(void)
     g_audioSaiCfg.sampleWidth_bit = AUDIO_CONV_WIDTH;
     g_videoLcdCfg.isLcdConfigured = false;
 
-    char *filepath_in="/peppa_pig_480x272_faststart_8KHz.mp4";
-    char *filepath_aout="/peppa_pig_480x272_faststart_8KHz.pcm";
-    char *filepath_vout="/peppa_pig_480x272_faststart_8KHz.yuv";
+    char *filepath_in="/bigbuckbunny_480x272_faststart_8KHz_h264.mp4";
+    char *filepath_aout="/bigbuckbunny_480x272_faststart_8KHz_h264.pcm";
+    char *filepath_vout="/bigbuckbunny_480x272_faststart_8KHz_h264.yuv";
 
     while(1)
     {

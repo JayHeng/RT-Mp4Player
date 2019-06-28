@@ -525,6 +525,8 @@ void config_lcd(video_lcd_cfg_t *lcdCfg)
     set_pxp_master_priority(14);
 #elif VIDEO_LCD_RESOLUTION_HVGA272 == 1
     // Do nothing
+    set_lcd_master_priority(15);
+    set_pxp_master_priority(14);
 #endif
 }
 
