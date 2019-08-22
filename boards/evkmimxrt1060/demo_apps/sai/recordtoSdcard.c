@@ -231,3 +231,68 @@ void RecordSDCard(I2S_Type *base, uint32_t time_s)
     f_close(&g_fileObject);
     PRINTF("\r\nPlayback is finished!\r\n");
 }
+
+void PlaySDCard(I2S_Type *base)
+{
+    uint32_t i = 0;
+    uint32_t bytesRead = 0;
+    uint32_t txindex = 0;
+    uint32_t rxindex = 0;
+    uint32_t sdReadCount = 0;
+    uint8_t header[44] = {0};
+    sai_transfer_t xfer = {0};
+
+    /* Clear the status */
+    isrxFinished = false;
+    receiveCount = 0;
+    istxFinished = false;
+    sendCount = 0;
+    sdcard = true;
+
+    /* Playback the record file */
+    PRINTF("\r\nPlayback the recorded file...\r\n");
+    txindex = 0;
+    rxindex = 0;
+    emptyBlock = 0;
+    fullBlock = 0;
+    memset(audioBuff, 0, BUFFER_SIZE * BUFFER_NUM);
+    FRESULT c = f_open(&g_fileObject, "/tmall_f32le.wav", (FA_READ | FA_OPEN_EXISTING));
+    if (c != FR_OK)
+    {
+        PRINTF("Could not open '%s', erro = %d \r\n", "/tmall_f32le.wav", c);
+    }
+    if (f_lseek(&g_fileObject, 44U))
+    {
+        PRINTF("Set file pointer position failed. \r\n");
+    }
+
+    for (i = 0; i < BUFFER_NUM; i++)
+    {
+        f_read(&g_fileObject, (void *)(audioBuff + i * BUFFER_SIZE), BUFFER_SIZE, (UINT *)&bytesRead);
+        sdReadCount++;
+        fullBlock++;
+    }
+
+    /* Wait for playback finished */
+    while (istxFinished != true)
+    {
+        if ((emptyBlock > 0) && (sdReadCount < beginCount))
+        {
+            f_read(&g_fileObject, (void *)(audioBuff + rxindex * BUFFER_SIZE), BUFFER_SIZE, (UINT *)&bytesRead);
+            rxindex = (rxindex + 1U) % BUFFER_NUM;
+            emptyBlock--;
+            fullBlock++;
+            sdReadCount++;
+        }
+
+        if (fullBlock > 0)
+        {
+            xfer.data = audioBuff + txindex * BUFFER_SIZE;
+            txindex = (txindex + 1U) % BUFFER_NUM;
+            SAI_TransferSendEDMA(base, &txHandle, &xfer);
+            fullBlock--;
+        }
+    }
+    f_close(&g_fileObject);
+    PRINTF("\r\nPlayback is finished!\r\n");  
+}
