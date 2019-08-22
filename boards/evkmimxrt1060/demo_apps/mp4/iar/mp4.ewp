@@ -376,9 +376,12 @@
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/libavformat</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg</state>
                     <state>$PROJ_DIR$/../../../../../components/codec</state>
+                    <state>$PROJ_DIR$/../../../../../components/codec/i2c</state>
+                    <state>$PROJ_DIR$/../../../../../components/codec/port</state>
                     <state>$PROJ_DIR$/../../../../../components/codec/wm8960</state>
                     <state>$PROJ_DIR$/../../../../../components/serial_manager</state>
                     <state>$PROJ_DIR$/../../../../../components/uart</state>
+                    <state>$PROJ_DIR$/../../../../../components/i2c</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -1445,9 +1448,12 @@
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/libavformat</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg</state>
                     <state>$PROJ_DIR$/../../../../../components/codec</state>
+                    <state>$PROJ_DIR$/../../../../../components/codec/i2c</state>
+                    <state>$PROJ_DIR$/../../../../../components/codec/port</state>
                     <state>$PROJ_DIR$/../../../../../components/codec/wm8960</state>
                     <state>$PROJ_DIR$/../../../../../components/serial_manager</state>
                     <state>$PROJ_DIR$/../../../../../components/uart</state>
+                    <state>$PROJ_DIR$/../../../../../components/i2c</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -2513,9 +2519,12 @@
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/libavformat</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg</state>
                     <state>$PROJ_DIR$/../../../../../components/codec</state>
+                    <state>$PROJ_DIR$/../../../../../components/codec/i2c</state>
+                    <state>$PROJ_DIR$/../../../../../components/codec/port</state>
                     <state>$PROJ_DIR$/../../../../../components/codec/wm8960</state>
                     <state>$PROJ_DIR$/../../../../../components/serial_manager</state>
                     <state>$PROJ_DIR$/../../../../../components/uart</state>
+                    <state>$PROJ_DIR$/../../../../../components/i2c</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -3582,9 +3591,12 @@
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/libavformat</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg</state>
                     <state>$PROJ_DIR$/../../../../../components/codec</state>
+                    <state>$PROJ_DIR$/../../../../../components/codec/i2c</state>
+                    <state>$PROJ_DIR$/../../../../../components/codec/port</state>
                     <state>$PROJ_DIR$/../../../../../components/codec/wm8960</state>
                     <state>$PROJ_DIR$/../../../../../components/serial_manager</state>
                     <state>$PROJ_DIR$/../../../../../components/uart</state>
+                    <state>$PROJ_DIR$/../../../../../components/i2c</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -4651,9 +4663,12 @@
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/libavformat</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg</state>
                     <state>$PROJ_DIR$/../../../../../components/codec</state>
+                    <state>$PROJ_DIR$/../../../../../components/codec/i2c</state>
+                    <state>$PROJ_DIR$/../../../../../components/codec/port</state>
                     <state>$PROJ_DIR$/../../../../../components/codec/wm8960</state>
                     <state>$PROJ_DIR$/../../../../../components/serial_manager</state>
                     <state>$PROJ_DIR$/../../../../../components/uart</state>
+                    <state>$PROJ_DIR$/../../../../../components/i2c</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -5721,9 +5736,12 @@
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/libavformat</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg</state>
                     <state>$PROJ_DIR$/../../../../../components/codec</state>
+                    <state>$PROJ_DIR$/../../../../../components/codec/i2c</state>
+                    <state>$PROJ_DIR$/../../../../../components/codec/port</state>
                     <state>$PROJ_DIR$/../../../../../components/codec/wm8960</state>
                     <state>$PROJ_DIR$/../../../../../components/serial_manager</state>
                     <state>$PROJ_DIR$/../../../../../components/uart</state>
+                    <state>$PROJ_DIR$/../../../../../components/i2c</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -6791,9 +6809,12 @@
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/libavformat</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg</state>
                     <state>$PROJ_DIR$/../../../../../components/codec</state>
+                    <state>$PROJ_DIR$/../../../../../components/codec/i2c</state>
+                    <state>$PROJ_DIR$/../../../../../components/codec/port</state>
                     <state>$PROJ_DIR$/../../../../../components/codec/wm8960</state>
                     <state>$PROJ_DIR$/../../../../../components/serial_manager</state>
                     <state>$PROJ_DIR$/../../../../../components/uart</state>
+                    <state>$PROJ_DIR$/../../../../../components/i2c</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -7862,9 +7883,12 @@
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/libavformat</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg</state>
                     <state>$PROJ_DIR$/../../../../../components/codec</state>
+                    <state>$PROJ_DIR$/../../../../../components/codec/i2c</state>
+                    <state>$PROJ_DIR$/../../../../../components/codec/port</state>
                     <state>$PROJ_DIR$/../../../../../components/codec/wm8960</state>
                     <state>$PROJ_DIR$/../../../../../components/serial_manager</state>
                     <state>$PROJ_DIR$/../../../../../components/uart</state>
+                    <state>$PROJ_DIR$/../../../../../components/i2c</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -8930,9 +8954,12 @@
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/libavformat</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg</state>
                     <state>$PROJ_DIR$/../../../../../components/codec</state>
+                    <state>$PROJ_DIR$/../../../../../components/codec/i2c</state>
+                    <state>$PROJ_DIR$/../../../../../components/codec/port</state>
                     <state>$PROJ_DIR$/../../../../../components/codec/wm8960</state>
                     <state>$PROJ_DIR$/../../../../../components/serial_manager</state>
                     <state>$PROJ_DIR$/../../../../../components/uart</state>
+                    <state>$PROJ_DIR$/../../../../../components/i2c</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -9999,9 +10026,12 @@
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/libavformat</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg</state>
                     <state>$PROJ_DIR$/../../../../../components/codec</state>
+                    <state>$PROJ_DIR$/../../../../../components/codec/i2c</state>
+                    <state>$PROJ_DIR$/../../../../../components/codec/port</state>
                     <state>$PROJ_DIR$/../../../../../components/codec/wm8960</state>
                     <state>$PROJ_DIR$/../../../../../components/serial_manager</state>
                     <state>$PROJ_DIR$/../../../../../components/uart</state>
+                    <state>$PROJ_DIR$/../../../../../components/i2c</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -11067,9 +11097,12 @@
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/libavformat</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg</state>
                     <state>$PROJ_DIR$/../../../../../components/codec</state>
+                    <state>$PROJ_DIR$/../../../../../components/codec/i2c</state>
+                    <state>$PROJ_DIR$/../../../../../components/codec/port</state>
                     <state>$PROJ_DIR$/../../../../../components/codec/wm8960</state>
                     <state>$PROJ_DIR$/../../../../../components/serial_manager</state>
                     <state>$PROJ_DIR$/../../../../../components/uart</state>
+                    <state>$PROJ_DIR$/../../../../../components/i2c</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -12136,9 +12169,12 @@
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/libavformat</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg</state>
                     <state>$PROJ_DIR$/../../../../../components/codec</state>
+                    <state>$PROJ_DIR$/../../../../../components/codec/i2c</state>
+                    <state>$PROJ_DIR$/../../../../../components/codec/port</state>
                     <state>$PROJ_DIR$/../../../../../components/codec/wm8960</state>
                     <state>$PROJ_DIR$/../../../../../components/serial_manager</state>
                     <state>$PROJ_DIR$/../../../../../components/uart</state>
+                    <state>$PROJ_DIR$/../../../../../components/i2c</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -12855,6 +12891,24 @@
         <group>
             <name>codec</name>
             <group>
+                <name>i2c</name>
+                <file>
+                    <name>$PROJ_DIR$\..\..\..\..\..\components\codec\i2c\fsl_codec_i2c.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\..\..\..\..\components\codec\i2c\fsl_codec_i2c.h</name>
+                </file>
+            </group>
+            <group>
+                <name>port</name>
+                <file>
+                    <name>$PROJ_DIR$\..\..\..\..\..\components\codec\port\wm8960\fsl_codec_adapter.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\..\..\..\..\components\codec\port\fsl_codec_adapter.h</name>
+                </file>
+            </group>
+            <group>
                 <name>wm8960</name>
                 <file>
                     <name>$PROJ_DIR$\..\..\..\..\..\components\codec\wm8960\fsl_wm8960.c</name>
@@ -12868,6 +12922,15 @@
             </file>
             <file>
                 <name>$PROJ_DIR$\..\..\..\..\..\components\codec\fsl_codec_common.h</name>
+            </file>
+        </group>
+        <group>
+            <name>i2c</name>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\components\i2c\i2c.h</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\components\i2c\lpi2c_adapter.c</name>
             </file>
         </group>
         <group>
