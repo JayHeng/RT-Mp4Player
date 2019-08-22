@@ -186,25 +186,31 @@
 #define SDMMCHOST_CARD_INSERT_CD_LEVEL (0U)
 #endif
 #define SDMMCHOST_AUTO_TUNING_ENABLE(base, flag)
+#define SDMMCHOST_ENABLE_SDIO_INT(base)                        \
+    SDHC_EnableInterruptStatus(base, kSDHC_CardInterruptFlag); \
+    SDHC_EnableInterruptSignal(base, kSDHC_CardInterruptFlag)
+#define SDMMCHOST_DISABLE_SDIO_INT(base)                        \
+    SDHC_DisableInterruptStatus(base, kSDHC_CardInterruptFlag); \
+    SDHC_DisableInterruptSignal(base, kSDHC_CardInterruptFlag)
 
 /*! @brief SDHC host capability*/
 enum _host_capability
 {
-    kSDMMCHOST_SupportAdma = kSDHC_SupportAdmaFlag,
-    kSDMMCHOST_SupportHighSpeed = kSDHC_SupportHighSpeedFlag,
-    kSDMMCHOST_SupportDma = kSDHC_SupportDmaFlag,
+    kSDMMCHOST_SupportAdma          = kSDHC_SupportAdmaFlag,
+    kSDMMCHOST_SupportHighSpeed     = kSDHC_SupportHighSpeedFlag,
+    kSDMMCHOST_SupportDma           = kSDHC_SupportDmaFlag,
     kSDMMCHOST_SupportSuspendResume = kSDHC_SupportSuspendResumeFlag,
-    kSDMMCHOST_SupportV330 = kSDHC_SupportV330Flag,
-    kSDMMCHOST_SupportV300 = SDMMCHOST_NOT_SUPPORT,
-    kSDMMCHOST_SupportV180 = SDMMCHOST_NOT_SUPPORT,
-    kSDMMCHOST_SupportV120 = SDMMCHOST_NOT_SUPPORT,
-    kSDMMCHOST_Support4BitBusWidth = kSDHC_Support4BitFlag,
-    kSDMMCHOST_Support8BitBusWidth = kSDHC_Support8BitFlag,
-    kSDMMCHOST_SupportDDR50 = SDMMCHOST_NOT_SUPPORT,
-    kSDMMCHOST_SupportSDR104 = SDMMCHOST_NOT_SUPPORT,
-    kSDMMCHOST_SupportSDR50 = SDMMCHOST_NOT_SUPPORT,
-    kSDMMCHOST_SupportHS200 = SDMMCHOST_NOT_SUPPORT,
-    kSDMMCHOST_SupportHS400 = SDMMCHOST_NOT_SUPPORT,
+    kSDMMCHOST_SupportV330          = kSDHC_SupportV330Flag,
+    kSDMMCHOST_SupportV300          = SDMMCHOST_NOT_SUPPORT,
+    kSDMMCHOST_SupportV180          = SDMMCHOST_NOT_SUPPORT,
+    kSDMMCHOST_SupportV120          = SDMMCHOST_NOT_SUPPORT,
+    kSDMMCHOST_Support4BitBusWidth  = kSDHC_Support4BitFlag,
+    kSDMMCHOST_Support8BitBusWidth  = kSDHC_Support8BitFlag,
+    kSDMMCHOST_SupportDDR50         = SDMMCHOST_NOT_SUPPORT,
+    kSDMMCHOST_SupportSDR104        = SDMMCHOST_NOT_SUPPORT,
+    kSDMMCHOST_SupportSDR50         = SDMMCHOST_NOT_SUPPORT,
+    kSDMMCHOST_SupportHS200         = SDMMCHOST_NOT_SUPPORT,
+    kSDMMCHOST_SupportHS400         = SDMMCHOST_NOT_SUPPORT,
 };
 
 /* Endian mode. */
@@ -228,7 +234,7 @@ enum _host_capability
 #define SDHC_ADMA_TABLE_WORDS (8U)
 
 /*********************************************************SDIF**********************************************************/
-#elif(defined(FSL_FEATURE_SOC_SDIF_COUNT) && (FSL_FEATURE_SOC_SDIF_COUNT > 0U))
+#elif (defined(FSL_FEATURE_SOC_SDIF_COUNT) && (FSL_FEATURE_SOC_SDIF_COUNT > 0U))
 
 /*define host baseaddr ,clk freq, IRQ number*/
 #define MMC_HOST_BASEADDR BOARD_SDIF_BASEADDR
@@ -346,25 +352,26 @@ enum _host_capability
 /* sd card detect through host CD */
 #define SDMMCHOST_CARD_DETECT_INSERT_ENABLE(base) (SDIF_EnableInterrupt(base, kSDIF_CardDetect))
 #define SDMMCHOST_CARD_DETECT_INSERT_STATUS(base, data3) (SDIF_DetectCardInsert(base, data3))
-
+#define SDMMCHOST_ENABLE_SDIO_INT(base)
+#define SDMMCHOST_DISABLE_SDIO_INT(base)
 /*! @brief SDIF host capability*/
 enum _host_capability
 {
-    kSDMMCHOST_SupportHighSpeed = kSDIF_SupportHighSpeedFlag,
-    kSDMMCHOST_SupportDma = kSDIF_SupportDmaFlag,
+    kSDMMCHOST_SupportHighSpeed     = kSDIF_SupportHighSpeedFlag,
+    kSDMMCHOST_SupportDma           = kSDIF_SupportDmaFlag,
     kSDMMCHOST_SupportSuspendResume = kSDIF_SupportSuspendResumeFlag,
-    kSDMMCHOST_SupportV330 = kSDIF_SupportV330Flag,
-    kSDMMCHOST_SupportV300 = SDMMCHOST_NOT_SUPPORT,
-    kSDMMCHOST_SupportV180 = SDMMCHOST_NOT_SUPPORT,
-    kSDMMCHOST_SupportV120 = SDMMCHOST_NOT_SUPPORT,
-    kSDMMCHOST_Support4BitBusWidth = kSDIF_Support4BitFlag,
+    kSDMMCHOST_SupportV330          = kSDIF_SupportV330Flag,
+    kSDMMCHOST_SupportV300          = SDMMCHOST_NOT_SUPPORT,
+    kSDMMCHOST_SupportV180          = SDMMCHOST_NOT_SUPPORT,
+    kSDMMCHOST_SupportV120          = SDMMCHOST_NOT_SUPPORT,
+    kSDMMCHOST_Support4BitBusWidth  = kSDIF_Support4BitFlag,
     kSDMMCHOST_Support8BitBusWidth =
         SDMMCHOST_NOT_SUPPORT, /* mask the 8 bit here,user can change depend on your board */
-    kSDMMCHOST_SupportDDR50 = SDMMCHOST_NOT_SUPPORT,
+    kSDMMCHOST_SupportDDR50  = SDMMCHOST_NOT_SUPPORT,
     kSDMMCHOST_SupportSDR104 = SDMMCHOST_NOT_SUPPORT,
-    kSDMMCHOST_SupportSDR50 = SDMMCHOST_NOT_SUPPORT,
-    kSDMMCHOST_SupportHS200 = SDMMCHOST_NOT_SUPPORT,
-    kSDMMCHOST_SupportHS400 = SDMMCHOST_NOT_SUPPORT,
+    kSDMMCHOST_SupportSDR50  = SDMMCHOST_NOT_SUPPORT,
+    kSDMMCHOST_SupportHS200  = SDMMCHOST_NOT_SUPPORT,
+    kSDMMCHOST_SupportHS400  = SDMMCHOST_NOT_SUPPORT,
 
 };
 
@@ -379,7 +386,7 @@ enum _host_capability
 #define SDMMCHOST_DMA_BUFFER_ADDR_ALIGN (4U)
 
 /*********************************************************USDHC**********************************************************/
-#elif(defined(FSL_FEATURE_SOC_USDHC_COUNT) && (FSL_FEATURE_SOC_USDHC_COUNT > 0U))
+#elif (defined(FSL_FEATURE_SOC_USDHC_COUNT) && (FSL_FEATURE_SOC_USDHC_COUNT > 0U))
 
 /*define host baseaddr ,clk freq, IRQ number*/
 #define MMC_HOST_BASEADDR BOARD_MMC_HOST_BASEADDR
@@ -530,39 +537,45 @@ enum _host_capability
 #define SDMMCHOST_GET_HOST_CONFIG_BLOCK_COUNT(config) (config->blockCount)
 #define SDMMCHOST_GET_HOST_CONFIG_BOOT_MODE(config) (config->bootMode)
 #define SDMMCHOST_EMPTY_CMD_FLAG(command) (command.type = kCARD_CommandTypeEmpty)
+#define SDMMCHOST_ENABLE_SDIO_INT(base)                          \
+    USDHC_EnableInterruptStatus(base, kUSDHC_CardInterruptFlag); \
+    USDHC_EnableInterruptSignal(base, kUSDHC_CardInterruptFlag)
+#define SDMMCHOST_DISABLE_SDIO_INT(base)                          \
+    USDHC_DisableInterruptStatus(base, kUSDHC_CardInterruptFlag); \
+    USDHC_DisableInterruptSignal(base, kUSDHC_CardInterruptFlag)
 /*! @brief USDHC host capability*/
 enum _host_capability
 {
-    kSDMMCHOST_SupportAdma = kUSDHC_SupportAdmaFlag,
-    kSDMMCHOST_SupportHighSpeed = kUSDHC_SupportHighSpeedFlag,
-    kSDMMCHOST_SupportDma = kUSDHC_SupportDmaFlag,
+    kSDMMCHOST_SupportAdma          = kUSDHC_SupportAdmaFlag,
+    kSDMMCHOST_SupportHighSpeed     = kUSDHC_SupportHighSpeedFlag,
+    kSDMMCHOST_SupportDma           = kUSDHC_SupportDmaFlag,
     kSDMMCHOST_SupportSuspendResume = kUSDHC_SupportSuspendResumeFlag,
-    kSDMMCHOST_SupportV330 = kUSDHC_SupportV330Flag, /* this define should depend on your board config */
-    kSDMMCHOST_SupportV300 = kUSDHC_SupportV300Flag, /* this define should depend on your board config */
+    kSDMMCHOST_SupportV330          = kUSDHC_SupportV330Flag, /* this define should depend on your board config */
+    kSDMMCHOST_SupportV300          = kUSDHC_SupportV300Flag, /* this define should depend on your board config */
 #if defined(BOARD_SD_SUPPORT_180V) && !BOARD_SD_SUPPORT_180V
-    kSDMMCHOST_SupportV180 = SDMMCHOST_NOT_SUPPORT, /* this define should depend on you board config */
+    kSDMMCHOST_SupportV180          = SDMMCHOST_NOT_SUPPORT,  /* this define should depend on you board config */
 #else
-    kSDMMCHOST_SupportV180 = kUSDHC_SupportV180Flag, /* this define should depend on you board config */
+    kSDMMCHOST_SupportV180         = kUSDHC_SupportV180Flag, /* this define should depend on you board config */
 #endif
-    kSDMMCHOST_SupportV120 = SDMMCHOST_NOT_SUPPORT,
-    kSDMMCHOST_Support4BitBusWidth = kUSDHC_Support4BitFlag,
+    kSDMMCHOST_SupportV120          = SDMMCHOST_NOT_SUPPORT,
+    kSDMMCHOST_Support4BitBusWidth  = kUSDHC_Support4BitFlag,
 #if defined(BOARD_MMC_SUPPORT_8BIT_BUS)
 #if BOARD_MMC_SUPPORT_8BIT_BUS
-    kSDMMCHOST_Support8BitBusWidth = kUSDHC_Support8BitFlag,
+    kSDMMCHOST_Support8BitBusWidth  = kUSDHC_Support8BitFlag,
 #else
     kSDMMCHOST_Support8BitBusWidth = SDMMCHOST_NOT_SUPPORT,
 #endif
 #else
     kSDMMCHOST_Support8BitBusWidth = kUSDHC_Support8BitFlag,
 #endif
-    kSDMMCHOST_SupportDDR50 = kUSDHC_SupportDDR50Flag,
-    kSDMMCHOST_SupportSDR104 = kUSDHC_SupportSDR104Flag,
-    kSDMMCHOST_SupportSDR50 = kUSDHC_SupportSDR50Flag,
-    kSDMMCHOST_SupportHS200 = kUSDHC_SupportSDR104Flag,
+    kSDMMCHOST_SupportDDR50         = kUSDHC_SupportDDR50Flag,
+    kSDMMCHOST_SupportSDR104        = kUSDHC_SupportSDR104Flag,
+    kSDMMCHOST_SupportSDR50         = kUSDHC_SupportSDR50Flag,
+    kSDMMCHOST_SupportHS200         = kUSDHC_SupportSDR104Flag,
 #if FSL_FEATURE_USDHC_HAS_HS400_MODE
-    kSDMMCHOST_SupportHS400 = SDMMCHOST_SUPPORT
+    kSDMMCHOST_SupportHS400         = SDMMCHOST_SUPPORT
 #else
-    kSDMMCHOST_SupportHS400 = SDMMCHOST_NOT_SUPPORT,
+    kSDMMCHOST_SupportHS400        = SDMMCHOST_NOT_SUPPORT,
 #endif
 };
 
@@ -595,13 +608,13 @@ enum _host_capability
 typedef void (*sdmmchost_cd_callback_t)(bool isInserted, void *userData);
 
 /*! @brief host Endian mode
-* corresponding to driver define
-*/
+ * corresponding to driver define
+ */
 enum _sdmmchost_endian_mode
 {
-    kSDMMCHOST_EndianModeBig = 0U,         /*!< Big endian mode */
+    kSDMMCHOST_EndianModeBig         = 0U, /*!< Big endian mode */
     kSDMMCHOST_EndianModeHalfWordBig = 1U, /*!< Half word big endian mode */
-    kSDMMCHOST_EndianModeLittle = 2U,      /*!< Little endian mode */
+    kSDMMCHOST_EndianModeLittle      = 2U, /*!< Little endian mode */
 };
 
 /*! @brief sd card detect type */
@@ -638,6 +651,37 @@ typedef struct _sdmmchost_pwr_card
     uint32_t powerOffDelay_ms; /*!< power off delay */
 } sdmmchost_pwr_card_t;
 
+/*! @brief card interrupt function pointer */
+typedef void (*sdmmchost_card_int_callback_t)(void *userData);
+/*! @brief card interrupt application callback */
+typedef struct _sdmmchost_card_int
+{
+    void *userData;                              /*!< user data */
+    sdmmchost_card_int_callback_t cardInterrupt; /*!< card int call back */
+} sdmmchost_card_int_t;
+
+/*! @brief card switch voltage function pointer */
+typedef void (*sdmmchost_card_switch_voltage_t)(void);
+/*! @brief card switch voltage function collection */
+typedef struct _sdmmchost_card_switch_voltage_func
+{
+    sdmmchost_card_switch_voltage_t cardSignalLine1V8; /*!< switch to 1.8v function pointer */
+    sdmmchost_card_switch_voltage_t cardSignalLine3V3; /*!<switch to 3.3V function pointer */
+} sdmmchost_card_switch_voltage_func_t;
+
+/*! @brief card user parameter, user can define the parameter according the board, card capability */
+typedef struct _sdmmhostcard_usr_param
+{
+    const sdmmchost_detect_card_t *cd;                       /*!< card detect type */
+    const sdmmchost_pwr_card_t *pwr;                         /*!< power control configuration */
+    const sdmmchost_card_int_t *cardInt;                     /*!< call back function for card interrupt */
+    const sdmmchost_card_switch_voltage_func_t *cardVoltage; /*!< card voltage switch function */
+} sdmmhostcard_usr_param_t;
+
+/*! @ brief specifiy card user parameter name*/
+typedef sdmmhostcard_usr_param_t sdcard_usr_param_t;
+typedef sdmmhostcard_usr_param_t sdiocard_usr_param_t;
+typedef sdmmhostcard_usr_param_t mmccard_usr_param_t;
 /*******************************************************************************
  * API
  ******************************************************************************/

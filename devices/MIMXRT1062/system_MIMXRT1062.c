@@ -5,15 +5,15 @@
 **                          MIMXRT1062DVJ6A
 **                          MIMXRT1062DVL6A
 **
-**     Compilers:           Keil ARM C/C++ Compiler
-**                          Freescale C/C++ for Embedded ARM
+**     Compilers:           Freescale C/C++ for Embedded ARM
 **                          GNU C Compiler
 **                          IAR ANSI C/C++ Compiler for ARM
+**                          Keil ARM C/C++ Compiler
 **                          MCUXpresso Compiler
 **
-**     Reference manual:    IMXRT1060RM Rev. 0, 08/2018
-**     Version:             rev. 0.1, 2017-01-10
-**     Build:               b180819
+**     Reference manual:    IMXRT1060RM Rev.1, 12/2018
+**     Version:             rev. 1.1, 2018-11-27
+**     Build:               b190329
 **
 **     Abstract:
 **         Provides a system configuration function and a global variable that
@@ -21,7 +21,8 @@
 **         the oscillator (PLL) that is part of the microcontroller device.
 **
 **     Copyright 2016 Freescale Semiconductor, Inc.
-**     Copyright 2016-2018 NXP
+**     Copyright 2016-2019 NXP
+**     All rights reserved.
 **
 **     SPDX-License-Identifier: BSD-3-Clause
 **
@@ -31,14 +32,18 @@
 **     Revisions:
 **     - rev. 0.1 (2017-01-10)
 **         Initial version.
+**     - rev. 1.0 (2018-11-16)
+**         Update header files to align with IMXRT1060RM Rev.0.
+**     - rev. 1.1 (2018-11-27)
+**         Update header files to align with IMXRT1060RM Rev.1.
 **
 ** ###################################################################
 */
 
 /*!
  * @file MIMXRT1062
- * @version 0.1
- * @date 2017-01-10
+ * @version 1.1
+ * @date 2018-11-27
  * @brief Device specific configuration file for MIMXRT1062 (implementation file)
  *
  * Provides a system configuration function and a global variable that contains
@@ -109,28 +114,6 @@ WDOG2->WMCR &= ~WDOG_WMCR_PDE_MASK;
     }
 #endif
 
-#if RECONFIG_FLEXRAM_384KB_ITCM_128KB_OCRAM == 1
-    // 512KB FlexRAM -> 384KB ITCM and 128KB OCRAM
-    IOMUXC_GPR->GPR17 = 0xffffff55;
-    IOMUXC_GPR->GPR16 |= IOMUXC_GPR_GPR16_FLEXRAM_BANK_CFG_SEL_MASK;
-#elif RECONFIG_FLEXRAM_256KB_ITCM_256KB_DTCM == 1
-    // 512KB FlexRAM -> 256KB ITCM and 256KB DTCM
-    IOMUXC_GPR->GPR17 = 0xffffaaaa;
-    IOMUXC_GPR->GPR16 |= IOMUXC_GPR_GPR16_FLEXRAM_BANK_CFG_SEL_MASK;
-#elif RECONFIG_FLEXRAM_512KB_ITCM == 1
-    // 512KB FlexRAM -> 512KB ITCM
-    IOMUXC_GPR->GPR17 = 0xffffffff;
-    IOMUXC_GPR->GPR16 |= IOMUXC_GPR_GPR16_FLEXRAM_BANK_CFG_SEL_MASK;
-#elif RECONFIG_FLEXRAM_512KB_DTCM == 1
-    // 512KB FlexRAM -> 512KB DTCM
-    IOMUXC_GPR->GPR17 = 0xaaaaaaaa;
-    IOMUXC_GPR->GPR16 |= IOMUXC_GPR_GPR16_FLEXRAM_BANK_CFG_SEL_MASK;
-#elif RECONFIG_FLEXRAM_512KB_OCRAM == 1
-    // 512KB FlexRAM -> 512KB DTCM
-    IOMUXC_GPR->GPR17 = 0x55555555;
-    IOMUXC_GPR->GPR16 |= IOMUXC_GPR_GPR16_FLEXRAM_BANK_CFG_SEL_MASK;
-#endif
-
   SystemInitHook();
 }
 
@@ -170,6 +153,7 @@ void SystemCoreClockUpdate (void) {
             case CCM_CBCMR_PERIPH_CLK2_SEL(2U):
                 freq = (((CCM_ANALOG->PLL_SYS & CCM_ANALOG_PLL_SYS_BYPASS_CLK_SRC_MASK) >> CCM_ANALOG_PLL_SYS_BYPASS_CLK_SRC_SHIFT) == 0U) ?
                    CPU_XTAL_CLK_HZ : CPU_CLK1_HZ;
+                break;
 
             case CCM_CBCMR_PERIPH_CLK2_SEL(3U):
             default:

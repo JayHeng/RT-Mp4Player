@@ -22,51 +22,18 @@ __attribute__((section(".boot_hdr.conf")))
 #pragma location = ".boot_hdr.conf"
 #endif
 
-#if FLASH_TYPE_HYPER == 1
-const flexspi_nor_config_t hyperflash_config = {
-    .memConfig =
-        {
-            .tag = FLEXSPI_CFG_BLK_TAG,
-            .version = FLEXSPI_CFG_BLK_VERSION,
-            .readSampleClkSrc = kFlexSPIReadSampleClk_ExternalInputFromDqsPad,
-            .csHoldTime = 3u,
-            .csSetupTime = 3u,
-            .columnAddressWidth = 3u,
-            // Enable DDR mode, Wordaddassable, Safe configuration, Differential clock
-            .controllerMiscOption =
-                (1u << kFlexSpiMiscOffset_DdrModeEnable) | (1u << kFlexSpiMiscOffset_WordAddressableEnable) |
-                (1u << kFlexSpiMiscOffset_SafeConfigFreqEnable) | (1u << kFlexSpiMiscOffset_DiffClkEnable),
-            .sflashPadType = kSerialFlash_8Pads,
-            .serialClkFreq = kFlexSpiSerialClk_133MHz,
-            .sflashA1Size = 64u * 1024u * 1024u,
-            .dataValidTime = {16u, 16u},
-            .lookupTable =
-                {
-                    // Read LUTs
-                    FLEXSPI_LUT_SEQ(CMD_DDR, FLEXSPI_8PAD, 0xA0, RADDR_DDR, FLEXSPI_8PAD, 0x18),
-                    FLEXSPI_LUT_SEQ(CADDR_DDR, FLEXSPI_8PAD, 0x10, DUMMY_DDR, FLEXSPI_8PAD, 0x06),
-                    FLEXSPI_LUT_SEQ(READ_DDR, FLEXSPI_8PAD, 0x04, STOP, FLEXSPI_1PAD, 0x0),
-                },
-        },
-    .pageSize = 512u,
-    .sectorSize = 256u * 1024u,
-    .blockSize = 256u * 1024u,
-    .isUniformBlockSize = true,
-};
-
-#else //#if FLASH_TYPE_QSPI == 1
 const flexspi_nor_config_t qspiflash_config = {
     .memConfig =
         {
-            .tag = FLEXSPI_CFG_BLK_TAG,
-            .version = FLEXSPI_CFG_BLK_VERSION,
+            .tag              = FLEXSPI_CFG_BLK_TAG,
+            .version          = FLEXSPI_CFG_BLK_VERSION,
             .readSampleClkSrc = kFlexSPIReadSampleClk_LoopbackFromDqsPad,
-            .csHoldTime = 3u,
-            .csSetupTime = 3u,
+            .csHoldTime       = 3u,
+            .csSetupTime      = 3u,
             // Enable DDR mode, Wordaddassable, Safe configuration, Differential clock
             .sflashPadType = kSerialFlash_4Pads,
             .serialClkFreq = kFlexSpiSerialClk_100MHz,
-            .sflashA1Size = 8u * 1024u * 1024u,
+            .sflashA1Size  = 8u * 1024u * 1024u,
             .lookupTable =
                 {
                     // Read LUTs
@@ -74,10 +41,9 @@ const flexspi_nor_config_t qspiflash_config = {
                     FLEXSPI_LUT_SEQ(DUMMY_SDR, FLEXSPI_4PAD, 0x06, READ_SDR, FLEXSPI_4PAD, 0x04),
                 },
         },
-    .pageSize = 256u,
-    .sectorSize = 4u * 1024u,
-    .blockSize = 256u * 1024u,
+    .pageSize           = 256u,
+    .sectorSize         = 4u * 1024u,
+    .blockSize          = 256u * 1024u,
     .isUniformBlockSize = false,
 };
-#endif
 #endif /* XIP_BOOT_HEADER_ENABLE */
