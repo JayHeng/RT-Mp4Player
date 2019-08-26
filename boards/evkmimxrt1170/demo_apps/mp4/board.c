@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 NXP
+ * Copyright 2018-2019 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -11,27 +11,11 @@
 #if defined(SDK_I2C_BASED_COMPONENT_USED) && SDK_I2C_BASED_COMPONENT_USED
 #include "fsl_lpi2c.h"
 #endif /* SDK_I2C_BASED_COMPONENT_USED */
-#if defined BOARD_USE_CODEC
-#include "fsl_wm8960.h"
-#include "fsl_codec_common.h"
-#include "fsl_codec_adapter.h"
-#endif
+#include "fsl_iomuxc.h"
+
 /*******************************************************************************
  * Variables
  ******************************************************************************/
-#if defined BOARD_USE_CODEC
-wm8960_config_t wm8960Config = {
-    .i2cConfig = {.codecI2CInstance = BOARD_CODEC_I2C_INSTANCE, .codecI2CSourceClock = BOARD_CODEC_I2C_CLOCK_FREQ},
-    .route     = kWM8960_RoutePlaybackandRecord,
-    .rightInputSource = kWM8960_InputDifferentialMicInput2,
-    .playSource       = kWM8960_PlaySourceDAC,
-    .slaveAddress     = WM8960_I2C_ADDR,
-    .bus              = kWM8960_BusI2S,
-    .format = {.mclk_HZ = 6144000U, .sampleRate = kWM8960_AudioSampleRate16KHz, .bitWidth = kWM8960_AudioBitWidth16bit},
-    .master_slave = false,
-};
-codec_config_t boardCodecConfig = {.codecDevType = kCODEC_WM8960, .codecDevConfig = &wm8960Config};
-#endif
 /*******************************************************************************
  * Code
  ******************************************************************************/
@@ -39,27 +23,17 @@ codec_config_t boardCodecConfig = {.codecDevType = kCODEC_WM8960, .codecDevConfi
 /* Get debug console frequency. */
 uint32_t BOARD_DebugConsoleSrcFreq(void)
 {
-    uint32_t freq;
-
-    /* To make it simple, we assume default PLL and divider settings, and the only variable
-       from application is use PLL3 source or OSC source */
-    if (CLOCK_GetMux(kCLOCK_UartMux) == 0) /* PLL3 div6 80M */
-    {
-        freq = (CLOCK_GetPllFreq(kCLOCK_PllUsb1) / 6U) / (CLOCK_GetDiv(kCLOCK_UartDiv) + 1U);
-    }
-    else
-    {
-        freq = CLOCK_GetOscFreq() / (CLOCK_GetDiv(kCLOCK_UartDiv) + 1U);
-    }
-
-    return freq;
+#if DEBUG_CONSOLE_UART_INDEX == 1
+    return CLOCK_GetRootClockFreq(kCLOCK_Root_Lpuart1);
+#else
+    return CLOCK_GetRootClockFreq(kCLOCK_Root_Lpuart2);
+#endif
 }
 
 /* Initialize debug console. */
 void BOARD_InitDebugConsole(void)
 {
     uint32_t uartClkSrcFreq = BOARD_DebugConsoleSrcFreq();
-
     DbgConsole_Init(BOARD_DEBUG_UART_INSTANCE, BOARD_DEBUG_UART_BAUDRATE, BOARD_DEBUG_UART_TYPE, uartClkSrcFreq);
 }
 
@@ -82,79 +56,44 @@ void BOARD_LPI2C_Init(LPI2C_Type *base, uint32_t clkSrc_Hz)
     LPI2C_MasterInit(base, &lpi2cConfig, clkSrc_Hz);
 }
 
-status_t BOARD_LPI2C_Send(LPI2C_Type *base, uint8_t deviceAddress, uint32_t subAddress,
-                uint8_t subAddressSize, uint8_t *txBuff, uint8_t txBuffSize)
+status_t BOARD_LPI2C_Send(LPI2C_Type *base,
+                          uint8_t deviceAddress,
+                          uint32_t subAddress,
+                          uint8_t subAddressSize,
+                          uint8_t *txBuff,
+                          uint8_t txBuffSize)
 {
-    status_t reVal;
+    lpi2c_master_transfer_t xfer;
 
-    /* Send master blocking data to slave */
-    reVal = LPI2C_MasterStart(base, deviceAddress, kLPI2C_Write);
-    if (kStatus_Success == reVal)
-    {
-        while (LPI2C_MasterGetStatusFlags(base) & kLPI2C_MasterNackDetectFlag)
-        {
-        } 
+    xfer.flags          = kLPI2C_TransferDefaultFlag;
+    xfer.slaveAddress   = deviceAddress;
+    xfer.direction      = kLPI2C_Write;
+    xfer.subaddress     = subAddress;
+    xfer.subaddressSize = subAddressSize;
+    xfer.data           = txBuff;
+    xfer.dataSize       = txBuffSize;
 
-        reVal = LPI2C_MasterSend(base, &subAddress, subAddressSize);
-        if (reVal != kStatus_Success)
-        {
-            return reVal;
-        }
-
-        reVal = LPI2C_MasterSend(base, txBuff, txBuffSize);
-        if (reVal != kStatus_Success)
-        {
-            return reVal;
-        }
-
-        reVal = LPI2C_MasterStop(base);
-        if (reVal != kStatus_Success)
-        {
-            return reVal;
-        }
-    }
-
-    return reVal;
+    return LPI2C_MasterTransferBlocking(base, &xfer);
 }
 
-status_t BOARD_LPI2C_Receive(LPI2C_Type *base, uint8_t deviceAddress, uint32_t subAddress,
-                uint8_t subAddressSize, uint8_t *rxBuff, uint8_t rxBuffSize)
+status_t BOARD_LPI2C_Receive(LPI2C_Type *base,
+                             uint8_t deviceAddress,
+                             uint32_t subAddress,
+                             uint8_t subAddressSize,
+                             uint8_t *rxBuff,
+                             uint8_t rxBuffSize)
 {
-    status_t reVal;
+    lpi2c_master_transfer_t xfer;
 
-    reVal = LPI2C_MasterStart(base, deviceAddress, kLPI2C_Write);
-    if (kStatus_Success == reVal)
-    {
-        while (LPI2C_MasterGetStatusFlags(base) & kLPI2C_MasterNackDetectFlag)
-        {
-        }
+    xfer.flags          = kLPI2C_TransferDefaultFlag;
+    xfer.slaveAddress   = deviceAddress;
+    xfer.direction      = kLPI2C_Read;
+    xfer.subaddress     = subAddress;
+    xfer.subaddressSize = subAddressSize;
+    xfer.data           = rxBuff;
+    xfer.dataSize       = rxBuffSize;
 
-        reVal = LPI2C_MasterSend(base, &subAddress, subAddressSize);
-        if (reVal != kStatus_Success)
-        {
-            return reVal;
-        }
-
-        reVal = LPI2C_MasterRepeatedStart(base, deviceAddress, kLPI2C_Read);
-
-        if (reVal != kStatus_Success)
-        {
-            return reVal;
-        }
-
-        reVal = LPI2C_MasterReceive(base, rxBuff, rxBuffSize);
-        if (reVal != kStatus_Success)
-        {
-            return reVal;
-        }
-
-        reVal = LPI2C_MasterStop(base);
-        if (reVal != kStatus_Success)
-        {
-            return reVal;
-        }
-    }
-    return reVal;
+    return LPI2C_MasterTransferBlocking(base, &xfer);
 }
 
 status_t BOARD_LPI2C_SendSCCB(LPI2C_Type *base,
@@ -164,7 +103,17 @@ status_t BOARD_LPI2C_SendSCCB(LPI2C_Type *base,
                               uint8_t *txBuff,
                               uint8_t txBuffSize)
 {
-    return BOARD_LPI2C_Send(base, deviceAddress, subAddress, subAddressSize, txBuff, txBuffSize);
+    lpi2c_master_transfer_t xfer;
+
+    xfer.flags          = kLPI2C_TransferDefaultFlag;
+    xfer.slaveAddress   = deviceAddress;
+    xfer.direction      = kLPI2C_Write;
+    xfer.subaddress     = subAddress;
+    xfer.subaddressSize = subAddressSize;
+    xfer.data           = txBuff;
+    xfer.dataSize       = txBuffSize;
+
+    return LPI2C_MasterTransferBlocking(base, &xfer);
 }
 
 status_t BOARD_LPI2C_ReceiveSCCB(LPI2C_Type *base,
@@ -174,53 +123,35 @@ status_t BOARD_LPI2C_ReceiveSCCB(LPI2C_Type *base,
                                  uint8_t *rxBuff,
                                  uint8_t rxBuffSize)
 {
-    status_t reVal;
+    status_t status;
+    lpi2c_master_transfer_t xfer;
 
-    reVal = LPI2C_MasterStart(base, deviceAddress, kLPI2C_Write);
-    if (kStatus_Success == reVal)
+    xfer.flags          = kLPI2C_TransferDefaultFlag;
+    xfer.slaveAddress   = deviceAddress;
+    xfer.direction      = kLPI2C_Write;
+    xfer.subaddress     = subAddress;
+    xfer.subaddressSize = subAddressSize;
+    xfer.data           = NULL;
+    xfer.dataSize       = 0;
+
+    status = LPI2C_MasterTransferBlocking(base, &xfer);
+
+    if (kStatus_Success == status)
     {
-        while (LPI2C_MasterGetStatusFlags(base) & kLPI2C_MasterNackDetectFlag)
-        {
-        }
+        xfer.subaddressSize = 0;
+        xfer.direction      = kLPI2C_Read;
+        xfer.data           = rxBuff;
+        xfer.dataSize       = rxBuffSize;
 
-        reVal = LPI2C_MasterSend(base, &subAddress, subAddressSize);
-        if (reVal != kStatus_Success)
-        {
-            return reVal;
-        }
-
-        /* SCCB does not support LPI2C repeat start, must stop then start. */
-        reVal = LPI2C_MasterStop(base);
-
-        if (reVal != kStatus_Success)
-        {
-            return reVal;
-        }
-
-        reVal = LPI2C_MasterStart(base, deviceAddress, kLPI2C_Read);
-
-        if (reVal != kStatus_Success)
-        {
-            return reVal;
-        }
-
-        reVal = LPI2C_MasterReceive(base, rxBuff, rxBuffSize);
-        if (reVal != kStatus_Success)
-        {
-            return reVal;
-        }
-
-        reVal = LPI2C_MasterStop(base);
-        if (reVal != kStatus_Success)
-        {
-            return reVal;
-        }
+        status = LPI2C_MasterTransferBlocking(base, &xfer);
     }
-    return reVal;
+
+    return status;
 }
 
+#if 0
 void BOARD_Accel_I2C_Init(void)
-{    
+{
     BOARD_LPI2C_Init(BOARD_ACCEL_I2C_BASEADDR, BOARD_ACCEL_I2C_CLOCK_FREQ);
 }
 
@@ -228,16 +159,15 @@ status_t BOARD_Accel_I2C_Send(uint8_t deviceAddress, uint32_t subAddress, uint8_
 {
     uint8_t data = (uint8_t)txBuff;
 
-    return BOARD_LPI2C_Send(BOARD_ACCEL_I2C_BASEADDR, deviceAddress, subAddress,
-                subaddressSize, &data, 1);
+    return BOARD_LPI2C_Send(BOARD_ACCEL_I2C_BASEADDR, deviceAddress, subAddress, subaddressSize, &data, 1);
 }
 
-status_t BOARD_Accel_I2C_Receive(uint8_t deviceAddress, uint32_t subAddress, uint8_t subaddressSize,
-                uint8_t *rxBuff, uint8_t rxBuffSize)
+status_t BOARD_Accel_I2C_Receive(
+    uint8_t deviceAddress, uint32_t subAddress, uint8_t subaddressSize, uint8_t *rxBuff, uint8_t rxBuffSize)
 {
-    return BOARD_LPI2C_Receive(BOARD_ACCEL_I2C_BASEADDR, deviceAddress, subAddress,
-            subaddressSize,  rxBuff, rxBuffSize);
+    return BOARD_LPI2C_Receive(BOARD_ACCEL_I2C_BASEADDR, deviceAddress, subAddress, subaddressSize, rxBuff, rxBuffSize);
 }
+#endif
 
 void BOARD_Codec_I2C_Init(void)
 {
@@ -254,16 +184,22 @@ status_t BOARD_Codec_I2C_Send(
 status_t BOARD_Codec_I2C_Receive(
     uint8_t deviceAddress, uint32_t subAddress, uint8_t subAddressSize, uint8_t *rxBuff, uint8_t rxBuffSize)
 {
-    return BOARD_LPI2C_Receive(BOARD_CODEC_I2C_BASEADDR, deviceAddress, subAddress, subAddressSize, rxBuff,
-                               rxBuffSize);
+    return BOARD_LPI2C_Receive(BOARD_CODEC_I2C_BASEADDR, deviceAddress, subAddress, subAddressSize, rxBuff, rxBuffSize);
 }
-
 
 void BOARD_Camera_I2C_Init(void)
 {
-    CLOCK_SetMux(kCLOCK_Lpi2cMux, BOARD_CAMERA_I2C_CLOCK_SOURCE_SELECT);
-    CLOCK_SetDiv(kCLOCK_Lpi2cDiv, BOARD_CAMERA_I2C_CLOCK_SOURCE_DIVIDER);
-    BOARD_LPI2C_Init(BOARD_CAMERA_I2C_BASEADDR, BOARD_CAMERA_I2C_CLOCK_FREQ);
+    const clock_root_config_t lpi2cClockConfig = {
+        .clockOff = false,
+        .mfn      = 0,
+        .mfd      = 0,
+        .mux      = BOARD_CAMERA_I2C_CLOCK_SOURCE,
+        .div      = BOARD_CAMERA_I2C_CLOCK_DIVIDER,
+    };
+
+    CLOCK_SetRootClock(BOARD_CAMERA_I2C_CLOCK_ROOT, &lpi2cClockConfig);
+
+    BOARD_LPI2C_Init(BOARD_CAMERA_I2C_BASEADDR, CLOCK_GetRootClockFreq(BOARD_CAMERA_I2C_CLOCK_ROOT));
 }
 
 status_t BOARD_Camera_I2C_Send(
@@ -293,64 +229,131 @@ status_t BOARD_Camera_I2C_ReceiveSCCB(
     return BOARD_LPI2C_ReceiveSCCB(BOARD_CAMERA_I2C_BASEADDR, deviceAddress, subAddress, subAddressSize, rxBuff,
                                    rxBuffSize);
 }
+
+void BOARD_MIPIPanelTouch_I2C_Init(void)
+{
+    const clock_root_config_t lpi2cClockConfig = {
+        .clockOff = false,
+        .mfn      = 0,
+        .mfd      = 0,
+        .mux      = BOARD_MIPI_PANEL_TOUCH_I2C_CLOCK_SOURCE,
+        .div      = BOARD_MIPI_PANEL_TOUCH_I2C_CLOCK_DIVIDER,
+    };
+
+    CLOCK_SetRootClock(BOARD_MIPI_PANEL_TOUCH_I2C_CLOCK_ROOT, &lpi2cClockConfig);
+
+    BOARD_LPI2C_Init(BOARD_MIPI_PANEL_TOUCH_I2C_BASEADDR,
+                     CLOCK_GetRootClockFreq(BOARD_MIPI_PANEL_TOUCH_I2C_CLOCK_ROOT));
+}
+
+status_t BOARD_MIPIPanelTouch_I2C_Send(
+    uint8_t deviceAddress, uint32_t subAddress, uint8_t subAddressSize, const uint8_t *txBuff, uint8_t txBuffSize)
+{
+    return BOARD_LPI2C_Send(BOARD_MIPI_PANEL_TOUCH_I2C_BASEADDR, deviceAddress, subAddress, subAddressSize,
+                            (uint8_t *)txBuff, txBuffSize);
+}
+
+status_t BOARD_MIPIPanelTouch_I2C_Receive(
+    uint8_t deviceAddress, uint32_t subAddress, uint8_t subAddressSize, uint8_t *rxBuff, uint8_t rxBuffSize)
+{
+    return BOARD_LPI2C_Receive(BOARD_MIPI_PANEL_TOUCH_I2C_BASEADDR, deviceAddress, subAddress, subAddressSize, rxBuff,
+                               rxBuffSize);
+}
 #endif /* SDK_I2C_BASED_COMPONENT_USED */
 
 /* MPU configuration. */
 void BOARD_ConfigMPU(void)
 {
+#if defined(__CC_ARM) || defined(__ARMCC_VERSION)
+    extern uint32_t Image$$RW_m_ncache$$Base[];
+    /* RW_m_ncache_unused is a auxiliary region which is used to get the whole size of noncache section */
+    extern uint32_t Image$$RW_m_ncache_unused$$Base[];
+    extern uint32_t Image$$RW_m_ncache_unused$$ZI$$Limit[];
+    uint32_t nonCacheStart = (uint32_t)Image$$RW_m_ncache$$Base;
+    uint32_t size          = ((uint32_t)Image$$RW_m_ncache_unused$$Base == nonCacheStart) ?
+                        0 :
+                        ((uint32_t)Image$$RW_m_ncache_unused$$ZI$$Limit - nonCacheStart);
+#elif defined(__MCUXPRESSO)
+    extern uint32_t __base_NCACHE_REGION;
+    extern uint32_t __top_NCACHE_REGION;
+    uint32_t nonCacheStart = (uint32_t)(&__base_NCACHE_REGION);
+    uint32_t size          = (uint32_t)(&__top_NCACHE_REGION) - nonCacheStart;
+#elif defined(__ICCARM__) || defined(__GNUC__)
+    extern uint32_t __NCACHE_REGION_START[];
+    extern uint32_t __NCACHE_REGION_SIZE[];
+    uint32_t nonCacheStart = (uint32_t)__NCACHE_REGION_START;
+    uint32_t size          = (uint32_t)__NCACHE_REGION_SIZE;
+#endif
+    uint32_t i = 0;
+
+#if defined(__ICACHE_PRESENT) && __ICACHE_PRESENT
     /* Disable I cache and D cache */
-    if (SCB_CCR_IC_Msk == (SCB_CCR_IC_Msk & SCB->CCR)) {
+    if (SCB_CCR_IC_Msk == (SCB_CCR_IC_Msk & SCB->CCR))
+    {
         SCB_DisableICache();
     }
-    if (SCB_CCR_DC_Msk == (SCB_CCR_DC_Msk & SCB->CCR)) {
+#endif
+#if defined(__DCACHE_PRESENT) && __DCACHE_PRESENT
+    if (SCB_CCR_DC_Msk == (SCB_CCR_DC_Msk & SCB->CCR))
+    {
         SCB_DisableDCache();
     }
+#endif
 
     /* Disable MPU */
     ARM_MPU_Disable();
 
     /* MPU configure:
-     * Use ARM_MPU_RASR(DisableExec, AccessPermission, TypeExtField, IsShareable, IsCacheable, IsBufferable, SubRegionDisable, Size) 
-     * API in core_cm7.h.
-     * param DisableExec       Instruction access (XN) disable bit,0=instruction fetches enabled, 1=instruction fetches disabled.
-     * param AccessPermission  Data access permissions, allows you to configure read/write access for User and Privileged mode.
-     *      Use MACROS defined in core_cm7.h: ARM_MPU_AP_NONE/ARM_MPU_AP_PRIV/ARM_MPU_AP_URO/ARM_MPU_AP_FULL/ARM_MPU_AP_PRO/ARM_MPU_AP_RO
+     * Use ARM_MPU_RASR(DisableExec, AccessPermission, TypeExtField, IsShareable, IsCacheable, IsBufferable,
+     * SubRegionDisable, Size)
+     * API in mpu_armv7.h.
+     * param DisableExec       Instruction access (XN) disable bit,0=instruction fetches enabled, 1=instruction fetches
+     * disabled.
+     * param AccessPermission  Data access permissions, allows you to configure read/write access for User and
+     * Privileged mode.
+     *      Use MACROS defined in mpu_armv7.h:
+     * ARM_MPU_AP_NONE/ARM_MPU_AP_PRIV/ARM_MPU_AP_URO/ARM_MPU_AP_FULL/ARM_MPU_AP_PRO/ARM_MPU_AP_RO
      * Combine TypeExtField/IsShareable/IsCacheable/IsBufferable to configure MPU memory access attributes.
      *  TypeExtField  IsShareable  IsCacheable  IsBufferable   Memory Attribtue    Shareability        Cache
      *     0             x           0           0             Strongly Ordered    shareable
-     *     0             x           0           1              Device             shareable           
-     *     0             0           1           0              Normal             not shareable   Outer and inner write through no write allocate           
-     *     0             0           1           1              Normal             not shareable   Outer and inner write back no write allocate           
-     *     0             1           1           0              Normal             shareable       Outer and inner write through no write allocate    
-     *     0             1           1           1              Normal             shareable       Outer and inner write back no write allocate    
-     *     1             0           0           0              Normal             not shareable   outer and inner noncache
-     *     1             1           0           0              Normal             shareable       outer and inner noncache
-     *     1             0           1           1              Normal             not shareable   outer and inner write back write/read acllocate
-     *     1             1           1           1              Normal             shareable       outer and inner write back write/read acllocate
-     *     2             x           0           0              Device              not shareable   
-     *  Above are normal use settings, if your want to see more details or want to config different inner/outter cache policy.      
+     *     0             x           0           1              Device             shareable
+     *     0             0           1           0              Normal             not shareable   Outer and inner write
+     * through no write allocate
+     *     0             0           1           1              Normal             not shareable   Outer and inner write
+     * back no write allocate
+     *     0             1           1           0              Normal             shareable       Outer and inner write
+     * through no write allocate
+     *     0             1           1           1              Normal             shareable       Outer and inner write
+     * back no write allocate
+     *     1             0           0           0              Normal             not shareable   outer and inner
+     * noncache
+     *     1             1           0           0              Normal             shareable       outer and inner
+     * noncache
+     *     1             0           1           1              Normal             not shareable   outer and inner write
+     * back write/read acllocate
+     *     1             1           1           1              Normal             shareable       outer and inner write
+     * back write/read acllocate
+     *     2             x           0           0              Device              not shareable
+     *  Above are normal use settings, if your want to see more details or want to config different inner/outter cache
+     * policy.
      *  please refer to Table 4-55 /4-56 in arm cortex-M7 generic user guide <dui0646b_cortex_m7_dgug.pdf>
      * param SubRegionDisable  Sub-region disable field. 0=sub-region is enabled, 1=sub-region is disabled.
-     * param Size              Region size of the region to be configured. use ARM_MPU_REGION_SIZE_xxx MACRO in core_cm7.h.
+     * param Size              Region size of the region to be configured. use ARM_MPU_REGION_SIZE_xxx MACRO in
+     * mpu_armv7.h.
      */
 
     /* Region 0 setting: Memory with Device type, not shareable, non-cacheable. */
-    MPU->RBAR = ARM_MPU_RBAR(0, 0xC0000000U);
+    MPU->RBAR = ARM_MPU_RBAR(0, 0x80000000U);
     MPU->RASR = ARM_MPU_RASR(0, ARM_MPU_AP_FULL, 2, 0, 0, 0, 0, ARM_MPU_REGION_SIZE_512MB);
 
     /* Region 1 setting: Memory with Device type, not shareable,  non-cacheable. */
-    MPU->RBAR = ARM_MPU_RBAR(1, 0x80000000U);
-    MPU->RASR = ARM_MPU_RASR(0, ARM_MPU_AP_FULL, 2, 0, 0, 0, 0, ARM_MPU_REGION_SIZE_1GB);
+    MPU->RBAR = ARM_MPU_RBAR(1, 0x60000000U);
+    MPU->RASR = ARM_MPU_RASR(0, ARM_MPU_AP_FULL, 2, 0, 0, 0, 0, ARM_MPU_REGION_SIZE_512MB);
 
-    /* Region 2 setting */
 #if defined(XIP_EXTERNAL_FLASH) && (XIP_EXTERNAL_FLASH == 1)
-    /* Setting Memory with Normal type, not shareable, outer/inner write back. */
+    /* Region 2 setting: Memory with Normal type, not shareable, outer/inner write back. */
     MPU->RBAR = ARM_MPU_RBAR(2, 0x60000000U);
-    MPU->RASR = ARM_MPU_RASR(0, ARM_MPU_AP_RO, 0, 0, 1, 1, 0, ARM_MPU_REGION_SIZE_8MB);
-#else
-    /* Setting Memory with Device type, not shareable, non-cacheable. */
-    MPU->RBAR = ARM_MPU_RBAR(2, 0x60000000U);
-    MPU->RASR = ARM_MPU_RASR(0, ARM_MPU_AP_RO, 2, 0, 0, 0, 0, ARM_MPU_REGION_SIZE_8MB);
+    MPU->RASR = ARM_MPU_RASR(0, ARM_MPU_AP_RO, 0, 0, 1, 1, 0, ARM_MPU_REGION_SIZE_16MB);
 #endif
 
     /* Region 3 setting: Memory with Device type, not shareable, non-cacheable. */
@@ -359,49 +362,57 @@ void BOARD_ConfigMPU(void)
 
     /* Region 4 setting: Memory with Normal type, not shareable, outer/inner write back */
     MPU->RBAR = ARM_MPU_RBAR(4, 0x00000000U);
-    MPU->RASR = ARM_MPU_RASR(0, ARM_MPU_AP_FULL, 0, 0, 1, 1, 0, ARM_MPU_REGION_SIZE_512KB);
+    MPU->RASR = ARM_MPU_RASR(0, ARM_MPU_AP_FULL, 0, 0, 1, 1, 0, ARM_MPU_REGION_SIZE_256KB);
 
     /* Region 5 setting: Memory with Normal type, not shareable, outer/inner write back */
     MPU->RBAR = ARM_MPU_RBAR(5, 0x20000000U);
-    MPU->RASR = ARM_MPU_RASR(0, ARM_MPU_AP_FULL, 0, 0, 1, 1, 0, ARM_MPU_REGION_SIZE_512KB);
+    MPU->RASR = ARM_MPU_RASR(0, ARM_MPU_AP_FULL, 0, 0, 1, 1, 0, ARM_MPU_REGION_SIZE_256KB);
 
     /* Region 6 setting: Memory with Normal type, not shareable, outer/inner write back */
     MPU->RBAR = ARM_MPU_RBAR(6, 0x20200000U);
-    MPU->RASR = ARM_MPU_RASR(0, ARM_MPU_AP_FULL, 0, 0, 1, 1, 0, ARM_MPU_REGION_SIZE_512KB);
+    MPU->RASR = ARM_MPU_RASR(0, ARM_MPU_AP_FULL, 0, 0, 1, 1, 0, ARM_MPU_REGION_SIZE_1MB);
 
     /* Region 7 setting: Memory with Normal type, not shareable, outer/inner write back */
-    MPU->RBAR = ARM_MPU_RBAR(7, 0x20280000U);
+    MPU->RBAR = ARM_MPU_RBAR(7, 0x20300000U);
     MPU->RASR = ARM_MPU_RASR(0, ARM_MPU_AP_FULL, 0, 0, 1, 1, 0, ARM_MPU_REGION_SIZE_512KB);
-    
-    /* The define sets the cacheable memory to shareable, 
-     * this suggestion is referred from chapter 2.2.1 Memory regions, 
-     * types and attributes in Cortex-M7 Devices, Generic User Guide */
-#if defined(SDRAM_IS_SHAREABLE)
-    /* Region 8 setting: Memory with Normal type, not shareable, outer/inner write back */
-    MPU->RBAR = ARM_MPU_RBAR(8, 0x80000000U);
-    MPU->RASR = ARM_MPU_RASR(0, ARM_MPU_AP_FULL, 0, 1, 1, 1, 0, ARM_MPU_REGION_SIZE_32MB);
-#else
-    /* Region 8 setting: Memory with Normal type, not shareable, outer/inner write back */
-    MPU->RBAR = ARM_MPU_RBAR(8, 0x80000000U);
-    MPU->RASR = ARM_MPU_RASR(0, ARM_MPU_AP_FULL, 0, 0, 1, 1, 0, ARM_MPU_REGION_SIZE_32MB);
-#endif
-    
-    /* Region 9,10,11 setting, set last 11MB of SDRAM can't be accessed by cache, glocal variables which are not expected to be
-     * accessed by cache can be put here */
-    /* Memory with Normal type, not shareable, non-cacheable */
-    MPU->RBAR = ARM_MPU_RBAR(9, 0x81500000U);
-    MPU->RASR = ARM_MPU_RASR(0, ARM_MPU_AP_FULL, 1, 0, 0, 0, 0, ARM_MPU_REGION_SIZE_1MB);
-    
-    MPU->RBAR = ARM_MPU_RBAR(10, 0x81600000U);
-    MPU->RASR = ARM_MPU_RASR(0, ARM_MPU_AP_FULL, 1, 0, 0, 0, 0, ARM_MPU_REGION_SIZE_2MB);
 
-    MPU->RBAR = ARM_MPU_RBAR(11, 0x81800000U);
-    MPU->RASR = ARM_MPU_RASR(0, ARM_MPU_AP_FULL, 1, 0, 0, 0, 0, ARM_MPU_REGION_SIZE_8MB);
+    /* Region 8 setting: Memory with Normal type, not shareable, outer/inner write back */
+    MPU->RBAR = ARM_MPU_RBAR(8, 0x80000000U);
+    MPU->RASR = ARM_MPU_RASR(0, ARM_MPU_AP_FULL, 0, 0, 1, 1, 0, ARM_MPU_REGION_SIZE_64MB);
+
+    while ((size >> i) > 0x1U)
+    {
+        i++;
+    }
+
+    if (i != 0)
+    {
+        /* The MPU region size should be 2^N, 5<=N<=32, region base should be multiples of size. */
+        assert(!(nonCacheStart % size));
+        assert(size == (uint32_t)(1 << i));
+        assert(i >= 5);
+
+        /* Region 9 setting: Memory with Normal type, not shareable, non-cacheable */
+        MPU->RBAR = ARM_MPU_RBAR(9, nonCacheStart);
+        MPU->RASR = ARM_MPU_RASR(0, ARM_MPU_AP_FULL, 1, 0, 0, 0, 0, i - 1);
+    }
 
     /* Enable MPU */
     ARM_MPU_Enable(MPU_CTRL_PRIVDEFENA_Msk);
 
     /* Enable I cache and D cache */
+#if defined(__DCACHE_PRESENT) && __DCACHE_PRESENT
     SCB_EnableDCache();
+#endif
+#if defined(__ICACHE_PRESENT) && __ICACHE_PRESENT
     SCB_EnableICache();
+#endif
+}
+
+void BOARD_SD_Pin_Config(uint32_t speed, uint32_t strength)
+{
+}
+
+void BOARD_MMC_Pin_Config(uint32_t speed, uint32_t strength)
+{
 }
