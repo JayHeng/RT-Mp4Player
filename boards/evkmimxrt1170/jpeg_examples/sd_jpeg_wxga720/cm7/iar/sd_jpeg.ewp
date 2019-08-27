@@ -32,11 +32,11 @@
                 </option>
                 <option>
                     <name>Input description</name>
-                    <state>Automatic choice of formatter.</state>
+                    <state>No specifier n, no float nor long long, no scan set, no assignment suppressing, without multibyte support.</state>
                 </option>
                 <option>
                     <name>Output description</name>
-                    <state>Automatic choice of formatter.</state>
+                    <state>No specifier a, A, no specifier n, no float nor long long, without multibyte support.</state>
                 </option>
                 <option>
                     <name>GOutputBinary</name>
@@ -58,7 +58,7 @@
                 </option>
                 <option>
                     <name>RTDescription</name>
-                    <state>0</state>
+                    <state>Use the normal configuration of the C/C++ runtime library. No locale interface, C locale, no file descriptor support, no multibytes in printf and scanf, and no hex floats in strtod.</state>
                 </option>
                 <option>
                     <name>OGProductVersion</name>
@@ -351,34 +351,28 @@
                     <state>$PROJ_DIR$/../..</state>
                     <state>$PROJ_DIR$/..</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/sdmmc/port</state>
-                    <state>$PROJ_DIR$/../../../../../src/jpeg_examples/sd_jpeg</state>
+                    <state>$PROJ_DIR$/../../../../../src/jpeg_examples/sd_jpeg_wxga720</state>
                     <state>$PROJ_DIR$/../../../..</state>
                     <state>$PROJ_DIR$/../../../../../../CMSIS/Include</state>
                     <state>$PROJ_DIR$/../../../../../../devices</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/cache/armv7-m7</state>
                     <state>$PROJ_DIR$/../../../../../../components/video/display/dc/elcdif</state>
                     <state>$PROJ_DIR$/../../../../../../components/video/display/dc/lcdifv2</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/mipi_dsi</state>
                     <state>$PROJ_DIR$/../../../../../../components/video/display/rm68191</state>
                     <state>$PROJ_DIR$/../../../../../../components/video/display/rm68200</state>
                     <state>$PROJ_DIR$/../../../../../../components/video/display/mipi_dsi_cmd</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/igpio</state>
                     <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/drivers</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/usdhc</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/libjpeg/inc</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/sdmmc/port</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/fatfs/source/fsl_sd_disk</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/sdmmc/port</state>
                     <state>$PROJ_DIR$/../../../../../../components/video</state>
                     <state>$PROJ_DIR$/../../../../../../components/video/display/dc</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/common</state>
                     <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/utilities/debug_console/str</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/utilities/debug_console</state>
+                    <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/utilities/str</state>
+                    <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/utilities/debug_console</state>
                     <state>$PROJ_DIR$/../../../../../../components/uart</state>
                     <state>$PROJ_DIR$/../../../../../../components/serial_manager</state>
                     <state>$PROJ_DIR$/../../../../../../components/serial_manager</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/lpuart</state>
                     <state>$PROJ_DIR$/../../../../../../components/lists</state>
                     <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/drivers</state>
                     <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/xip</state>
@@ -386,13 +380,10 @@
                     <state>$PROJ_DIR$/../../../../xip</state>
                     <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/drivers</state>
                     <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/drivers</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/elcdif</state>
                     <state>$PROJ_DIR$/../../../../../../components/video/display</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/lcdifv2</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/sdmmc/inc</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/sdmmc/src</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/fatfs/source</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/utilities/misc_utilities</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -817,7 +808,7 @@
                 </option>
                 <option>
                     <name>IlinkIcfFile</name>
-                    <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/iar/MIMXRT1176xxxxx_cm7_sdram.icf</state>
+                    <state>$PROJ_DIR$/MIMXRT1176xxxxx_cm7_sdram.icf</state>
                 </option>
                 <option>
                     <name>IlinkIcfFileSlave</name>
@@ -1050,7 +1041,7 @@
                 </option>
                 <option>
                     <name>IlinkTrustzoneImportLibraryOut</name>
-                    <state>###Unitialized###</state>
+                    <state>sd_jpeg_import_lib.o</state>
                 </option>
                 <option>
                     <name>OILinkExtraOption</name>
@@ -1150,7 +1141,7 @@
                 </option>
                 <option>
                     <name>OGLastSavedByProductVersion</name>
-                    <state>7.80.4.12487</state>
+                    <state>8.32.2.19370</state>
                 </option>
                 <option>
                     <name>GeneralEnableMisra</name>
@@ -1162,7 +1153,7 @@
                 </option>
                 <option>
                     <name>OGChipSelectEditMenu</name>
-                    <state>MIMXRT1176xxxxx_cm7	NXP MIMXRT1176xxxxx_cm7</state>
+                    <state>Default	None</state>
                 </option>
                 <option>
                     <name>GenLowLevelInterface</name>
@@ -1196,7 +1187,7 @@
                 </option>
                 <option>
                     <name>RTConfigPath2</name>
-                    <state>$TOOLKIT_DIR$\INC\c\DLib_Config_Normal.h</state>
+                    <state>$TOOLKIT_DIR$\inc\c\DLib_Config_Normal.h</state>
                 </option>
                 <option>
                     <name>GBECoreSlave</name>
@@ -1222,7 +1213,7 @@
                 </option>
                 <option>
                     <name>GFPUDeviceSlave</name>
-                    <state>MIMXRT1176xxxxx_cm7	NXP MIMXRT1176xxxxx_cm7</state>
+                    <state>Default	None</state>
                 </option>
                 <option>
                     <name>FPU2</name>
@@ -1282,7 +1273,7 @@
                 </option>
                 <option>
                     <name>DSPExtension</name>
-                    <state>0</state>
+                    <state>1</state>
                 </option>
                 <option>
                     <name>TrustZone</name>
@@ -1438,34 +1429,28 @@
                     <state>$PROJ_DIR$/../..</state>
                     <state>$PROJ_DIR$/..</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/sdmmc/port</state>
-                    <state>$PROJ_DIR$/../../../../../src/jpeg_examples/sd_jpeg</state>
+                    <state>$PROJ_DIR$/../../../../../src/jpeg_examples/sd_jpeg_wxga720</state>
                     <state>$PROJ_DIR$/../../../..</state>
                     <state>$PROJ_DIR$/../../../../../../CMSIS/Include</state>
                     <state>$PROJ_DIR$/../../../../../../devices</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/cache/armv7-m7</state>
                     <state>$PROJ_DIR$/../../../../../../components/video/display/dc/elcdif</state>
                     <state>$PROJ_DIR$/../../../../../../components/video/display/dc/lcdifv2</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/mipi_dsi</state>
                     <state>$PROJ_DIR$/../../../../../../components/video/display/rm68191</state>
                     <state>$PROJ_DIR$/../../../../../../components/video/display/rm68200</state>
                     <state>$PROJ_DIR$/../../../../../../components/video/display/mipi_dsi_cmd</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/igpio</state>
                     <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/drivers</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/usdhc</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/libjpeg/inc</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/sdmmc/port</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/fatfs/source/fsl_sd_disk</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/sdmmc/port</state>
                     <state>$PROJ_DIR$/../../../../../../components/video</state>
                     <state>$PROJ_DIR$/../../../../../../components/video/display/dc</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/common</state>
                     <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/utilities/debug_console/str</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/utilities/debug_console</state>
+                    <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/utilities/str</state>
+                    <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/utilities/debug_console</state>
                     <state>$PROJ_DIR$/../../../../../../components/uart</state>
                     <state>$PROJ_DIR$/../../../../../../components/serial_manager</state>
                     <state>$PROJ_DIR$/../../../../../../components/serial_manager</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/lpuart</state>
                     <state>$PROJ_DIR$/../../../../../../components/lists</state>
                     <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/drivers</state>
                     <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/xip</state>
@@ -1473,13 +1458,10 @@
                     <state>$PROJ_DIR$/../../../../xip</state>
                     <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/drivers</state>
                     <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/drivers</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/elcdif</state>
                     <state>$PROJ_DIR$/../../../../../../components/video/display</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/lcdifv2</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/sdmmc/inc</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/sdmmc/src</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/fatfs/source</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/utilities/misc_utilities</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -1904,7 +1886,7 @@
                 </option>
                 <option>
                     <name>IlinkIcfFile</name>
-                    <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/iar/MIMXRT1176xxxxx_cm7_flexspi_nor_sdram.icf</state>
+                    <state>$PROJ_DIR$/MIMXRT1176/iar/MIMXRT1176xxxxx_cm7_flexspi_nor_sdram.icf</state>
                 </option>
                 <option>
                     <name>IlinkIcfFileSlave</name>
@@ -2137,7 +2119,7 @@
                 </option>
                 <option>
                     <name>IlinkTrustzoneImportLibraryOut</name>
-                    <state>###Unitialized###</state>
+                    <state>sd_jpeg_import_lib.o</state>
                 </option>
                 <option>
                     <name>OILinkExtraOption</name>
@@ -2237,7 +2219,7 @@
                 </option>
                 <option>
                     <name>OGLastSavedByProductVersion</name>
-                    <state>7.60.1.11206</state>
+                    <state>8.32.2.19370</state>
                 </option>
                 <option>
                     <name>GeneralEnableMisra</name>
@@ -2249,7 +2231,7 @@
                 </option>
                 <option>
                     <name>OGChipSelectEditMenu</name>
-                    <state>MIMXRT1176xxxxx_cm7	NXP MIMXRT1176xxxxx_cm7</state>
+                    <state>Default	None</state>
                 </option>
                 <option>
                     <name>GenLowLevelInterface</name>
@@ -2283,7 +2265,7 @@
                 </option>
                 <option>
                     <name>RTConfigPath2</name>
-                    <state>$TOOLKIT_DIR$\INC\c\DLib_Config_Normal.h</state>
+                    <state>$TOOLKIT_DIR$\inc\c\DLib_Config_Normal.h</state>
                 </option>
                 <option>
                     <name>GBECoreSlave</name>
@@ -2309,7 +2291,7 @@
                 </option>
                 <option>
                     <name>GFPUDeviceSlave</name>
-                    <state>MIMXRT1176xxxxx_cm7	NXP MIMXRT1176xxxxx_cm7</state>
+                    <state>Default	None</state>
                 </option>
                 <option>
                     <name>FPU2</name>
@@ -2369,7 +2351,7 @@
                 </option>
                 <option>
                     <name>DSPExtension</name>
-                    <state>0</state>
+                    <state>1</state>
                 </option>
                 <option>
                     <name>TrustZone</name>
@@ -2522,34 +2504,28 @@
                     <state>$PROJ_DIR$/../..</state>
                     <state>$PROJ_DIR$/..</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/sdmmc/port</state>
-                    <state>$PROJ_DIR$/../../../../../src/jpeg_examples/sd_jpeg</state>
+                    <state>$PROJ_DIR$/../../../../../src/jpeg_examples/sd_jpeg_wxga720</state>
                     <state>$PROJ_DIR$/../../../..</state>
                     <state>$PROJ_DIR$/../../../../../../CMSIS/Include</state>
                     <state>$PROJ_DIR$/../../../../../../devices</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/cache/armv7-m7</state>
                     <state>$PROJ_DIR$/../../../../../../components/video/display/dc/elcdif</state>
                     <state>$PROJ_DIR$/../../../../../../components/video/display/dc/lcdifv2</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/mipi_dsi</state>
                     <state>$PROJ_DIR$/../../../../../../components/video/display/rm68191</state>
                     <state>$PROJ_DIR$/../../../../../../components/video/display/rm68200</state>
                     <state>$PROJ_DIR$/../../../../../../components/video/display/mipi_dsi_cmd</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/igpio</state>
                     <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/drivers</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/usdhc</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/libjpeg/inc</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/sdmmc/port</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/fatfs/source/fsl_sd_disk</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/sdmmc/port</state>
                     <state>$PROJ_DIR$/../../../../../../components/video</state>
                     <state>$PROJ_DIR$/../../../../../../components/video/display/dc</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/common</state>
                     <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/utilities/debug_console/str</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/utilities/debug_console</state>
+                    <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/utilities/str</state>
+                    <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/utilities/debug_console</state>
                     <state>$PROJ_DIR$/../../../../../../components/uart</state>
                     <state>$PROJ_DIR$/../../../../../../components/serial_manager</state>
                     <state>$PROJ_DIR$/../../../../../../components/serial_manager</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/lpuart</state>
                     <state>$PROJ_DIR$/../../../../../../components/lists</state>
                     <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/drivers</state>
                     <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/xip</state>
@@ -2557,13 +2533,10 @@
                     <state>$PROJ_DIR$/../../../../xip</state>
                     <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/drivers</state>
                     <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/drivers</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/elcdif</state>
                     <state>$PROJ_DIR$/../../../../../../components/video/display</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/lcdifv2</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/sdmmc/inc</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/sdmmc/src</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/fatfs/source</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/utilities/misc_utilities</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -2988,7 +2961,7 @@
                 </option>
                 <option>
                     <name>IlinkIcfFile</name>
-                    <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/iar/MIMXRT1176xxxxx_cm7_sdram.icf</state>
+                    <state>$PROJ_DIR$/MIMXRT1176/iar/MIMXRT1176xxxxx_cm7_sdram.icf</state>
                 </option>
                 <option>
                     <name>IlinkIcfFileSlave</name>
@@ -3221,7 +3194,7 @@
                 </option>
                 <option>
                     <name>IlinkTrustzoneImportLibraryOut</name>
-                    <state>###Unitialized###</state>
+                    <state>sd_jpeg_import_lib.o</state>
                 </option>
                 <option>
                     <name>OILinkExtraOption</name>
@@ -3321,7 +3294,7 @@
                 </option>
                 <option>
                     <name>OGLastSavedByProductVersion</name>
-                    <state>7.60.1.11206</state>
+                    <state>8.32.2.19370</state>
                 </option>
                 <option>
                     <name>GeneralEnableMisra</name>
@@ -3333,7 +3306,7 @@
                 </option>
                 <option>
                     <name>OGChipSelectEditMenu</name>
-                    <state>MIMXRT1176xxxxx_cm7	NXP MIMXRT1176xxxxx_cm7</state>
+                    <state>Default	None</state>
                 </option>
                 <option>
                     <name>GenLowLevelInterface</name>
@@ -3367,7 +3340,7 @@
                 </option>
                 <option>
                     <name>RTConfigPath2</name>
-                    <state>$TOOLKIT_DIR$\INC\c\DLib_Config_Normal.h</state>
+                    <state>$TOOLKIT_DIR$\inc\c\DLib_Config_Normal.h</state>
                 </option>
                 <option>
                     <name>GBECoreSlave</name>
@@ -3393,7 +3366,7 @@
                 </option>
                 <option>
                     <name>GFPUDeviceSlave</name>
-                    <state>MIMXRT1176xxxxx_cm7	NXP MIMXRT1176xxxxx_cm7</state>
+                    <state>Default	None</state>
                 </option>
                 <option>
                     <name>FPU2</name>
@@ -3453,7 +3426,7 @@
                 </option>
                 <option>
                     <name>DSPExtension</name>
-                    <state>0</state>
+                    <state>1</state>
                 </option>
                 <option>
                     <name>TrustZone</name>
@@ -3609,34 +3582,28 @@
                     <state>$PROJ_DIR$/../..</state>
                     <state>$PROJ_DIR$/..</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/sdmmc/port</state>
-                    <state>$PROJ_DIR$/../../../../../src/jpeg_examples/sd_jpeg</state>
+                    <state>$PROJ_DIR$/../../../../../src/jpeg_examples/sd_jpeg_wxga720</state>
                     <state>$PROJ_DIR$/../../../..</state>
                     <state>$PROJ_DIR$/../../../../../../CMSIS/Include</state>
                     <state>$PROJ_DIR$/../../../../../../devices</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/cache/armv7-m7</state>
                     <state>$PROJ_DIR$/../../../../../../components/video/display/dc/elcdif</state>
                     <state>$PROJ_DIR$/../../../../../../components/video/display/dc/lcdifv2</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/mipi_dsi</state>
                     <state>$PROJ_DIR$/../../../../../../components/video/display/rm68191</state>
                     <state>$PROJ_DIR$/../../../../../../components/video/display/rm68200</state>
                     <state>$PROJ_DIR$/../../../../../../components/video/display/mipi_dsi_cmd</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/igpio</state>
                     <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/drivers</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/usdhc</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/libjpeg/inc</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/sdmmc/port</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/fatfs/source/fsl_sd_disk</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/sdmmc/port</state>
                     <state>$PROJ_DIR$/../../../../../../components/video</state>
                     <state>$PROJ_DIR$/../../../../../../components/video/display/dc</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/common</state>
                     <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/utilities/debug_console/str</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/utilities/debug_console</state>
+                    <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/utilities/str</state>
+                    <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/utilities/debug_console</state>
                     <state>$PROJ_DIR$/../../../../../../components/uart</state>
                     <state>$PROJ_DIR$/../../../../../../components/serial_manager</state>
                     <state>$PROJ_DIR$/../../../../../../components/serial_manager</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/lpuart</state>
                     <state>$PROJ_DIR$/../../../../../../components/lists</state>
                     <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/drivers</state>
                     <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/xip</state>
@@ -3644,13 +3611,10 @@
                     <state>$PROJ_DIR$/../../../../xip</state>
                     <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/drivers</state>
                     <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/drivers</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/elcdif</state>
                     <state>$PROJ_DIR$/../../../../../../components/video/display</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/drivers/lcdifv2</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/sdmmc/inc</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/sdmmc/src</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/fatfs/source</state>
-                    <state>$PROJ_DIR$/../../../../../../platform/utilities/misc_utilities</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -4075,7 +4039,7 @@
                 </option>
                 <option>
                     <name>IlinkIcfFile</name>
-                    <state>$PROJ_DIR$/../../../../../../devices/MIMXRT1176/iar/MIMXRT1176xxxxx_cm7_flexspi_nor_sdram.icf</state>
+                    <state>$PROJ_DIR$/MIMXRT1176/iar/MIMXRT1176xxxxx_cm7_flexspi_nor_sdram.icf</state>
                 </option>
                 <option>
                     <name>IlinkIcfFileSlave</name>
@@ -4308,7 +4272,7 @@
                 </option>
                 <option>
                     <name>IlinkTrustzoneImportLibraryOut</name>
-                    <state>###Unitialized###</state>
+                    <state>sd_jpeg_import_lib.o</state>
                 </option>
                 <option>
                     <name>OILinkExtraOption</name>
@@ -4346,16 +4310,16 @@
     <group>
         <name>board</name>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\board.c</name>
+            <name>$PROJ_DIR$\..\board.c</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\board.h</name>
+            <name>$PROJ_DIR$\..\board.h</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\clock_config.c</name>
+            <name>$PROJ_DIR$\..\clock_config.c</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\clock_config.h</name>
+            <name>$PROJ_DIR$\..\clock_config.h</name>
         </file>
         <file>
             <name>$PROJ_DIR$\..\..\..\..\display_support.c</name>
@@ -4364,10 +4328,10 @@
             <name>$PROJ_DIR$\..\..\..\..\display_support.h</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\pin_mux.c</name>
+            <name>$PROJ_DIR$\..\pin_mux.c</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\pin_mux.h</name>
+            <name>$PROJ_DIR$\..\pin_mux.h</name>
         </file>
     </group>
     <group>
@@ -4499,10 +4463,10 @@
             <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_anatop_ai.h</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\..\platform\drivers\cache\armv7-m7\fsl_cache.c</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_cache.c</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\..\platform\drivers\cache\armv7-m7\fsl_cache.h</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_cache.h</name>
         </file>
         <file>
             <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_clock.c</name>
@@ -4511,49 +4475,49 @@
             <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_clock.h</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\..\platform\drivers\common\fsl_common.c</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_common.c</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\..\platform\drivers\common\fsl_common.h</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_common.h</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\..\platform\drivers\elcdif\fsl_elcdif.c</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_elcdif.c</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\..\platform\drivers\elcdif\fsl_elcdif.h</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_elcdif.h</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\..\platform\drivers\igpio\fsl_gpio.c</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_gpio.c</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\..\platform\drivers\igpio\fsl_gpio.h</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_gpio.h</name>
         </file>
         <file>
             <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_iomuxc.h</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\..\platform\drivers\lcdifv2\fsl_lcdifv2.c</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_lcdifv2.c</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\..\platform\drivers\lcdifv2\fsl_lcdifv2.h</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_lcdifv2.h</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\..\platform\drivers\lpuart\fsl_lpuart.c</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_lpuart.c</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\..\platform\drivers\lpuart\fsl_lpuart.h</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_lpuart.h</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\..\platform\drivers\mipi_dsi\fsl_mipi_dsi.c</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_mipi_dsi.c</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\..\platform\drivers\mipi_dsi\fsl_mipi_dsi.h</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_mipi_dsi.h</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\..\platform\drivers\usdhc\fsl_usdhc.c</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_usdhc.c</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\..\platform\drivers\usdhc\fsl_usdhc.h</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_usdhc.h</name>
         </file>
     </group>
     <group>
@@ -4826,13 +4790,13 @@
     <group>
         <name>source</name>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\src\jpeg_examples\sd_jpeg\ffconf.h</name>
+            <name>$PROJ_DIR$\..\ffconf.h</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\src\jpeg_examples\sd_jpeg\jconfig.h</name>
+            <name>$PROJ_DIR$\..\jconfig.h</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\src\jpeg_examples\sd_jpeg\sd_jpeg.c</name>
+            <name>$PROJ_DIR$\..\sd_jpeg.c</name>
         </file>
     </group>
     <group>
@@ -4844,22 +4808,22 @@
     <group>
         <name>utilities</name>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\..\platform\utilities\assert\fsl_assert.c</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\utilities\fsl_assert.c</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\..\platform\utilities\debug_console\fsl_debug_console.c</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\utilities\debug_console\fsl_debug_console.c</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\..\platform\utilities\debug_console\fsl_debug_console.h</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\utilities\debug_console\fsl_debug_console.h</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\..\platform\utilities\debug_console\fsl_debug_console_conf.h</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\utilities\debug_console\fsl_debug_console_conf.h</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\..\platform\utilities\debug_console\str\fsl_str.c</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\utilities\str\fsl_str.c</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\..\platform\utilities\debug_console\str\fsl_str.h</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\utilities\str\fsl_str.h</name>
         </file>
     </group>
     <group>
