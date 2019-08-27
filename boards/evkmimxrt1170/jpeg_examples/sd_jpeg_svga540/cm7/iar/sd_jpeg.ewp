@@ -351,7 +351,7 @@
                     <state>$PROJ_DIR$/../..</state>
                     <state>$PROJ_DIR$/..</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/sdmmc/port</state>
-                    <state>$PROJ_DIR$/../../../../../src/jpeg_examples/sd_jpeg_wxga720</state>
+                    <state>$PROJ_DIR$/../../../../../src/jpeg_examples/sd_jpeg_svga540</state>
                     <state>$PROJ_DIR$/../../../..</state>
                     <state>$PROJ_DIR$/../../../../../../CMSIS/Include</state>
                     <state>$PROJ_DIR$/../../../../../../devices</state>
@@ -1429,7 +1429,7 @@
                     <state>$PROJ_DIR$/../..</state>
                     <state>$PROJ_DIR$/..</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/sdmmc/port</state>
-                    <state>$PROJ_DIR$/../../../../../src/jpeg_examples/sd_jpeg_wxga720</state>
+                    <state>$PROJ_DIR$/../../../../../src/jpeg_examples/sd_jpeg_svga540</state>
                     <state>$PROJ_DIR$/../../../..</state>
                     <state>$PROJ_DIR$/../../../../../../CMSIS/Include</state>
                     <state>$PROJ_DIR$/../../../../../../devices</state>
@@ -2504,7 +2504,7 @@
                     <state>$PROJ_DIR$/../..</state>
                     <state>$PROJ_DIR$/..</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/sdmmc/port</state>
-                    <state>$PROJ_DIR$/../../../../../src/jpeg_examples/sd_jpeg_wxga720</state>
+                    <state>$PROJ_DIR$/../../../../../src/jpeg_examples/sd_jpeg_svga540</state>
                     <state>$PROJ_DIR$/../../../..</state>
                     <state>$PROJ_DIR$/../../../../../../CMSIS/Include</state>
                     <state>$PROJ_DIR$/../../../../../../devices</state>
@@ -3582,7 +3582,7 @@
                     <state>$PROJ_DIR$/../..</state>
                     <state>$PROJ_DIR$/..</state>
                     <state>$PROJ_DIR$/../../../../../../middleware/sdmmc/port</state>
-                    <state>$PROJ_DIR$/../../../../../src/jpeg_examples/sd_jpeg_wxga720</state>
+                    <state>$PROJ_DIR$/../../../../../src/jpeg_examples/sd_jpeg_svga540</state>
                     <state>$PROJ_DIR$/../../../..</state>
                     <state>$PROJ_DIR$/../../../../../../CMSIS/Include</state>
                     <state>$PROJ_DIR$/../../../../../../devices</state>
