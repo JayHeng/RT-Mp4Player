@@ -88,9 +88,8 @@ typedef struct _video_lcd_cfg
 } video_lcd_cfg_t;
 
 // Set LCD resolution
-#define VIDEO_LCD_RESOLUTION_HVGA272  1  // For 480*272 LCD
-#define VIDEO_LCD_RESOLUTION_SVGA600  0  // For 800*600 LCD
-#define VIDEO_LCD_RESOLUTION_WXGA800  0  // For 1280*800 LCD
+#define VIDEO_LCD_RESOLUTION_SVGA540  1  // For 960*540 LCD
+#define VIDEO_LCD_RESOLUTION_WXGA720  0  // For 1280*720 LCD
 
 // Set PXP converted pixel format
 #define VIDEO_PIXEL_FMT_RGB888        0

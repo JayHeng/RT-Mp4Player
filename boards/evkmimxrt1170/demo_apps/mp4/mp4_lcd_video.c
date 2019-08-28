@@ -14,59 +14,42 @@
 #include "fsl_common.h"
 #include "fsl_debug_console.h"
 #include "fsl_pxp.h"
-#include "fsl_elcdif.h"
+#include "fsl_lcdifv2.h"
+#include "display_support.h"
 #include "fsl_cache.h"
 #include "fsl_gpio.h"
 #include "mp4.h"
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
-#define APP_ELCDIF LCDIF
+#define APP_ELCDIF LCDIFV2
+#define APP_ELCDIF_LAYER 0
+#define APP_CORE_ID 0
 
-#if VIDEO_LCD_RESOLUTION_HVGA272 == 1
-#define APP_IMG_HEIGHT 272
-#define APP_IMG_WIDTH 480
-#define APP_HSW 41
-#define APP_HFP 4
-#define APP_HBP 8
-#define APP_VSW 10
-#define APP_VFP 4
-#define APP_VBP 2
-#elif VIDEO_LCD_RESOLUTION_SVGA600 == 1
-#define APP_IMG_HEIGHT 600
-#define APP_IMG_WIDTH 800
-#define APP_HSW 48
-#define APP_HFP 112
-#define APP_HBP 88
-#define APP_VSW 3
-#define APP_VFP 21
-#define APP_VBP 39
-#elif VIDEO_LCD_RESOLUTION_WXGA800 == 1
-#define APP_IMG_HEIGHT 800
-#define APP_IMG_WIDTH 1280
-#define APP_HSW 10
-#define APP_HFP 70
-#define APP_HBP 80
-#define APP_VSW 3
-#define APP_VFP 10
-#define APP_VBP 10
+#if VIDEO_LCD_RESOLUTION_SVGA540 == 1
+#define APP_IMG_HEIGHT 960
+#define APP_IMG_WIDTH 540
+#define APP_HSW 2
+#define APP_HFP 32
+#define APP_HBP 30
+#define APP_VSW 2
+#define APP_VFP 16
+#define APP_VBP 14
+#elif VIDEO_LCD_RESOLUTION_WXGA720 == 1
+#define APP_IMG_HEIGHT 1280
+#define APP_IMG_WIDTH 720
+#define APP_HSW 8
+#define APP_HFP 32
+#define APP_HBP 32
+#define APP_VSW 2
+#define APP_VFP 16
+#define APP_VBP 14
 #endif
-#if (VIDEO_LCD_RESOLUTION_HVGA272 == 1) || (VIDEO_LCD_RESOLUTION_WXGA800 == 1)
+
 #define APP_POL_FLAGS \
-    (kELCDIF_DataEnableActiveHigh | kELCDIF_VsyncActiveLow | kELCDIF_HsyncActiveLow | kELCDIF_DriveDataOnRisingClkEdge)
-#elif (VIDEO_LCD_RESOLUTION_SVGA600 == 1)
-#define APP_POL_FLAGS \
-    (kELCDIF_DataEnableActiveHigh | kELCDIF_VsyncActiveHigh | kELCDIF_HsyncActiveHigh | kELCDIF_DriveDataOnFallingClkEdge)
-#endif
+    (kLCDIFV2_DataEnableActiveHigh | kLCDIFV2_VsyncActiveLow | kLCDIFV2_HsyncActiveLow | kLCDIFV2_DriveDataOnRisingClkEdge)
 
 #define APP_LCDIF_DATA_BUS kELCDIF_DataBus16Bit
-
-/* Display. */
-#define LCD_DISP_GPIO GPIO1
-#define LCD_DISP_GPIO_PIN 2
-/* Back light. */
-#define LCD_BL_GPIO GPIO2
-#define LCD_BL_GPIO_PIN 31
 
 /* Frame buffer data alignment, for better performance, the LCDIF frame buffer should be 64B align. */
 #define FRAME_BUFFER_ALIGN 64
@@ -106,6 +89,7 @@
  * Prototypes
  ******************************************************************************/
 void BOARD_EnableLcdInterrupt(void);
+void BOARD_InitLcdifClock(void);
 
 /*******************************************************************************
  * Variables
@@ -131,125 +115,12 @@ AT_NONCACHEABLE_SECTION_ALIGN(static uint8_t s_psBufferLcd[APP_LCD_FB_NUM][APP_I
 /* Enable interrupt. */
 void BOARD_EnableLcdInterrupt(void)
 {
-    EnableIRQ(LCDIF_IRQn);
-}
-
-/* Initialize the LCD_DISP. */
-void BOARD_InitLcd(void)
-{
-    gpio_pin_config_t config = {
-        kGPIO_DigitalOutput, 0,
-    };
-
-#if (VIDEO_LCD_RESOLUTION_HVGA272 == 1) || (VIDEO_LCD_RESOLUTION_SVGA600 == 1)
-    /* Reset the LCD. */
-    GPIO_PinInit(LCD_DISP_GPIO, LCD_DISP_GPIO_PIN, &config);
-    GPIO_PinWrite(LCD_DISP_GPIO, LCD_DISP_GPIO_PIN, 0);
-    volatile uint32_t i = 0x100U;
-    while (i--)
-    {
-    }
-    GPIO_PinWrite(LCD_DISP_GPIO, LCD_DISP_GPIO_PIN, 1);
-#elif VIDEO_LCD_RESOLUTION_WXGA800 == 1
-    // Do nothing
-#endif
-
-    /* Backlight. */
-    config.outputLogic = 1;
-    GPIO_PinInit(LCD_BL_GPIO, LCD_BL_GPIO_PIN, &config);
+    EnableIRQ(LCDIF2_IRQn);
 }
 
 void BOARD_InitLcdifPixelClock(void)
 {
-#if VIDEO_LCD_RESOLUTION_HVGA272 == 1
-    /*
-     * The desired output frame rate is 60Hz. So the pixel clock frequency is:
-     * (480 + 41 + 4 + 18) * (272 + 10 + 4 + 2) * 60,30,25 = 9.2M,4.6M,3.83M.
-     * Here set the LCDIF pixel clock to 9.3M,4.65M,3.875M.
-     */
-
-    /*
-     * Initialize the Video PLL.
-     * Video PLL output clock is OSC24M * (loopDivider + (denominator / numerator)) / postDivider = 93MHz.
-     */
-    clock_video_pll_config_t config = {
-        .loopDivider = 31, .postDivider = 8, .numerator = 0, .denominator = 0,
-    };
-#elif VIDEO_LCD_RESOLUTION_SVGA600 == 1
-    /*
-     * The desired output frame rate is 60Hz. So the pixel clock frequency is:
-     * (800 + 48 + 88 + 112) * (600 + 3 + 39 + 21) * 60,30,25 = 39.8M,19.9M,16.58M.
-     * Here set the LCDIF pixel clock to 40M,20M,17.14M.
-     */
-
-    /*
-     * Initialize the Video PLL.
-     * Video PLL output clock is OSC24M * (loopDivider + (denominator / numerator)) / postDivider = 120MHz.
-     */
-    clock_video_pll_config_t config = {
-        .loopDivider = 40, .postDivider = 8, .numerator = 0, .denominator = 0,
-    };
-#elif VIDEO_LCD_RESOLUTION_WXGA800 == 1
-    /*
-     * The desired output frame rate is 30Hz. So the pixel clock frequency is:
-     * (1280 + 10 + 80 + 70) * (800 + 3 + 10 + 10) * 60,30,25 = 71M,35.5M,29.58M.
-     * Here set the LCDIF pixel clock to 70.5M,35.25M,31.33M.
-     */
-
-    /*
-     * Initialize the Video PLL.
-     * Video PLL output clock is OSC24M * (loopDivider + (denominator / numerator)) / postDivider = 282MHz.
-     */
-    clock_video_pll_config_t config = {
-        .loopDivider = 47, .postDivider = 4, .numerator = 0, .denominator = 0,
-    };
-#endif
-
-    CLOCK_InitVideoPll(&config);
-
-    /*
-     * 000 derive clock from PLL2
-     * 001 derive clock from PLL3 PFD3
-     * 010 derive clock from PLL5
-     * 011 derive clock from PLL2 PFD0
-     * 100 derive clock from PLL2 PFD1
-     * 101 derive clock from PLL3 PFD1
-     */
-    CLOCK_SetMux(kCLOCK_LcdifPreMux, 2);
-#if VIDEO_LCD_RESOLUTION_HVGA272 == 1
-#if VIDEO_LCD_REFRESH_FREG_60Hz == 1
-    CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 4);
-    CLOCK_SetDiv(kCLOCK_LcdifDiv, 1);
-#elif VIDEO_LCD_REFRESH_FREG_30Hz == 1
-    CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 4);
-    CLOCK_SetDiv(kCLOCK_LcdifDiv, 3);
-#elif VIDEO_LCD_REFRESH_FREG_25Hz == 1
-    CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 3);
-    CLOCK_SetDiv(kCLOCK_LcdifDiv, 5);
-#endif
-#elif VIDEO_LCD_RESOLUTION_SVGA600 == 1
-#if VIDEO_LCD_REFRESH_FREG_60Hz == 1
-    CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 2);
-    CLOCK_SetDiv(kCLOCK_LcdifDiv, 0);
-#elif VIDEO_LCD_REFRESH_FREG_30Hz == 1
-    CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 2);
-    CLOCK_SetDiv(kCLOCK_LcdifDiv, 1);
-#elif VIDEO_LCD_REFRESH_FREG_25Hz == 1
-    CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 6);
-    CLOCK_SetDiv(kCLOCK_LcdifDiv, 0);
-#endif
-#elif VIDEO_LCD_RESOLUTION_WXGA800 == 1
-#if VIDEO_LCD_REFRESH_FREG_60Hz == 1
-    CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 3);
-    CLOCK_SetDiv(kCLOCK_LcdifDiv, 0);
-#elif VIDEO_LCD_REFRESH_FREG_30Hz == 1
-    CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 3);
-    CLOCK_SetDiv(kCLOCK_LcdifDiv, 1);
-#elif VIDEO_LCD_REFRESH_FREG_25Hz == 1
-    CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 2);
-    CLOCK_SetDiv(kCLOCK_LcdifDiv, 2);
-#endif
-#endif
+    BOARD_InitLcdifClock();
 }
 
 /* Put the unused frame buffer to the s_fbList. */
@@ -295,8 +166,8 @@ static void APP_InitPxp(uint32_t psWidth)
 }
 
 static void APP_InitLcdif(void)
-{
-    const elcdif_rgb_mode_config_t config = {
+{   
+    const lcdifv2_display_config_t lcdifv2Config = {
         .panelWidth = APP_IMG_WIDTH,
         .panelHeight = APP_IMG_HEIGHT,
         .hsw = APP_HSW,
@@ -306,14 +177,26 @@ static void APP_InitLcdif(void)
         .vfp = APP_VFP,
         .vbp = APP_VBP,
         .polarityFlags = APP_POL_FLAGS,
-        .bufferAddr = (uint32_t)s_psBufferLcd[0],
-#if VIDEO_PIXEL_FMT_RGB888 == 1
-        .pixelFormat = kELCDIF_PixelFormatXRGB8888,
-#elif VIDEO_PIXEL_FMT_RGB565 == 1
-        .pixelFormat = kELCDIF_PixelFormatRGB565,
-#endif
-        .dataBus = APP_LCDIF_DATA_BUS,
+        .lineOrder     = kLCDIFV2_LineOrderRGB,
     };
+
+    const lcdifv2_buffer_config_t fbConfig = {
+        .strideBytes = APP_IMG_WIDTH * APP_BPP,
+#if VIDEO_PIXEL_FMT_RGB888 == 1
+        .pixelFormat = kLCDIFV2_PixelFormatARGB8888,
+#elif VIDEO_PIXEL_FMT_RGB565 == 1
+        .pixelFormat = kLCDIFV2_PixelFormatRGB565,
+#endif
+    };
+
+    if (kStatus_Success != BOARD_InitDisplayInterface())
+    {
+        PRINTF("Display interface initialize failed\r\n");
+
+        while (1)
+        {
+        }
+    }
 
     for (uint32_t i = 1; i < APP_LCD_FB_NUM; i++)
     {
@@ -321,18 +204,14 @@ static void APP_InitLcdif(void)
     }
     activeBuf = s_psBufferLcd[0];
 
-    ELCDIF_RgbModeInit(APP_ELCDIF, &config);
+    LCDIFV2_Init(APP_ELCDIF);
+    LCDIFV2_SetDisplayConfig(APP_ELCDIF, &lcdifv2Config);
+    LCDIFV2_EnableDisplay(APP_ELCDIF, true);
+    LCDIFV2_SetLayerBufferConfig(APP_ELCDIF, APP_ELCDIF_LAYER, &fbConfig);
+    LCDIFV2_SetLayerSize(APP_ELCDIF, APP_ELCDIF_LAYER, APP_IMG_WIDTH, APP_IMG_HEIGHT);
+    LCDIFV2_SetLayerOffset(APP_ELCDIF, APP_ELCDIF_LAYER, 0, 0);
 
-#if VIDEO_LCD_RESOLUTION_HVGA272 == 1
-    // Do nothing
-#elif (VIDEO_LCD_RESOLUTION_WXGA800 == 1) || (VIDEO_LCD_RESOLUTION_SVGA600 == 1)
-    /* Update the eLCDIF AXI master features for better performance */
-    APP_ELCDIF->CTRL2 = 0x00700000;
-#endif
-
-#if (MP4_LCD_TIME_ENABLE == 0) || (MP4_LCD_DISP_OFF == 0)
-    ELCDIF_RgbModeStart(APP_ELCDIF);
-#endif
+    LCDIFV2_EnableLayer(APP_ELCDIF, APP_ELCDIF_LAYER, true);
 }
 
 #if MP4_LCD_TIME_ENABLE == 1
@@ -394,7 +273,7 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
 #if VIDEO_LCD_DISP_WAITING == 1
             lcd_time_measure_utility(kLcdTimeType_Start);
             // Wait util last LCD frame done, then we can show current frame
-            while (!(kELCDIF_CurFrameDone & ELCDIF_GetInterruptStatus(APP_ELCDIF)))
+            while (!(kLCDIFV2_VerticalBlankingInterrupt & LCDIFV2_GetInterruptStatus(APP_ELCDIF, APP_CORE_ID)))
             {
             }
             lcd_time_measure_utility(kLcdTimeType_Lcd);
@@ -407,8 +286,9 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
 
 #if VIDEO_PXP_CONV_BLOCKING == 0
         // Start to show current frame via LCD
-        ELCDIF_SetNextBufferAddr(APP_ELCDIF, (uint32_t)s_psBufferLcd[curLcdBufferIdx]);
-        ELCDIF_ClearInterruptStatus(APP_ELCDIF, kELCDIF_CurFrameDone);
+        LCDIFV2_SetLayerBufferAddr(APP_ELCDIF, APP_ELCDIF_LAYER, (uint32_t)s_psBufferLcd[curLcdBufferIdx]);
+        LCDIFV2_TriggerLayerShadowLoad(APP_ELCDIF, APP_ELCDIF_LAYER);
+        LCDIFV2_ClearInterruptStatus(APP_ELCDIF, APP_CORE_ID, kLCDIFV2_VerticalBlankingInterrupt);
 
         curLcdBufferIdx++;
         curLcdBufferIdx %= APP_LCD_FB_NUM;
@@ -473,8 +353,9 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
     }
 #endif // #if VIDEO_PXP_CONV_WAITING == 1
 
-    ELCDIF_SetNextBufferAddr(APP_ELCDIF, (uint32_t)s_psBufferLcd[curLcdBufferIdx]);
-    ELCDIF_ClearInterruptStatus(APP_ELCDIF, kELCDIF_CurFrameDone);
+    LCDIFV2_SetLayerBufferAddr(APP_ELCDIF, APP_ELCDIF_LAYER, (uint32_t)s_psBufferLcd[curLcdBufferIdx]);
+    LCDIFV2_TriggerLayerShadowLoad(APP_ELCDIF, APP_ELCDIF_LAYER);
+    LCDIFV2_ClearInterruptStatus(APP_ELCDIF, APP_CORE_ID, kLCDIFV2_VerticalBlankingInterrupt);
 
     curLcdBufferIdx++;
     curLcdBufferIdx %= APP_LCD_FB_NUM;
@@ -482,7 +363,7 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
 #if VIDEO_LCD_DISP_BLOCKING == 1
 #if VIDEO_LCD_DISP_WAITING == 1
     lcd_time_measure_utility(kLcdTimeType_Start);
-    while (!(kELCDIF_CurFrameDone & ELCDIF_GetInterruptStatus(APP_ELCDIF)))
+    while (!(kLCDIFV2_VerticalBlankingInterrupt & LCDIFV2_GetInterruptStatus(APP_ELCDIF, APP_CORE_ID)))
     {
     }
     lcd_time_measure_utility(kLcdTimeType_Lcd);
@@ -513,11 +394,10 @@ void set_lcd_master_priority(uint32_t priority)
 void config_lcd(video_lcd_cfg_t *lcdCfg)
 {
     BOARD_InitLcdifPixelClock();
-    BOARD_InitLcd();
 
     APP_InitPxp(lcdCfg->srcWidth);
     APP_InitLcdif();
-    ELCDIF_EnableInterrupts(APP_ELCDIF, kELCDIF_CurFrameDoneInterruptEnable);
+    LCDIFV2_EnableInterrupts(APP_ELCDIF, APP_CORE_ID, kLCDIFV2_VerticalBlankingInterrupt);
     BOARD_EnableLcdInterrupt();
 
 #if (VIDEO_LCD_RESOLUTION_WXGA800 == 1) || (VIDEO_LCD_RESOLUTION_SVGA600 == 1)
@@ -534,11 +414,11 @@ void APP_LCDIF_IRQHandler(void)
 {
     uint32_t intStatus;
 
-    intStatus = ELCDIF_GetInterruptStatus(APP_ELCDIF);
+    intStatus = LCDIFV2_GetInterruptStatus(APP_ELCDIF, APP_CORE_ID);
 
-    ELCDIF_ClearInterruptStatus(APP_ELCDIF, intStatus);
+    LCDIFV2_ClearInterruptStatus(APP_ELCDIF, APP_CORE_ID, intStatus);
 
-    if (intStatus & kELCDIF_CurFrameDone)
+    if (intStatus & kLCDIFV2_VerticalBlankingInterrupt)
     {
         if (g_lcdFramePending)
         {
@@ -555,7 +435,7 @@ void APP_LCDIF_IRQHandler(void)
     }
 }
 
-void LCDIF_IRQHandler(void)
+void LCDIF2_IRQHandler(void)
 {
     APP_LCDIF_IRQHandler();
     __DSB();

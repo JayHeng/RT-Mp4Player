@@ -81,6 +81,7 @@ static uint8_t *s_cachedAudioBuffer;
 static uint32_t s_cachedAudioBytes = 0;
 static uint32_t s_cachedAudioFrames = 0;
 
+audio_sai_cfg_t g_audioSaiCfg;
 /*******************************************************************************
  * Code
  ******************************************************************************/
@@ -262,7 +263,7 @@ static void flush_audio_data_cache(void)
 {
     if (s_cachedAudioBytes)
     {
-        sai_audio_play(s_cachedAudioBuffer, s_cachedAudioBytes);
+        //sai_audio_play(s_cachedAudioBuffer, s_cachedAudioBytes);
         s_cachedAudioFrames = 0;
         s_cachedAudioBytes = 0;
     }
@@ -435,7 +436,8 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
     while (av_read_frame(pInFmtCtx, &packet) >= 0)
     {
         ff_time_measure_utility(kFfTimeType_ReadFrame);
-        if (packet.stream_index == audioStream)
+        if (0)
+        //if (packet.stream_index == audioStream)
         {
             uint8_t *pktdata = packet.data;
             int pktsize = packet.size;
@@ -465,7 +467,7 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
                         {
                             g_audioSaiCfg.sampleChannel = frame->channels;
                         }
-                        config_sai(&g_audioSaiCfg);
+                        //config_sai(&g_audioSaiCfg);
                         g_audioSaiCfg.isSaiConfigured = true;
                     }
 
@@ -620,11 +622,13 @@ int main(void)
 
     PRINTF("MP4 decode demo start:\r\n");
 
-    /*configure system pll PFD2 fractional divider to 18*/
-    CLOCK_InitSysPfd(kCLOCK_Pfd0, 0x12U);
-    /* Configure USDHC clock source and divider */
-    CLOCK_SetDiv(kCLOCK_Usdhc1Div, 0U);
-    CLOCK_SetMux(kCLOCK_Usdhc1Mux, 1U);
+    clock_root_config_t rootCfg = {0};
+
+    CLOCK_EnableOscRc400M();
+    /* Configure USDHC1 using RC400M divided by 1 */
+    rootCfg.mux = 2;
+    rootCfg.div = 0;
+    CLOCK_SetRootClock(kCLOCK_Root_Usdhc1, &rootCfg);
 
     // Init the SD card
     if (0 != sdcard_mount())
@@ -642,9 +646,9 @@ int main(void)
     g_audioSaiCfg.sampleWidth_bit = AUDIO_CONV_WIDTH;
     g_videoLcdCfg.isLcdConfigured = false;
 
-    char *filepath_in="/bigbuckbunny_480x272_faststart_8KHz_h264.mp4";
-    char *filepath_aout="/bigbuckbunny_480x272_faststart_8KHz_h264.pcm";
-    char *filepath_vout="/bigbuckbunny_480x272_faststart_8KHz_h264.yuv";
+    char *filepath_in="/bigbuckbunny_960x540_faststart.mp4";
+    char *filepath_aout="/bigbuckbunny_960x540_faststart.pcm";
+    char *filepath_vout="/bigbuckbunny_960x540_faststart.yuv";
 
     while(1)
     {
