@@ -9400,7 +9400,7 @@
                 </option>
                 <option>
                     <name>IlinkIcfFile</name>
-                    <state>$PROJ_DIR$/MIMXRT1176xxxxx_cm7_sdram_flexram128i128d128o.icf</state>
+                    <state>$PROJ_DIR$/MIMXRT1176xxxxx_cm7_sdram_flexram256i256d640o.icf</state>
                 </option>
                 <option>
                     <name>IlinkIcfFileSlave</name>
@@ -14378,10 +14378,6 @@
         </file>
         <file>
             <name>$PROJ_DIR$\..\mp4_sai_audio.c</name>
-            <excluded>
-                <configuration>sdram_debug</configuration>
-                <configuration>sdram_flexram_debug</configuration>
-            </excluded>
         </file>
         <file>
             <name>$PROJ_DIR$\..\music.h</name>

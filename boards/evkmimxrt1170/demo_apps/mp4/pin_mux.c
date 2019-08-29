@@ -60,6 +60,22 @@ void BOARD_InitMIPI(void)
     IOMUXC_SetPinMux(IOMUXC_GPIO_DISP_B2_15_GPIO11_IO16, 0U);
 }
 
+void BOARD_InitSAI(void)
+{
+    IOMUXC_SetPinMux(IOMUXC_GPIO_LPSR_05_LPI2C5_SCL,1U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_LPSR_04_LPI2C5_SDA,1U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_AD_17_SAI1_MCLK,1U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_AD_21_SAI1_TX_DATA00,1U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_AD_22_SAI1_TX_BCLK,1U);
+    IOMUXC_SetPinMux(IOMUXC_GPIO_AD_23_SAI1_TX_SYNC,1U);
+    IOMUXC_SetPinConfig(IOMUXC_GPIO_LPSR_05_LPI2C5_SCL,0xD8B0u);
+    IOMUXC_SetPinConfig(IOMUXC_GPIO_LPSR_04_LPI2C5_SDA,0xD8B0u);
+    IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_17_SAI1_MCLK,0x6u);
+    IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_21_SAI1_TX_DATA00,0x6u);
+    IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_22_SAI1_TX_BCLK,0x6u);
+    IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_23_SAI1_TX_SYNC,0x6u);
+}
+
 /* FUNCTION ************************************************************************************************************
  *
  * Function Name : BOARD_InitPins
@@ -69,7 +85,8 @@ void BOARD_InitMIPI(void)
 void BOARD_InitPins(void)
 {
     CLOCK_EnableClock(kCLOCK_Iomuxc);
-	BOARD_InitLPUART();
+    BOARD_InitLPUART();
     BOARD_InitSDCARD();
-	BOARD_InitMIPI();
+    BOARD_InitMIPI();
+    BOARD_InitSAI();
 }

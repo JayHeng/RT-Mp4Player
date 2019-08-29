@@ -31,15 +31,14 @@
 #define OVER_SAMPLE_RATE   (384U)
 
 /* Select Audio/Video PLL (786.48 MHz) as sai1 clock source */
-#define APP_SAI1_CLOCK_SOURCE_SELECT (2U)
-#define MAX_SAI_CLK_SRC_PRE_DIV      (7)
-#define MAX_SAI_CLK_SRC_DIV          (63)
+#define APP_SAI1_CLOCK_SOURCE_SELECT (4U)
+#define MAX_SAI_CLK_SRC_DIV          (256)
 #define MAX_SAI_BIT_CLK_DIV          (7)
 
 /* I2C instance and clock */
-#define APP_I2C LPI2C1
+#define APP_I2C LPI2C5
 /* Select USB1 PLL (480 MHz) as master lpi2c clock source */
-#define APP_LPI2C_CLOCK_SOURCE_SELECT (0U)
+#define APP_LPI2C_CLOCK_SOURCE_SELECT (1U)
 /* Clock divider for master lpi2c clock source */
 #define APP_LPI2C_CLOCK_SOURCE_DIVIDER (5U)
 /* Get frequency of lpi2c clock */
@@ -47,7 +46,7 @@
 
 /* DMA */
 #define APP_DMA           DMA0
-#define APP_DMAMUX        DMAMUX
+#define APP_DMAMUX        DMAMUX0
 #define APP_TX_CHANNEL    (0U)
 #define APP_SAI_TX_SOURCE kDmaRequestMuxSai1Tx
 
@@ -81,7 +80,6 @@ codec_handle_t codecHandle = {0};
 extern codec_config_t boardCodecConfig;
 volatile uint8_t s_txBufferQueueIndex = 0;
 
-static uint32_t s_clockSourcePreDivider = 0;
 static uint32_t s_clockSourceDivider = 0;
 
 /*******************************************************************************
@@ -104,11 +102,11 @@ void BOARD_EnableSaiMclkOutput(bool enable)
 {
     if (enable)
     {
-        IOMUXC_GPR->GPR1 |= IOMUXC_GPR_GPR1_SAI1_MCLK_DIR_MASK;
+        IOMUXC_GPR->GPR0 |= 1 << 8U;
     }
     else
     {
-        IOMUXC_GPR->GPR1 &= (~IOMUXC_GPR_GPR1_SAI1_MCLK_DIR_MASK);
+        IOMUXC_GPR->GPR0 &= ~(1 << 8U);
     }
 }
 
@@ -197,46 +195,39 @@ void set_sai_clock_dividers(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_
         destBitClockHz *= 64;
     }
 
-    uint32_t bestPreDivider = 0;
     uint32_t bestDivider = 0;
     double minError = 1;
 
-    for (s_clockSourcePreDivider = 0; s_clockSourcePreDivider <= MAX_SAI_CLK_SRC_PRE_DIV; s_clockSourcePreDivider++)
+    for (s_clockSourceDivider = 1; s_clockSourceDivider <= MAX_SAI_CLK_SRC_DIV; s_clockSourceDivider++)
     {
-        for (s_clockSourceDivider = 0; s_clockSourceDivider <= MAX_SAI_CLK_SRC_DIV; s_clockSourceDivider++)
+        uint32_t masterClockHz = get_sai_clock_freq();
+        for (uint32_t bitDiv = 0; bitDiv <= MAX_SAI_BIT_CLK_DIV; bitDiv++)
         {
-            uint32_t masterClockHz = get_sai_clock_freq();
-            for (uint32_t bitDiv = 0; bitDiv <= MAX_SAI_BIT_CLK_DIV; bitDiv++)
+            uint32_t srcBitClockHz = masterClockHz / 2 / bitDiv;
+            if (destBitClockHz == srcBitClockHz)
             {
-                uint32_t srcBitClockHz = masterClockHz / 2 / bitDiv;
-                if (destBitClockHz == srcBitClockHz)
+                bestDivider = s_clockSourceDivider;
+                break;
+            }
+            else
+            {
+                double error = (destBitClockHz > srcBitClockHz) ? (destBitClockHz - srcBitClockHz) : (srcBitClockHz - destBitClockHz);
+                error /= destBitClockHz;
+                if (error < minError)
                 {
-                    bestPreDivider = s_clockSourcePreDivider;
+                    minError = error;
                     bestDivider = s_clockSourceDivider;
-                    break;
-                }
-                else
-                {
-                    double error = (destBitClockHz > srcBitClockHz) ? (destBitClockHz - srcBitClockHz) : (srcBitClockHz - destBitClockHz);
-                    error /= destBitClockHz;
-                    if (error < minError)
-                    {
-                        minError = error;
-                        bestPreDivider = s_clockSourcePreDivider;
-                        bestDivider = s_clockSourceDivider;
-                    }
                 }
             }
         }
     }
 
-    s_clockSourcePreDivider = bestPreDivider;
     s_clockSourceDivider = bestDivider;
 }
 
 uint32_t get_sai_clock_freq(void)
 {
-    return (CLOCK_GetFreq(kCLOCK_AudioPllClk) / (s_clockSourceDivider + 1U) / (s_clockSourcePreDivider + 1U));
+    return (CLOCK_GetFreq(kCLOCK_AudioPll) / (s_clockSourceDivider));
 }
 
 /*!
@@ -251,8 +242,7 @@ void config_sai(audio_sai_cfg_t *saiCfg)
     CLOCK_InitAudioPll(&audioPllConfig);
 
     /*Clock setting for LPI2C*/
-    CLOCK_SetMux(kCLOCK_Lpi2cMux, APP_LPI2C_CLOCK_SOURCE_SELECT);
-    CLOCK_SetDiv(kCLOCK_Lpi2cDiv, APP_LPI2C_CLOCK_SOURCE_DIVIDER);
+    CLOCK_SetRootClockMux(kCLOCK_Root_Lpi2c5, APP_LPI2C_CLOCK_SOURCE_SELECT);
 
     if (saiCfg->sampleChannel >= 2)
     {
@@ -267,9 +257,12 @@ void config_sai(audio_sai_cfg_t *saiCfg)
     set_sai_clock_dividers(saiCfg->sampleWidth_bit, saiCfg->sampleRate_Hz, format.stereo);
 
     /*Clock setting for SAI1*/
-    CLOCK_SetMux(kCLOCK_Sai1Mux, APP_SAI1_CLOCK_SOURCE_SELECT);
-    CLOCK_SetDiv(kCLOCK_Sai1PreDiv, s_clockSourcePreDivider);
-    CLOCK_SetDiv(kCLOCK_Sai1Div, s_clockSourceDivider);
+    /* audio pll  */
+    CLOCK_SetRootClockMux(kCLOCK_Root_Sai1, APP_SAI1_CLOCK_SOURCE_SELECT);
+    CLOCK_SetRootClockDiv(kCLOCK_Root_Sai1, s_clockSourceDivider);
+    /* audio pll */
+    CLOCK_SetRootClockMux(kCLOCK_Root_Mic, 6);
+    CLOCK_SetRootClockDiv(kCLOCK_Root_Mic, 16);
 
     /*Enable MCLK clock*/
     BOARD_EnableSaiMclkOutput(true);
