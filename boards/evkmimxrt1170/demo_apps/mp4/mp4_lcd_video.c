@@ -29,6 +29,7 @@
 #if VIDEO_LCD_RESOLUTION_SVGA540 == 1
 #define APP_IMG_HEIGHT 960
 #define APP_IMG_WIDTH 540
+#define APP_IMG_MAX_SIDE_LEN 960
 #define APP_HSW 2
 #define APP_HFP 32
 #define APP_HBP 30
@@ -38,6 +39,7 @@
 #elif VIDEO_LCD_RESOLUTION_WXGA720 == 1
 #define APP_IMG_HEIGHT 1280
 #define APP_IMG_WIDTH 720
+#define APP_IMG_MAX_SIDE_LEN 1280
 #define APP_HSW 8
 #define APP_HFP 32
 #define APP_HBP 32
@@ -106,7 +108,7 @@ static pxp_ps_buffer_config_t psBufferConfig;
 #if VIDEO_PXP_CONV_BLOCKING == 0
 AT_NONCACHEABLE_SECTION(static uint8_t s_convBufferYUV[3][APP_PS_HEIGHT][APP_PS_WIDTH]);
 #endif
-AT_NONCACHEABLE_SECTION_ALIGN(static uint8_t s_psBufferLcd[APP_LCD_FB_NUM][APP_IMG_HEIGHT][APP_IMG_WIDTH][APP_BPP], FRAME_BUFFER_ALIGN);
+AT_NONCACHEABLE_SECTION_ALIGN(static uint8_t s_psBufferLcd[APP_LCD_FB_NUM][APP_IMG_MAX_SIDE_LEN][APP_IMG_MAX_SIDE_LEN][APP_BPP], FRAME_BUFFER_ALIGN);
 
 /*******************************************************************************
  * Code
@@ -323,7 +325,8 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
 
     // Start to convert next frame via PXP
     PXP_SetProcessSurfaceBufferConfig(APP_PXP, &psBufferConfig);
-    PXP_SetProcessSurfaceScaler(APP_PXP, xsize, ysize, APP_IMG_WIDTH, APP_IMG_HEIGHT);
+    //PXP_SetProcessSurfaceScaler(APP_PXP, xsize, ysize, APP_IMG_WIDTH, APP_IMG_HEIGHT);
+    PXP_SetRotateConfig(APP_PXP, kPXP_RotateProcessSurface, kPXP_Rotate90, kPXP_FlipDisable);
     PXP_SetProcessSurfacePosition(APP_PXP,
                                   APP_PS_ULC_X,
                                   APP_PS_ULC_Y,
@@ -395,7 +398,14 @@ void config_lcd(video_lcd_cfg_t *lcdCfg)
 {
     BOARD_InitLcdifPixelClock();
 
-    APP_InitPxp(lcdCfg->srcWidth);
+    if (lcdCfg->srcWidth > lcdCfg->srcHeight)
+    {
+        APP_InitPxp(lcdCfg->srcWidth);
+    }
+    else
+    {
+        APP_InitPxp(lcdCfg->srcHeight);
+    }
     APP_InitLcdif();
     LCDIFV2_EnableInterrupts(APP_ELCDIF, APP_CORE_ID, kLCDIFV2_VerticalBlankingInterrupt);
     BOARD_EnableLcdInterrupt();
