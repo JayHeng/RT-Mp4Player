@@ -29,7 +29,6 @@
 #if VIDEO_LCD_RESOLUTION_SVGA540 == 1
 #define APP_IMG_HEIGHT 960
 #define APP_IMG_WIDTH 540
-#define APP_IMG_MAX_SIDE_LEN 960
 #define APP_HSW 2
 #define APP_HFP 32
 #define APP_HBP 30
@@ -39,7 +38,6 @@
 #elif VIDEO_LCD_RESOLUTION_WXGA720 == 1
 #define APP_IMG_HEIGHT 1280
 #define APP_IMG_WIDTH 720
-#define APP_IMG_MAX_SIDE_LEN 1280
 #define APP_HSW 8
 #define APP_HFP 32
 #define APP_HBP 32
@@ -53,8 +51,11 @@
 
 #define APP_LCDIF_DATA_BUS kELCDIF_DataBus16Bit
 
-/* Frame buffer data alignment, for better performance, the LCDIF frame buffer should be 64B align. */
-#define FRAME_BUFFER_ALIGN 64
+/* There is not frame buffer aligned requirement, consider the 64-bit AXI data
+ * bus width and 32-byte cache line size, the frame buffer alignment is set to
+ * 32 byte.
+ */
+#define FRAME_BUFFER_ALIGN 32
 /*
  * For better performance, three frame buffers are used in this demo.
  */
@@ -108,7 +109,7 @@ static pxp_ps_buffer_config_t psBufferConfig;
 #if VIDEO_PXP_CONV_BLOCKING == 0
 AT_NONCACHEABLE_SECTION(static uint8_t s_convBufferYUV[3][APP_PS_HEIGHT][APP_PS_WIDTH]);
 #endif
-AT_NONCACHEABLE_SECTION_ALIGN(static uint8_t s_psBufferLcd[APP_LCD_FB_NUM][APP_IMG_MAX_SIDE_LEN][APP_IMG_MAX_SIDE_LEN][APP_BPP], FRAME_BUFFER_ALIGN);
+AT_NONCACHEABLE_SECTION_ALIGN(static uint8_t s_psBufferLcd[APP_LCD_FB_NUM][APP_IMG_HEIGHT][APP_IMG_WIDTH][APP_BPP], FRAME_BUFFER_ALIGN);
 
 /*******************************************************************************
  * Code
@@ -158,8 +159,13 @@ static void APP_InitPxp(uint32_t psWidth)
     outputBufferConfig.buffer0Addr = (uint32_t)s_psBufferLcd[0];
     outputBufferConfig.buffer1Addr = 0U;
     outputBufferConfig.pitchBytes = APP_IMG_WIDTH * APP_BPP;
+#if VIDEO_PXP_ROTATE_FRAME == 1
+    outputBufferConfig.width = APP_IMG_HEIGHT;
+    outputBufferConfig.height = APP_IMG_WIDTH;
+#else
     outputBufferConfig.width = APP_IMG_WIDTH;
     outputBufferConfig.height = APP_IMG_HEIGHT;
+#endif
     PXP_SetOutputBufferConfig(APP_PXP, &outputBufferConfig);
 
     /* Disable CSC1, it is enabled by default. */
@@ -325,13 +331,22 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
 
     // Start to convert next frame via PXP
     PXP_SetProcessSurfaceBufferConfig(APP_PXP, &psBufferConfig);
-    //PXP_SetProcessSurfaceScaler(APP_PXP, xsize, ysize, APP_IMG_WIDTH, APP_IMG_HEIGHT);
-    PXP_SetRotateConfig(APP_PXP, kPXP_RotateProcessSurface, kPXP_Rotate90, kPXP_FlipDisable);
+#if VIDEO_PXP_ROTATE_FRAME == 1
+    PXP_SetRotateConfig(APP_PXP, kPXP_RotateOutputBuffer, kPXP_Rotate90, kPXP_FlipDisable);
+    PXP_SetProcessSurfaceScaler(APP_PXP, xsize, ysize, APP_IMG_HEIGHT, APP_IMG_WIDTH);
+    PXP_SetProcessSurfacePosition(APP_PXP,
+                                  APP_PS_ULC_X,
+                                  APP_PS_ULC_Y,
+                                  APP_PS_ULC_X + APP_IMG_HEIGHT - 1U,
+                                  APP_PS_ULC_Y + APP_IMG_WIDTH - 1U);
+#else
+    PXP_SetProcessSurfaceScaler(APP_PXP, xsize, ysize, APP_IMG_WIDTH, APP_IMG_HEIGHT);
     PXP_SetProcessSurfacePosition(APP_PXP,
                                   APP_PS_ULC_X,
                                   APP_PS_ULC_Y,
                                   APP_PS_ULC_X + APP_IMG_WIDTH - 1U,
                                   APP_PS_ULC_Y + APP_IMG_HEIGHT - 1U);
+#endif
     outputBufferConfig.buffer0Addr = (uint32_t)s_psBufferLcd[curLcdBufferIdx];
     PXP_SetOutputBufferConfig(APP_PXP, &outputBufferConfig);
     PXP_Start(APP_PXP);

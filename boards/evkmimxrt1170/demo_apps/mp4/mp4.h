@@ -73,6 +73,9 @@ typedef struct _audio_sai_cfg
 
 ////////////////////////////////////////////////////////////////////////////////
 
+// Set Video Rotate flag
+#define VIDEO_PXP_ROTATE_FRAME        1
+
 // Set PXP conversation method for video
 #define VIDEO_PXP_CONV_BLOCKING       1
 #define VIDEO_PXP_CONV_WAITING        1
