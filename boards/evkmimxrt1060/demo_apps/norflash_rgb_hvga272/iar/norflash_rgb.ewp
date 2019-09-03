@@ -681,7 +681,7 @@
                 </option>
                 <option>
                     <name>OOCOutputFile</name>
-                    <state>flash_jpeg.srec</state>
+                    <state>norflash_rgb.srec</state>
                 </option>
                 <option>
                     <name>OOCCommandLineProducer</name>
@@ -2314,7 +2314,7 @@
     <group>
         <name>source</name>
         <file>
-            <name>$PROJ_DIR$\..\flash_jpeg.c</name>
+            <name>$PROJ_DIR$\..\norflash_rgb.c</name>
         </file>
     </group>
     <group>

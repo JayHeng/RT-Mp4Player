@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <workspace>
     <project>
-        <path>$WS_DIR$\flash_jpeg.ewp</path>
+        <path>$WS_DIR$\norflash_rgb.ewp</path>
     </project>
     <batchBuild>
         <batchDefinition>
