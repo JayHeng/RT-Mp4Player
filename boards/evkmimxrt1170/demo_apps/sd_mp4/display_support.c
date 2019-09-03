@@ -14,6 +14,7 @@
 #include "fsl_rm68191.h"
 #include "pin_mux.h"
 #include "fsl_debug_console.h"
+#include "mp4.h"
 
 /*******************************************************************************
  * Definitions
@@ -193,9 +194,21 @@ void BOARD_InitLcdifClock(void)
         .mfd      = 0,
         .mux      = 4, /*!< PLL_528. */
 #if (DEMO_PANEL == DEMO_PANEL_RK055AHD091)
+#if VIDEO_LCD_REFRESH_FREG_60Hz == 1
         .div = 8,
+#elif VIDEO_LCD_REFRESH_FREG_30Hz == 1
+        .div = 17,
+#elif VIDEO_LCD_REFRESH_FREG_25Hz == 1
+        .div = 20,
+#endif
 #else
+#if VIDEO_LCD_REFRESH_FREG_60Hz == 1
         .div = 14,
+#elif VIDEO_LCD_REFRESH_FREG_30Hz == 1
+        .div = 29,
+#elif VIDEO_LCD_REFRESH_FREG_25Hz == 1
+        .div = 35,
+#endif
 #endif
     };
 
