@@ -167,11 +167,18 @@ void BOARD_BootClockRUN(void)
     CLOCK_SetRootClock(kCLOCK_Root_Lpuart2, &rootCfg);
 #endif
 
+    /* Configure Semc using PLL2PFD1(200M) and divided by 2 */
+    CLOCK_InitPfd(kCLOCK_Pll_SysPll2, kCLOCK_Pfd1, 24);
+    rootCfg.mux = 6;
+    rootCfg.div = 1;
+    CLOCK_SetRootClock(kCLOCK_Root_Semc, &rootCfg);
+#if 0
     CLOCK_EnableOscRc400M();
     /* Configure Semc using OscRc400M divided by 2 */
     rootCfg.mux = 2;
     rootCfg.div = 1;
     CLOCK_SetRootClock(kCLOCK_Root_Semc, &rootCfg);
+#endif
 
     /* Configure Bus using SysPll3 divided by 4 */
     rootCfg.mux = 4;
