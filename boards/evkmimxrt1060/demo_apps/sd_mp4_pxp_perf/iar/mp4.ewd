@@ -2,7 +2,7 @@
 <project>
     <fileVersion>3</fileVersion>
     <configuration>
-        <name>pxp_conv_debug</name>
+        <name>pxp_perf_debug</name>
         <toolchain>
             <name>ARM</name>
         </toolchain>
@@ -1483,7 +1483,7 @@
         </debuggerPlugins>
     </configuration>
     <configuration>
-        <name>pxp_conv_release</name>
+        <name>pxp_perf_release</name>
         <toolchain>
             <name>ARM</name>
         </toolchain>

@@ -2,7 +2,7 @@
 <project>
     <fileVersion>3</fileVersion>
     <configuration>
-        <name>pxp_conv_debug</name>
+        <name>pxp_perf_debug</name>
         <toolchain>
             <name>ARM</name>
         </toolchain>
@@ -16,15 +16,15 @@
                 <debug>1</debug>
                 <option>
                     <name>ExePath</name>
-                    <state>pxp_conv_debug\Exe</state>
+                    <state>pxp_perf_debug\Exe</state>
                 </option>
                 <option>
                     <name>ObjPath</name>
-                    <state>pxp_conv_debug\Obj</state>
+                    <state>pxp_perf_debug\Obj</state>
                 </option>
                 <option>
                     <name>ListPath</name>
-                    <state>pxp_conv_debug\List</state>
+                    <state>pxp_perf_debug\List</state>
                 </option>
                 <option>
                     <name>GEndianMode</name>
@@ -1075,7 +1075,7 @@
         </settings>
     </configuration>
     <configuration>
-        <name>pxp_conv_release</name>
+        <name>pxp_perf_release</name>
         <toolchain>
             <name>ARM</name>
         </toolchain>
@@ -1089,15 +1089,15 @@
                 <debug>0</debug>
                 <option>
                     <name>ExePath</name>
-                    <state>pxp_conv_release\Exe</state>
+                    <state>pxp_perf_release\Exe</state>
                 </option>
                 <option>
                     <name>ObjPath</name>
-                    <state>pxp_conv_release\Obj</state>
+                    <state>pxp_perf_release\Obj</state>
                 </option>
                 <option>
                     <name>ListPath</name>
-                    <state>pxp_conv_release\List</state>
+                    <state>pxp_perf_release\List</state>
                 </option>
                 <option>
                     <name>GEndianMode</name>
