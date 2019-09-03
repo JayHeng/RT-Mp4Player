@@ -16,6 +16,8 @@
 #endif
 #include "fsl_sai_edma.h"
 #include "fsl_wm8960.h"
+#include "fsl_codec_common.h"
+#include "fsl_codec_adapter.h"
 #include "mp4.h"
 /*******************************************************************************
  * Definitions
@@ -63,6 +65,17 @@ static void set_sai_clock_dividers(uint32_t bitWidth, uint32_t sampleRate_Hz, sa
 AT_NONCACHEABLE_SECTION_INIT(sai_edma_handle_t txHandle) = {0};
 edma_handle_t dmaTxHandle = {0};
 sai_transfer_format_t format = {0};
+#if (defined(FSL_FEATURE_SAI_HAS_MCR) && (FSL_FEATURE_SAI_HAS_MCR)) || \
+    (defined(FSL_FEATURE_SAI_HAS_MCLKDIV_REGISTER) && (FSL_FEATURE_SAI_HAS_MCLKDIV_REGISTER))
+sai_master_clock_t mclkConfig = {
+#if defined(FSL_FEATURE_SAI_HAS_MCR) && (FSL_FEATURE_SAI_HAS_MCR)
+    .mclkOutputEnable = true,
+#if !(defined(FSL_FEATURE_SAI_HAS_NO_MCR_MICS) && (FSL_FEATURE_SAI_HAS_NO_MCR_MICS))
+    .mclkSource = kSAI_MclkSourceSysclk,
+#endif
+#endif
+};
+#endif
 codec_handle_t codecHandle = {0};
 extern codec_config_t boardCodecConfig;
 volatile uint8_t s_txBufferQueueIndex = 0;
@@ -231,6 +244,7 @@ uint32_t get_sai_clock_freq(void)
 void config_sai(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_stereo_t stereo)
 {
     sai_config_t config;
+    uint32_t masterClockHz = 0U;
     uint32_t mclkSourceClockHz = 0U;
     edma_config_t dmaConfig = {0};
     CLOCK_InitAudioPll(&audioPllConfig);
@@ -291,11 +305,17 @@ void config_sai(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_stereo_t ste
     {
         format.sampleRate_Hz = sampleRate_Hz * 2;
     }
-#if (defined FSL_FEATURE_SAI_HAS_MCLKDIV_REGISTER && FSL_FEATURE_SAI_HAS_MCLKDIV_REGISTER) || \
-    (defined FSL_FEATURE_PCC_HAS_SAI_DIVIDER && FSL_FEATURE_PCC_HAS_SAI_DIVIDER)
-    format.masterClockHz = OVER_SAMPLE_RATE * format.sampleRate_Hz;
-#else
-    format.masterClockHz = get_sai_clock_freq();
+    masterClockHz = get_sai_clock_freq();
+/* master clock configurations */
+#if (defined(FSL_FEATURE_SAI_HAS_MCR) && (FSL_FEATURE_SAI_HAS_MCR)) || \
+    (defined(FSL_FEATURE_SAI_HAS_MCLKDIV_REGISTER) && (FSL_FEATURE_SAI_HAS_MCLKDIV_REGISTER))
+#if defined(FSL_FEATURE_SAI_HAS_MCLKDIV_REGISTER) && (FSL_FEATURE_SAI_HAS_MCLKDIV_REGISTER)
+    mclkConfig.mclkHz          = OVER_SAMPLE_RATE * format.sampleRate_Hz;
+    mclkConfig.mclkSourceClkHz = get_sai_clock_freq();
+    
+    masterClockHz = mclkConfig.mclkHz;
+#endif
+    SAI_SetMasterClockConfig(DEMO_SAI, &mclkConfig);
 #endif
     format.protocol = config.protocol;
     format.stereo = stereo;
@@ -306,7 +326,7 @@ void config_sai(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_stereo_t ste
 
     /* Use default setting to init codec */
     CODEC_Init(&codecHandle, &boardCodecConfig);
-    CODEC_SetFormat(&codecHandle, format.masterClockHz, format.sampleRate_Hz, format.bitWidth);
+    CODEC_SetFormat(&codecHandle, masterClockHz, format.sampleRate_Hz, format.bitWidth);
 #if defined CODEC_USER_CONFIG
     BOARD_Codec_Config(&codecHandle);
 #endif
@@ -314,7 +334,7 @@ void config_sai(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_stereo_t ste
     SAI_TransferTxCreateHandleEDMA(APP_SAI, &txHandle, txCallback, NULL, &dmaTxHandle);
 
     mclkSourceClockHz = get_sai_clock_freq();
-    SAI_TransferTxSetFormatEDMA(APP_SAI, &txHandle, &format, mclkSourceClockHz, format.masterClockHz);
+    SAI_TransferTxSetFormatEDMA(APP_SAI, &txHandle, &format, mclkSourceClockHz, masterClockHz);
 
     /* Enable interrupt to handle FIFO error */
     SAI_TxEnableInterrupts(APP_SAI, kSAI_FIFOErrorInterruptEnable);
