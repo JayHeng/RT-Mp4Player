@@ -75,20 +75,6 @@
  */
 #define APP_LCD_FB_NUM 2 /* LCD frame buffer number. */
 
-/* Cache line size. */
-#ifndef FSL_FEATURE_L2CACHE_LINESIZE_BYTE
-#define FSL_FEATURE_L2CACHE_LINESIZE_BYTE 0
-#endif
-#ifndef FSL_FEATURE_L1DCACHE_LINESIZE_BYTE
-#define FSL_FEATURE_L1DCACHE_LINESIZE_BYTE 0
-#endif
-
-#if (FSL_FEATURE_L2CACHE_LINESIZE_BYTE > FSL_FEATURE_L1DCACHE_LINESIZE_BYTE)
-#define APP_CACHE_LINE_SIZE FSL_FEATURE_L2CACHE_LINESIZE_BYTE
-#else
-#define APP_CACHE_LINE_SIZE FSL_FEATURE_L1DCACHE_LINESIZE_BYTE
-#endif
-
 #define APP_PXP PXP
 #if VIDEO_SRC_RESOLUTION_TGA120 == 1
 #define APP_PS_WIDTH  192  /* 192,120,image resolution*/
@@ -122,18 +108,14 @@
 /*******************************************************************************
  * Prototypes
  ******************************************************************************/
-void BOARD_EnableLcdInterrupt(void);
+
 
 /*******************************************************************************
  * Variables
  ******************************************************************************/
-static volatile bool g_lcdFramePending = false;
-static void *volatile s_fbList = NULL; /* List to the frame buffers. */
-static void *volatile inactiveBuf = NULL;
-static void *volatile activeBuf = NULL;
 
-static pxp_output_buffer_config_t outputBufferConfig;
-static pxp_ps_buffer_config_t psBufferConfig;
+static pxp_output_buffer_config_t s_outputBufferConfig;
+static pxp_ps_buffer_config_t s_psBufferConfig;
 #if MP4_PXP_CONV_TEST == 1
 static uint8_t s_convBufferYUV[3][APP_PS_HEIGHT][APP_PS_WIDTH] @ ".pxpYuvBuffer";
 static uint8_t s_psBufferLcd[APP_LCD_FB_NUM][APP_IMG_HEIGHT][APP_IMG_WIDTH][APP_BPP] @ ".pxpRgbBuffer";
@@ -147,12 +129,6 @@ AT_NONCACHEABLE_SECTION_ALIGN(static uint8_t s_psBufferLcd[APP_LCD_FB_NUM][APP_I
 /*******************************************************************************
  * Code
  ******************************************************************************/
-
-/* Enable interrupt. */
-void BOARD_EnableLcdInterrupt(void)
-{
-    EnableIRQ(LCDIF_IRQn);
-}
 
 /* Initialize the LCD_DISP. */
 void BOARD_InitLcd(void)
@@ -272,42 +248,35 @@ void BOARD_InitLcdifPixelClock(void)
 #endif
 }
 
-/* Put the unused frame buffer to the s_fbList. */
-static void APP_PutFrameBuffer(void *fb)
-{
-    *(void **)fb = s_fbList;
-    s_fbList = fb;
-}
-
 static void APP_InitPxp(void)
 {
     PXP_Init(APP_PXP);
 
     /* PS configure. */
-    psBufferConfig.pixelFormat = kPXP_PsPixelFormatYVU420;
-    psBufferConfig.swapByte = false;
-    psBufferConfig.bufferAddr = 0U;
-    psBufferConfig.bufferAddrU = 0U;
-    psBufferConfig.bufferAddrV = 0U;
-    psBufferConfig.pitchBytes = APP_PS_WIDTH;
+    s_psBufferConfig.pixelFormat = kPXP_PsPixelFormatYVU420;
+    s_psBufferConfig.swapByte = false;
+    s_psBufferConfig.bufferAddr = 0U;
+    s_psBufferConfig.bufferAddrU = 0U;
+    s_psBufferConfig.bufferAddrV = 0U;
+    s_psBufferConfig.pitchBytes = APP_PS_WIDTH;
     PXP_SetProcessSurfaceBackGroundColor(APP_PXP, 0U);
-    PXP_SetProcessSurfaceBufferConfig(APP_PXP, &psBufferConfig);
+    PXP_SetProcessSurfaceBufferConfig(APP_PXP, &s_psBufferConfig);
     /* Disable AS. */
     PXP_SetAlphaSurfacePosition(APP_PXP, 0xFFFFU, 0xFFFFU, 0U, 0U);
 
     /* Output config. */
 #if VIDEO_PIXEL_FMT_RGB888 == 1
-    outputBufferConfig.pixelFormat = kPXP_OutputPixelFormatRGB888;
+    s_outputBufferConfig.pixelFormat = kPXP_OutputPixelFormatRGB888;
 #elif VIDEO_PIXEL_FMT_RGB565 == 1
-    outputBufferConfig.pixelFormat = kPXP_OutputPixelFormatRGB565;
+    s_outputBufferConfig.pixelFormat = kPXP_OutputPixelFormatRGB565;
 #endif
-    outputBufferConfig.interlacedMode = kPXP_OutputProgressive;
-    outputBufferConfig.buffer0Addr = (uint32_t)s_psBufferLcd[0];
-    outputBufferConfig.buffer1Addr = 0U;
-    outputBufferConfig.pitchBytes = APP_IMG_WIDTH * APP_BPP;
-    outputBufferConfig.width = APP_IMG_WIDTH;
-    outputBufferConfig.height = APP_IMG_HEIGHT;
-    PXP_SetOutputBufferConfig(APP_PXP, &outputBufferConfig);
+    s_outputBufferConfig.interlacedMode = kPXP_OutputProgressive;
+    s_outputBufferConfig.buffer0Addr = (uint32_t)s_psBufferLcd[0];
+    s_outputBufferConfig.buffer1Addr = 0U;
+    s_outputBufferConfig.pitchBytes = APP_IMG_WIDTH * APP_BPP;
+    s_outputBufferConfig.width = APP_IMG_WIDTH;
+    s_outputBufferConfig.height = APP_IMG_HEIGHT;
+    PXP_SetOutputBufferConfig(APP_PXP, &s_outputBufferConfig);
 
     /* Disable CSC1, it is enabled by default. */
     PXP_SetCsc1Mode(APP_PXP, kPXP_Csc1YCbCr2RGB);
@@ -334,12 +303,6 @@ static void APP_InitLcdif(void)
 #endif
         .dataBus = APP_LCDIF_DATA_BUS,
     };
-
-    for (uint32_t i = 1; i < APP_LCD_FB_NUM; i++)
-    {
-        APP_PutFrameBuffer(s_psBufferLcd[i]);
-    }
-    activeBuf = s_psBufferLcd[0];
 
     ELCDIF_RgbModeInit(APP_ELCDIF, &config);
 
@@ -443,13 +406,13 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
     {
         memcpy(s_convBufferYUV[i], buf[i], xsize * ysize);
     }
-    psBufferConfig.bufferAddr = (uint32_t)s_convBufferYUV[0];
-    psBufferConfig.bufferAddrU = (uint32_t)s_convBufferYUV[1];
-    psBufferConfig.bufferAddrV = (uint32_t)s_convBufferYUV[2];
+    s_psBufferConfig.bufferAddr = (uint32_t)s_convBufferYUV[0];
+    s_psBufferConfig.bufferAddrU = (uint32_t)s_convBufferYUV[1];
+    s_psBufferConfig.bufferAddrV = (uint32_t)s_convBufferYUV[2];
 #else // #if VIDEO_PXP_CONV_BLOCKING == 1
-    psBufferConfig.bufferAddr = (uint32_t)buf[0];
-    psBufferConfig.bufferAddrU = (uint32_t)buf[1];
-    psBufferConfig.bufferAddrV = (uint32_t)buf[2];
+    s_psBufferConfig.bufferAddr = (uint32_t)buf[0];
+    s_psBufferConfig.bufferAddrU = (uint32_t)buf[1];
+    s_psBufferConfig.bufferAddrV = (uint32_t)buf[2];
 #endif // #if VIDEO_PXP_CONV_BLOCKING == 0
 #else  // #if VIDEO_LCD_DISP_BLOCKING == 1
 #if VIDEO_PXP_CONV_BLOCKING == 1
@@ -458,13 +421,13 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
     {
         memcpy(s_convBufferYUV[i], buf[i], xsize * ysize);
     }
-    psBufferConfig.bufferAddr = (uint32_t)s_convBufferYUV[0];
-    psBufferConfig.bufferAddrU = (uint32_t)s_convBufferYUV[1];
-    psBufferConfig.bufferAddrV = (uint32_t)s_convBufferYUV[2];
+    s_psBufferConfig.bufferAddr = (uint32_t)s_convBufferYUV[0];
+    s_psBufferConfig.bufferAddrU = (uint32_t)s_convBufferYUV[1];
+    s_psBufferConfig.bufferAddrV = (uint32_t)s_convBufferYUV[2];
 #else
-    psBufferConfig.bufferAddr = (uint32_t)buf[0];
-    psBufferConfig.bufferAddrU = (uint32_t)buf[1];
-    psBufferConfig.bufferAddrV = (uint32_t)buf[2];
+    s_psBufferConfig.bufferAddr = (uint32_t)buf[0];
+    s_psBufferConfig.bufferAddrU = (uint32_t)buf[1];
+    s_psBufferConfig.bufferAddrV = (uint32_t)buf[2];
 #endif
 #else // #if VIDEO_PXP_CONV_BLOCKING == 0
 #error "Unsupported PXP_CONV_BLOCKING=0, LCD_DISP_BLOCKING=1 configuration case"
@@ -472,15 +435,15 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
 #endif // #if VIDEO_LCD_DISP_BLOCKING == 0
 
     // Start to convert next frame via PXP
-    PXP_SetProcessSurfaceBufferConfig(APP_PXP, &psBufferConfig);
+    PXP_SetProcessSurfaceBufferConfig(APP_PXP, &s_psBufferConfig);
     PXP_SetProcessSurfaceScaler(APP_PXP, xsize, ysize, APP_IMG_WIDTH, APP_IMG_HEIGHT);
     PXP_SetProcessSurfacePosition(APP_PXP,
                                   APP_PS_ULC_X,
                                   APP_PS_ULC_Y,
                                   APP_PS_ULC_X + APP_IMG_WIDTH - 1U,
                                   APP_PS_ULC_Y + APP_IMG_HEIGHT - 1U);
-    outputBufferConfig.buffer0Addr = (uint32_t)s_psBufferLcd[curLcdBufferIdx];
-    PXP_SetOutputBufferConfig(APP_PXP, &outputBufferConfig);
+    s_outputBufferConfig.buffer0Addr = (uint32_t)s_psBufferLcd[curLcdBufferIdx];
+    PXP_SetOutputBufferConfig(APP_PXP, &s_outputBufferConfig);
     PXP_Start(APP_PXP);
 
 #if VIDEO_PXP_CONV_BLOCKING == 1
@@ -548,39 +511,8 @@ void config_lcd(void)
     APP_InitPxp();
     APP_InitLcdif();
     ELCDIF_EnableInterrupts(APP_ELCDIF, kELCDIF_CurFrameDoneInterruptEnable);
-    BOARD_EnableLcdInterrupt();
 
     set_lcd_master_priority(15);
     set_pxp_master_priority(14);
 }
 
-void APP_LCDIF_IRQHandler(void)
-{
-    uint32_t intStatus;
-
-    intStatus = ELCDIF_GetInterruptStatus(APP_ELCDIF);
-
-    ELCDIF_ClearInterruptStatus(APP_ELCDIF, intStatus);
-
-    if (intStatus & kELCDIF_CurFrameDone)
-    {
-        if (g_lcdFramePending)
-        {
-            /*
-             * The inactive buffer turns to be active frame buffer, the
-             * old active frame buffer is not used, so put it into the
-             * frame buffer list.
-             */
-            APP_PutFrameBuffer(activeBuf);
-
-            activeBuf = inactiveBuf;
-            g_lcdFramePending = false;
-        }
-    }
-}
-
-void LCDIF_IRQHandler(void)
-{
-    APP_LCDIF_IRQHandler();
-    __DSB();
-}
