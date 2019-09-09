@@ -32,8 +32,8 @@
 */*/*/*/*/sdram_flexram_release/
 */*/*/*/*/opt_level0_debug/
 */*/*/*/*/opt_level0_release/
-*/*/*/*/*/pxp_conv_debug/
-*/*/*/*/*/pxp_conv_release/
+*/*/*/*/*/pxp_perf_debug/
+*/*/*/*/*/pxp_perf_release/
 
 */*/*/*/*/*/settings/
 */*/*/*/*/*/debug/
@@ -52,8 +52,8 @@
 */*/*/*/*/*/sdram_flexram_release/
 */*/*/*/*/*/opt_level0_debug/
 */*/*/*/*/*/opt_level0_release/
-*/*/*/*/*/*/pxp_conv_debug/
-*/*/*/*/*/*/pxp_conv_release/
+*/*/*/*/*/*/pxp_perf_debug/
+*/*/*/*/*/*/pxp_perf_release/
 
 # IAR temp files
 EW*.tmp
