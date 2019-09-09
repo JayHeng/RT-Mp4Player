@@ -53,6 +53,13 @@ typedef struct _lcd_measure_context
 
 ////////////////////////////////////////////////////////////////////////////////
 
+typedef struct _camera_csi_cfg
+{
+    bool isCsiConfigured;
+} camera_csi_cfg_t;
+
+////////////////////////////////////////////////////////////////////////////////
+
 // Set audio frame size according to source media
 #define AUDIO_FRAME_SIZE   0x400
 // Set audio cache frames, it is important for FFmpeg decode
@@ -87,14 +94,34 @@ typedef struct _video_lcd_cfg
     uint32_t srcHeight;
 } video_lcd_cfg_t;
 
+// LCD frame buffer number
+#define APP_LCD_FB_NUM                4
+
 // Set LCD resolution
 #define VIDEO_LCD_RESOLUTION_HVGA272  1  // For 480*272 LCD
 #define VIDEO_LCD_RESOLUTION_SVGA600  0  // For 800*600 LCD
 #define VIDEO_LCD_RESOLUTION_WXGA800  0  // For 1280*800 LCD
 
+#if VIDEO_LCD_RESOLUTION_HVGA272 == 1
+#define APP_IMG_HEIGHT 272
+#define APP_IMG_WIDTH  480
+#elif VIDEO_LCD_RESOLUTION_SVGA600 == 1
+#define APP_IMG_HEIGHT 600
+#define APP_IMG_WIDTH  800
+#elif VIDEO_LCD_RESOLUTION_WXGA800 == 1
+#define APP_IMG_HEIGHT 800
+#define APP_IMG_WIDTH  1280
+#endif
+
 // Set PXP converted pixel format
 #define VIDEO_PIXEL_FMT_RGB888        0
 #define VIDEO_PIXEL_FMT_RGB565        1
+
+#if VIDEO_PIXEL_FMT_RGB888 == 1
+#define APP_BPP 4U
+#elif VIDEO_PIXEL_FMT_RGB565 == 1
+#define APP_BPP 2U
+#endif
 
 // Set LCD refresh frequency
 #define VIDEO_LCD_REFRESH_FREG_60Hz   0

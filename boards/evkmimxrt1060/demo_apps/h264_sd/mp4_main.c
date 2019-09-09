@@ -36,7 +36,11 @@ extern void config_sai(audio_sai_cfg_t *saiCfg);
 extern void sai_audio_play(uint8_t *audioData, uint32_t audioBytes);
 extern video_lcd_cfg_t g_videoLcdCfg;
 extern void config_lcd(video_lcd_cfg_t *lcdCfg);
-extern void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize);
+extern void lcd_video_display(uint32_t activeBufferAddr);
+extern camera_csi_cfg_t g_cameraCsiCfg;
+extern uint32_t config_csi(camera_csi_cfg_t *csiCfg);
+extern void csi_camera_capture(uint32_t *activeBufferAddr, uint32_t *inactiveBufferAddr);
+
 extern void config_gpt(void);
 
 static void flush_audio_data_cache(void);
@@ -80,6 +84,8 @@ static uint8_t s_audioBufferQueueIndex = 0;
 static uint8_t *s_cachedAudioBuffer;
 static uint32_t s_cachedAudioBytes = 0;
 static uint32_t s_cachedAudioFrames = 0;
+
+extern uint8_t g_psBufferLcd[APP_LCD_FB_NUM][APP_IMG_HEIGHT][APP_IMG_WIDTH][APP_BPP];
 
 /*******************************************************************************
  * Code
@@ -331,6 +337,7 @@ static void ff_time_measure_utility(ff_time_type_t type)
 #endif
 }
 
+/*
 static void h264_video_decode(const char *infilename, const char *aoutfilename, const char *voutfilename)
 {
     printf("Decode file '%s' to '%s' and '%s'\n", infilename, aoutfilename, voutfilename);
@@ -607,6 +614,38 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
     avformat_free_context(pInFmtCtx);
     printf("Decode Done\n");
 }
+*/
+
+static void h264_camera_encode(const char *voutfilename)
+{
+    uint32_t frameAddrToDisplay;
+    uint32_t frameAddrToCapture;
+
+    // Config CSI and get one empty frame buffer
+    frameAddrToCapture = config_csi(&g_cameraCsiCfg);
+    g_cameraCsiCfg.isCsiConfigured = true;
+
+    // Get one full frame buffer according to the empty frame buffer address
+    for (uint32_t i = 0; i < APP_LCD_FB_NUM; i++)
+    {
+       if (frameAddrToCapture != (uint32_t)(g_psBufferLcd[i]))
+       {
+            frameAddrToDisplay = (uint32_t)(g_psBufferLcd[i]);
+            break;
+       }
+    }
+
+    // Config LCD
+    config_lcd(&g_videoLcdCfg);
+    g_videoLcdCfg.isLcdConfigured = true;
+
+    while (1)
+    {
+        lcd_video_display(frameAddrToDisplay);
+        csi_camera_capture(&frameAddrToCapture, &frameAddrToDisplay);
+        frameAddrToDisplay = frameAddrToCapture;
+    }
+}
 
 /*!
  * @brief Main function
@@ -618,7 +657,7 @@ int main(void)
     BOARD_BootClockRUN();
     BOARD_InitDebugConsole();
 
-    PRINTF("MP4 decode demo start:\r\n");
+    PRINTF("H264 encode demo start:\r\n");
 
     /*configure system pll PFD2 fractional divider to 18*/
     CLOCK_InitSysPfd(kCLOCK_Pfd0, 0x12U);
@@ -642,12 +681,10 @@ int main(void)
     g_audioSaiCfg.sampleWidth_bit = AUDIO_CONV_WIDTH;
     g_videoLcdCfg.isLcdConfigured = false;
 
-    char *filepath_in="/bigbuckbunny_480x272_faststart_8KHz_h264.mp4";
-    char *filepath_aout="/bigbuckbunny_480x272_faststart_8KHz_h264.pcm";
-    char *filepath_vout="/bigbuckbunny_480x272_faststart_8KHz_h264.yuv";
+    char *filepath_vout="/camera_480x272.h264";
 
     while(1)
     {
-        h264_video_decode(filepath_in, filepath_aout, filepath_vout);
+        h264_camera_encode(filepath_vout);
     }
 }

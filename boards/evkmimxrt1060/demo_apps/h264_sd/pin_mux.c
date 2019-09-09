@@ -116,7 +116,7 @@ BOARD_InitPins:
  *
  * END ****************************************************************************************************************/
 
-static void pinmux_i2c_init(void)
+void pinmux_i2c_init(void)
 {
   IOMUXC_SetPinMux(
       IOMUXC_GPIO_AD_B1_00_LPI2C1_SCL,        /* GPIO_AD_B1_00 is configured as LPI2C1_SCL */
@@ -165,7 +165,7 @@ static void pinmux_i2s_init(void)
       IOMUXC_GPIO_AD_B1_15_SAI1_TX_SYNC,      /* GPIO_AD_B1_15 PAD functional properties : */
       0x10B0u);
 }
-static void pinmux_csi_init(void)
+void pinmux_csi_init(void)
 {
   IOMUXC_SetPinMux(
       IOMUXC_GPIO_AD_B0_04_GPIO1_IO04,        /* GPIO_AD_B0_04 is configured as GPIO1_IO04 */
@@ -210,9 +210,7 @@ static void pinmux_csi_init(void)
 void BOARD_InitPins(void) {
   CLOCK_EnableClock(kCLOCK_Iomuxc);           /* iomuxc clock (iomuxc_clk_enable): 0x03u */
 
-  pinmux_i2c_init();
-  pinmux_i2s_init();
-  pinmux_csi_init();
+  //pinmux_i2s_init();
   IOMUXC_SetPinMux(
       IOMUXC_GPIO_AD_B0_02_GPIO1_IO02,        /* GPIO_AD_B0_02 is configured as GPIO1_IO02 */
       0U);                                    /* Software Input On Field: Input Path is determined by functionality */

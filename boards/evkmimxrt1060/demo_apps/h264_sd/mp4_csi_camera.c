@@ -1,52 +1,33 @@
 /*
- * Copyright  2017 NXP
+ * Copyright 2019 NXP
  * All rights reserved.
  *
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
 
+#include <stdio.h>
+#include <string.h>
+#include "board.h"
+#include "pin_mux.h"
+#include "clock_config.h"
+#include "fsl_common.h"
+#include "fsl_debug_console.h"
+#include "fsl_pxp.h"
 #include "fsl_elcdif.h"
+#include "fsl_cache.h"
+#include "fsl_gpio.h"
 #include "fsl_camera.h"
 #include "fsl_camera_receiver.h"
 #include "fsl_camera_device.h"
-
-#include "board.h"
-#include "fsl_debug_console.h"
-
-#include "fsl_gpio.h"
 #include "fsl_csi.h"
 #include "fsl_csi_camera_adapter.h"
 #include "fsl_ov7725.h"
 #include "fsl_mt9m114.h"
-#include "fsl_iomuxc.h"
-#include "pin_mux.h"
+#include "mp4.h"
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
-
-/* LCD definition. */
-#define APP_ELCDIF LCDIF
-
-#define APP_LCD_HEIGHT 272
-#define APP_LCD_WIDTH 480
-#define APP_HSW 41
-#define APP_HFP 4
-#define APP_HBP 8
-#define APP_VSW 10
-#define APP_VFP 4
-#define APP_VBP 2
-#define APP_LCD_POL_FLAGS \
-    (kELCDIF_DataEnableActiveHigh | kELCDIF_VsyncActiveLow | kELCDIF_HsyncActiveLow | kELCDIF_DriveDataOnRisingClkEdge)
-
-#define APP_LCDIF_DATA_BUS kELCDIF_DataBus16Bit
-
-/* Display. */
-#define LCD_DISP_GPIO GPIO1
-#define LCD_DISP_GPIO_PIN 2
-/* Back light. */
-#define LCD_BL_GPIO GPIO2
-#define LCD_BL_GPIO_PIN 31
 
 /* Camera definition. */
 #define APP_CAMERA_HEIGHT 272
@@ -58,89 +39,13 @@
 
 #define APP_CAMERA_TYPE APP_CAMERA_MT9M114
 
-/* Frame buffer data alignment. */
-#define FRAME_BUFFER_ALIGN 64
-
-
-#define APP_FRAME_BUFFER_COUNT 4
-/* Pixel format RGB565, bytesPerPixel is 2. */
-#define APP_BPP 2
-
-#ifndef APP_LCDIF_DATA_BUS
-#define APP_LCDIF_DATA_BUS kELCDIF_DataBus24Bit
-#endif
 /*******************************************************************************
  * Prototypes
  ******************************************************************************/
-extern camera_device_handle_t cameraDevice;
-extern camera_receiver_handle_t cameraReceiver;
-
-/*******************************************************************************
- * Variables
- ******************************************************************************/
-AT_NONCACHEABLE_SECTION_ALIGN(static uint16_t s_frameBuffer[APP_FRAME_BUFFER_COUNT][APP_LCD_HEIGHT][APP_LCD_WIDTH],
-                              FRAME_BUFFER_ALIGN);
-
-/*******************************************************************************
- * Code
- ******************************************************************************/
-
 extern void CSI_DriverIRQHandler(void);
-
-void CSI_IRQHandler(void)
-{
-    CSI_DriverIRQHandler();
-    __DSB();
-}
-
-/* Initialize the LCD_DISP. */
-void BOARD_InitLcd(void)
-{
-    gpio_pin_config_t config = {
-        kGPIO_DigitalOutput,
-        0,
-    };
-
-    /* Backlight. */
-    config.outputLogic = 1;
-    GPIO_PinInit(LCD_BL_GPIO, LCD_BL_GPIO_PIN, &config);
-}
-
-void BOARD_InitLcdifPixClock(void)
-{
-    /*
-     * The desired output frame rate is 60Hz. So the pixel clock frequency is:
-     * (480 + 41 + 4 + 18) * (272 + 10 + 4 + 2) * 60 = 9.2M.
-     * Here set the LCDIF pixel clock to 9.3M.
-     */
-
-    /*
-     * Initialize the Video PLL.
-     * Video PLL output clock is OSC24M * (loopDivider + (denominator / numerator)) / postDivider = 93MHz.
-     */
-    clock_video_pll_config_t config = {
-        .loopDivider = 31,
-        .postDivider = 8,
-        .numerator   = 0,
-        .denominator = 0,
-    };
-
-    CLOCK_InitVideoPll(&config);
-
-    /*
-     * 000 derive clock from PLL2
-     * 001 derive clock from PLL3 PFD3
-     * 010 derive clock from PLL5
-     * 011 derive clock from PLL2 PFD0
-     * 100 derive clock from PLL2 PFD1
-     * 101 derive clock from PLL3 PFD1
-     */
-    CLOCK_SetMux(kCLOCK_LcdifPreMux, 2);
-
-    CLOCK_SetDiv(kCLOCK_LcdifPreDiv, 4);
-
-    CLOCK_SetDiv(kCLOCK_LcdifDiv, 1);
-}
+extern void pinmux_i2c_init(void);
+extern void pinmux_csi_init(void);
+static void BOARD_PullCameraResetPin(bool pullUp);
 
 /* OV7725 connect to CSI. */
 static csi_resource_t csiResource = {
@@ -149,11 +54,55 @@ static csi_resource_t csiResource = {
 
 static csi_private_data_t csiPrivateData;
 
-camera_receiver_handle_t cameraReceiver = {
+camera_receiver_handle_t g_cameraReceiver = {
     .resource    = &csiResource,
     .ops         = &csi_ops,
     .privateData = &csiPrivateData,
 };
+
+extern camera_receiver_handle_t g_cameraReceiver;
+
+#if (APP_CAMERA_TYPE == APP_CAMERA_OV7725)
+static void BOARD_PullCameraPowerDownPin(bool pullUp);
+static ov7725_resource_t ov7725Resource = {
+    .i2cSendFunc       = BOARD_Camera_I2C_SendSCCB,
+    .i2cReceiveFunc    = BOARD_Camera_I2C_ReceiveSCCB,
+    .pullResetPin      = BOARD_PullCameraResetPin,
+    .pullPowerDownPin  = BOARD_PullCameraPowerDownPin,
+    .inputClockFreq_Hz = 24000000,
+};
+
+camera_device_handle_t g_cameraDevice = {
+    .resource = &ov7725Resource,
+    .ops      = &ov7725_ops,
+};
+#else
+static mt9m114_resource_t mt9m114Resource = {
+    .i2cSendFunc       = BOARD_Camera_I2C_Send,
+    .i2cReceiveFunc    = BOARD_Camera_I2C_Receive,
+    .pullResetPin      = BOARD_PullCameraResetPin,
+    .inputClockFreq_Hz = 24000000,
+};
+
+camera_device_handle_t g_cameraDevice = {
+    .resource = &mt9m114Resource,
+    .ops      = &mt9m114_ops,
+};
+#endif
+
+extern camera_device_handle_t g_cameraDevice;
+
+/*******************************************************************************
+ * Variables
+ ******************************************************************************/
+
+camera_csi_cfg_t g_cameraCsiCfg;
+
+extern uint8_t g_psBufferLcd[APP_LCD_FB_NUM][APP_IMG_HEIGHT][APP_IMG_WIDTH][APP_BPP];
+
+/*******************************************************************************
+ * Code
+ ******************************************************************************/
 
 static void BOARD_PullCameraResetPin(bool pullUp)
 {
@@ -173,19 +122,6 @@ static void BOARD_PullCameraPowerDownPin(bool pullUp)
         GPIO_PinWrite(GPIO1, 4, 0);
     }
 }
-
-static ov7725_resource_t ov7725Resource = {
-    .i2cSendFunc       = BOARD_Camera_I2C_SendSCCB,
-    .i2cReceiveFunc    = BOARD_Camera_I2C_ReceiveSCCB,
-    .pullResetPin      = BOARD_PullCameraResetPin,
-    .pullPowerDownPin  = BOARD_PullCameraPowerDownPin,
-    .inputClockFreq_Hz = 24000000,
-};
-
-camera_device_handle_t cameraDevice = {
-    .resource = &ov7725Resource,
-    .ops      = &ov7725_ops,
-};
 #else
 /*
  * MT9M114 camera module has PWDN pin, but the pin is not
@@ -252,18 +188,6 @@ void BOARD_I2C_ReleaseBus(void)
     GPIO_PinWrite(CAMERA_I2C_SDA_GPIO, CAMERA_I2C_SDA_PIN, 1U);
     i2c_release_bus_delay();
 }
-
-static mt9m114_resource_t mt9m114Resource = {
-    .i2cSendFunc       = BOARD_Camera_I2C_Send,
-    .i2cReceiveFunc    = BOARD_Camera_I2C_Receive,
-    .pullResetPin      = BOARD_PullCameraResetPin,
-    .inputClockFreq_Hz = 24000000,
-};
-
-camera_device_handle_t cameraDevice = {
-    .resource = &mt9m114Resource,
-    .ops      = &mt9m114_ops,
-};
 #endif
 
 void BOARD_InitCameraResource(void)
@@ -308,108 +232,83 @@ void BOARD_InitCameraResource(void)
     GPIO_PinInit(GPIO1, 4, &pinConfig);
 }
 
+void csi_camera_capture(uint32_t *activeBufferAddr, uint32_t *inactiveBufferAddr)
+{
+    CAMERA_RECEIVER_SubmitEmptyBuffer(&g_cameraReceiver, *inactiveBufferAddr);
 
+    /* Wait to get the full frame buffer to show. */
+    while (kStatus_Success != CAMERA_RECEIVER_GetFullBuffer(&g_cameraReceiver, activeBufferAddr))
+    {
+    }
+}
 
 /*!
- * @brief Main function
+ * @brief config_csi function
  */
-int main(void)
+uint32_t config_csi(camera_csi_cfg_t *csiCfg)
 {
-    uint32_t activeFrameAddr;
-    uint32_t inactiveFrameAddr;
+    uint32_t dummyFrameAddr[APP_LCD_FB_NUM - 1];
 
-    BOARD_ConfigMPU();
-    BOARD_InitPins();
-    BOARD_InitDEBUG_UARTPins();
-    BOARD_InitSDRAMPins();
 #if (APP_CAMERA_TYPE != APP_CAMERA_OV7725)
     BOARD_I2C_ReleaseBus();
 #endif
-    BOARD_InitCSIPins();
-    BOARD_InitLCDPins();
-    BOARD_BootClockRUN();
-    BOARD_InitLcdifPixClock();
-    BOARD_InitDebugConsole();
-    BOARD_InitLcd();
+
+    pinmux_i2c_init();
+    pinmux_csi_init();
+
     BOARD_InitCameraResource();
-
-    PRINTF("CSI RGB565 example start...\r\n");
-
-    elcdif_rgb_mode_config_t lcdConfig = {
-        .panelWidth    = APP_LCD_WIDTH,
-        .panelHeight   = APP_LCD_HEIGHT,
-        .hsw           = APP_HSW,
-        .hfp           = APP_HFP,
-        .hbp           = APP_HBP,
-        .vsw           = APP_VSW,
-        .vfp           = APP_VFP,
-        .vbp           = APP_VBP,
-        .polarityFlags = APP_LCD_POL_FLAGS,
-        .pixelFormat   = kELCDIF_PixelFormatRGB565,
-        .dataBus       = APP_LCDIF_DATA_BUS,
-    };
 
     const camera_config_t cameraConfig = {
         .pixelFormat                = kVIDEO_PixelFormatRGB565,
         .bytesPerPixel              = APP_BPP,
         .resolution                 = FSL_VIDEO_RESOLUTION(APP_CAMERA_WIDTH, APP_CAMERA_HEIGHT),
-        .frameBufferLinePitch_Bytes = APP_LCD_WIDTH * APP_BPP,
+        .frameBufferLinePitch_Bytes = APP_IMG_WIDTH * APP_BPP,
         .interface                  = kCAMERA_InterfaceGatedClock,
         .controlFlags               = APP_CAMERA_CONTROL_FLAGS,
         .framePerSec                = 30,
     };
 
-    memset(s_frameBuffer, 0, sizeof(s_frameBuffer));
+    CAMERA_RECEIVER_Init(&g_cameraReceiver, &cameraConfig, NULL, NULL);
+    CAMERA_DEVICE_Init(&g_cameraDevice, &cameraConfig);
+    CAMERA_DEVICE_Start(&g_cameraDevice);
 
-    CAMERA_RECEIVER_Init(&cameraReceiver, &cameraConfig, NULL, NULL);
-
-    CAMERA_DEVICE_Init(&cameraDevice, &cameraConfig);
-
-    CAMERA_DEVICE_Start(&cameraDevice);
-
-    /* Submit the empty frame buffers to buffer queue. */
-    for (uint32_t i = 0; i < APP_FRAME_BUFFER_COUNT; i++)
+    // Submit the empty frame buffers to buffer queue.
+    for (uint32_t i = 0; i < APP_LCD_FB_NUM; i++)
     {
-        CAMERA_RECEIVER_SubmitEmptyBuffer(&cameraReceiver, (uint32_t)(s_frameBuffer[i]));
+        CAMERA_RECEIVER_SubmitEmptyBuffer(&g_cameraReceiver, (uint32_t)(g_psBufferLcd[i]));
     }
 
-    CAMERA_RECEIVER_Start(&cameraReceiver);
+    CAMERA_RECEIVER_Start(&g_cameraReceiver);
 
-    /*
-     * The LCDIF has active buffer and inactive buffer, so get two buffers here.
-     */
-    /* Wait to get the full frame buffer to show. */
-    while (kStatus_Success != CAMERA_RECEIVER_GetFullBuffer(&cameraReceiver, &activeFrameAddr))
+    // Cache (APP_LCD_FB_NUM - 1) frames.
+    for (uint32_t i = 0; i < APP_LCD_FB_NUM - 1; i++)
     {
-    }
-
-    /* Wait to get the full frame buffer to show. */
-    while (kStatus_Success != CAMERA_RECEIVER_GetFullBuffer(&cameraReceiver, &inactiveFrameAddr))
-    {
-    }
-
-    lcdConfig.bufferAddr = (uint32_t)activeFrameAddr;
-
-    ELCDIF_RgbModeInit(APP_ELCDIF, &lcdConfig);
-
-    ELCDIF_SetNextBufferAddr(APP_ELCDIF, inactiveFrameAddr);
-    ELCDIF_RgbModeStart(APP_ELCDIF);
-
-    while (1)
-    {
-        ELCDIF_ClearInterruptStatus(APP_ELCDIF, kELCDIF_CurFrameDone);
-        /* Wait the inactive buffer be active. */
-        while (!(kELCDIF_CurFrameDone & ELCDIF_GetInterruptStatus(APP_ELCDIF)))
+        while (kStatus_Success != CAMERA_RECEIVER_GetFullBuffer(&g_cameraReceiver, &dummyFrameAddr[i]))
         {
         }
+    }
 
-        CAMERA_RECEIVER_SubmitEmptyBuffer(&cameraReceiver, activeFrameAddr);
-        activeFrameAddr = inactiveFrameAddr;
-
-        /* Wait to get the full frame buffer to show. */
-        while (kStatus_Success != CAMERA_RECEIVER_GetFullBuffer(&cameraReceiver, &inactiveFrameAddr))
+    // Find out the last empty frame buffer address and return it.
+    for (uint32_t i = 0; i < APP_LCD_FB_NUM; i++)
+    {
+        uint32_t j;
+        for (j = 0; j < APP_LCD_FB_NUM - 1; j++)
         {
+            if (dummyFrameAddr[j] == (uint32_t)(g_psBufferLcd[i]))
+            {
+                break;
+            }
         }
-        ELCDIF_SetNextBufferAddr(APP_ELCDIF, inactiveFrameAddr);
+        if (j == APP_LCD_FB_NUM - 1)
+        {
+            return (uint32_t)(g_psBufferLcd[i]);
+        }
     }
 }
+
+void CSI_IRQHandler(void)
+{
+    CSI_DriverIRQHandler();
+    __DSB();
+}
+
