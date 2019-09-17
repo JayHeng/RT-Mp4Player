@@ -16,7 +16,7 @@
  ******************************************************************************/
 #define GPT_IRQ_ID GPT2_IRQn
 #define APP_GPT GPT2
-#define APP_GPT_CLK_FREQ (CLOCK_GetFreq(kCLOCK_PerClk))
+#define APP_GPT_CLK_FREQ (CLOCK_GetFreq(kCLOCK_OscRc48MDiv2))
 #define APP_GPT_IRQHandler GPT2_IRQHandler
 
 /*******************************************************************************
@@ -91,13 +91,13 @@ void config_gpt(void)
     GPT_Init(APP_GPT, &gptConfig);
 
     /* Divide GPT clock source frequency by 1 inside GPT module */
-    GPT_SetClockDivider(APP_GPT, 1);
+    GPT_SetClockDivider(APP_GPT, 3);
 
     /* Get GPT clock frequency */
     s_gptFreq = APP_GPT_CLK_FREQ;
 
     /* GPT frequency is divided by 1 inside module */
-    s_gptFreq /= 1;
+    s_gptFreq /= 3;
 
     /* Set both GPT modules to 1 second duration */
     GPT_SetOutputCompareValue(APP_GPT, kGPT_OutputCompare_Channel1, s_gptCompareValue);

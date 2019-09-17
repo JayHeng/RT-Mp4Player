@@ -14366,7 +14366,6 @@
         <file>
             <name>$PROJ_DIR$\..\mp4_gpt_timer.c</name>
             <excluded>
-                <configuration>sdram_debug</configuration>
                 <configuration>sdram_flexram_debug</configuration>
             </excluded>
         </file>
@@ -14401,22 +14400,22 @@
     <group>
         <name>utilities</name>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1062\utilities\fsl_assert.c</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\utilities\fsl_assert.c</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1062\utilities\debug_console\fsl_debug_console.c</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\utilities\debug_console\fsl_debug_console.c</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1062\utilities\debug_console\fsl_debug_console.h</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\utilities\debug_console\fsl_debug_console.h</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1062\utilities\debug_console\fsl_debug_console_conf.h</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\utilities\debug_console\fsl_debug_console_conf.h</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1062\utilities\str\fsl_str.c</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\utilities\str\fsl_str.c</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1062\utilities\str\fsl_str.h</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\utilities\str\fsl_str.h</name>
         </file>
     </group>
     <group>

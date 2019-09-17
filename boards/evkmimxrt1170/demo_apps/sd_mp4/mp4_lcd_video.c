@@ -175,7 +175,9 @@ static void APP_InitLcdif(void)
 
     LCDIFV2_Init(APP_ELCDIF);
     LCDIFV2_SetDisplayConfig(APP_ELCDIF, &lcdifv2Config);
+#if (MP4_LCD_TIME_ENABLE == 0) || (MP4_LCD_DISP_OFF == 0)
     LCDIFV2_EnableDisplay(APP_ELCDIF, true);
+#endif
     LCDIFV2_SetLayerBufferConfig(APP_ELCDIF, APP_ELCDIF_LAYER, &fbConfig);
     LCDIFV2_SetLayerSize(APP_ELCDIF, APP_ELCDIF_LAYER, APP_IMG_WIDTH, APP_IMG_HEIGHT);
     LCDIFV2_SetLayerOffset(APP_ELCDIF, APP_ELCDIF_LAYER, 0, 0);
