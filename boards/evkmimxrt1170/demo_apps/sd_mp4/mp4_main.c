@@ -589,7 +589,7 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
 #if MP4_FF_TIME_ENABLE == 1
     gpio_pin_config_t led_config = {kGPIO_DigitalOutput, 0, kGPIO_NoIntmode};
     GPIO_PinInit(BOARD_USER_LED_GPIO, BOARD_USER_LED_GPIO_PIN, &led_config);
-    GPIO_PinWrite(BOARD_USER_LED_GPIO, BOARD_USER_LED_GPIO_PIN, 0U);
+    GPIO_PinWrite(BOARD_USER_LED_GPIO, BOARD_USER_LED_GPIO_PIN, 1U);
 
     f_close(&toutputFil);
 #endif
@@ -644,9 +644,9 @@ int main(void)
     g_audioSaiCfg.sampleWidth_bit = AUDIO_CONV_WIDTH;
     g_videoLcdCfg.isLcdConfigured = false;
 
-    char *filepath_in="/bigbuckbunny_960x540_faststart.mp4";
-    char *filepath_aout="/bigbuckbunny_960x540_faststart.pcm";
-    char *filepath_vout="/bigbuckbunny_960x540_faststart.yuv";
+    char *filepath_in="/SampleVideo_960x540_faststart.mp4";
+    char *filepath_aout="/SampleVideo_960x540_faststart.pcm";
+    char *filepath_vout="/SampleVideo_960x540_faststart.yuv";
 
     while(1)
     {

@@ -89,4 +89,7 @@ void BOARD_InitPins(void)
     BOARD_InitSDCARD();
     BOARD_InitMIPI();
     BOARD_InitSAI();
+
+    IOMUXC_SetPinMux(IOMUXC_GPIO_AD_04_GPIO9_IO03, 0U);
+    IOMUXC_SetPinConfig(IOMUXC_GPIO_AD_04_GPIO9_IO03, 0U);
 }
