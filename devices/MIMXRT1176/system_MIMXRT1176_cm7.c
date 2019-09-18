@@ -109,6 +109,23 @@ void SystemInit (void) {
     }
 #endif
 
+#if RECONFIG_FLEXRAM_512KB_ITCM == 1
+    // 512KB FlexRAM -> 512KB ITCM
+    IOMUXC_GPR->GPR18 = 0x0000ffff;
+    IOMUXC_GPR->GPR17 = 0x0000ffff;
+    IOMUXC_GPR->GPR16 |= 0x4;
+#elif RECONFIG_FLEXRAM_512KB_DTCM == 1
+    // 512KB FlexRAM -> 512KB DTCM
+    IOMUXC_GPR->GPR18 = 0x0000aaaa;
+    IOMUXC_GPR->GPR17 = 0x0000aaaa;
+    IOMUXC_GPR->GPR16 |= 0x4;
+#elif RECONFIG_FLEXRAM_512KB_OCRAM == 1
+    // 512KB FlexRAM -> 512KB OCRAM
+    IOMUXC_GPR->GPR18 = 0x00005555;
+    IOMUXC_GPR->GPR17 = 0x00005555;
+    IOMUXC_GPR->GPR16 |= 0x4;
+#endif
+
   SystemInitHook();
 }
 

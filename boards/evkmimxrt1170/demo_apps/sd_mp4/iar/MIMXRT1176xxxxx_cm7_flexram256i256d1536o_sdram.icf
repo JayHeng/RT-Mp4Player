@@ -24,19 +24,19 @@
 ** ###################################################################
 */
 
-define symbol m_sdram_interrupts_start = 0x80002000;
-define symbol m_sdram_interrupts_end   = 0x800023FF;
+define symbol m_itcm_interrupts_start = 0x00002000;
+define symbol m_itcm_interrupts_end   = 0x000023FF;
 
-define symbol m_itcm_start            = 0x00000000;
+define symbol m_itcm_start            = 0x00002400;
 define symbol m_itcm_end              = 0x0003FFFF;
 
 define symbol m_dtcm_start            = 0x20000000;
 define symbol m_dtcm_end              = 0x2003FFFF;
 
-define symbol m_ocram_start           = 0x20360000;
-define symbol m_ocram_end             = 0x203FFFFF;
+define symbol m_ocram_start           = 0x20200000;
+define symbol m_ocram_end             = 0x2037FFFF;
 
-define symbol m_sdram_start           = 0x80002400;
+define symbol m_sdram_start           = 0x80000000;
 define symbol m_sdram_end             = 0x82FFFFFF;
 
 define symbol m_sdram_ncache_start    = 0x83000000;
@@ -58,12 +58,13 @@ if (isdefinedsymbol(__heap_size__)) {
 define exported symbol __NCACHE_REGION_START   = m_sdram_ncache_start;
 define exported symbol __NCACHE_REGION_SIZE    = m_sdram_ncache_end - m_sdram_ncache_start + 1;
 
-define exported symbol __VECTOR_TABLE  = m_sdram_interrupts_start;
-define exported symbol __VECTOR_RAM    = m_sdram_interrupts_start;
+define exported symbol __VECTOR_TABLE  = m_itcm_interrupts_start;
+define exported symbol __VECTOR_RAM    = m_itcm_interrupts_start;
 define exported symbol __RAM_VECTOR_TABLE_SIZE = 0x0;
 
 define memory mem with size = 4G;
-define region FLEXRAM_region      = mem:[from m_itcm_start to m_itcm_end]
+define region FLEXRAM_region      = mem:[from m_itcm_interrupts_start to m_itcm_interrupts_end]
+                                  | mem:[from m_itcm_start to m_itcm_end]
                                   | mem:[from m_dtcm_start to m_dtcm_end]
                                   | mem:[from m_ocram_start to m_ocram_end];
 define region SDRAM_region        = mem:[from m_sdram_start to m_sdram_end-__size_heap__];
@@ -72,16 +73,17 @@ define region SDRAM_NCACHE_region = mem:[from m_sdram_ncache_start to m_sdram_nc
 
 define block CSTACK    with alignment = 8, size = __size_cstack__   { };
 define block HEAP      with alignment = 8, size = __size_heap__     { };
-//define block RW        { readwrite };
-//define block ZI        { zi };
+define block RW        { readwrite };
+define block ZI        { zi };
 define block NCACHE_VAR with size = 0x01000000 , alignment = 0x100000  { section NonCacheable , section NonCacheable.init };
 
 initialize by copy { readwrite, section .textrw };
 do not initialize  { section .noinit };
 
-place at address mem: m_sdram_interrupts_start    { readonly section .intvec };
-place in SDRAM_region                             { readonly };
-place in FLEXRAM_region                           { readwrite, zi };
-place in SDRAM_region                             { block CSTACK };
+place at address mem: m_itcm_interrupts_start     { readonly section .intvec };
+place in FLEXRAM_region                           { readonly };
+place in FLEXRAM_region                           { block RW };
+place in FLEXRAM_region                           { block ZI };
+place in FLEXRAM_region                           { block CSTACK };
 place in SDRAM_HEAP_region                        { last block HEAP };
 place in SDRAM_NCACHE_region                      { block NCACHE_VAR };
