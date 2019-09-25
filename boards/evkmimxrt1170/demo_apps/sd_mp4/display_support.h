@@ -9,6 +9,7 @@
 #define _DISPLAY_SUPPORT_H_
 
 #include "fsl_dc_fb.h"
+#include "mp4.h"
 
 /*******************************************************************************
  * Definitions
@@ -17,7 +18,11 @@
 #define DEMO_PANEL_RK055IQH091 1
 
 #ifndef DEMO_PANEL
+#if VIDEO_LCD_RESOLUTION_SVGA540 == 1
 #define DEMO_PANEL DEMO_PANEL_RK055IQH091
+#elif VIDEO_LCD_RESOLUTION_WXGA720 == 1
+#define DEMO_PANEL DEMO_PANEL_RK055AHD091
+#endif
 #endif
 
 #define DEMO_BUFFER_FIXED_ADDRESS 0

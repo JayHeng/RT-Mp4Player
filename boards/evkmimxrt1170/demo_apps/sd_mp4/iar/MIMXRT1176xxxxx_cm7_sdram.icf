@@ -28,9 +28,9 @@ define symbol m_interrupts_start       = 0x80002000;
 define symbol m_interrupts_end         = 0x800023FF;
 
 define symbol m_text_start             = 0x80002400;
-define symbol m_text_end               = 0x800FFFFF;
+define symbol m_text_end               = 0x801FFFFF;
 
-define symbol m_data_start             = 0x80100000;
+define symbol m_data_start             = 0x80200000;
 define symbol m_data_end               = 0x82FFFFFF;
 
 define symbol m_ncache_start           = 0x83000000;

@@ -5,6 +5,8 @@
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
+#ifndef _MP4_H_
+#define _MP4_H_
 
 #include <stdio.h>
 #include <stdint.h>
@@ -102,3 +104,5 @@ typedef struct _video_lcd_cfg
 #define VIDEO_LCD_REFRESH_FREG_60Hz   0
 #define VIDEO_LCD_REFRESH_FREG_30Hz   0
 #define VIDEO_LCD_REFRESH_FREG_25Hz   1
+
+#endif /* _MP4_H_ */
