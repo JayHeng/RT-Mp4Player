@@ -416,6 +416,12 @@ void BOARD_ConfigMPU(void)
         MPU->RASR = ARM_MPU_RASR(0, ARM_MPU_AP_FULL, 1, 0, 0, 0, 0, i - 1);
     }
 
+#if defined(MP4_LCD_BUFFER_OCRAM) && (MP4_LCD_BUFFER_OCRAM == 1)
+    /* Region 10 setting: Memory with Normal type, not shareable, non-cacheable */
+    MPU->RBAR = ARM_MPU_RBAR(10, 0x20200000U);
+    MPU->RASR = ARM_MPU_RASR(0, ARM_MPU_AP_FULL, 1, 0, 0, 0, 0, ARM_MPU_REGION_SIZE_1MB);
+#endif
+
     /* Enable MPU */
     ARM_MPU_Enable(MPU_CTRL_PRIVDEFENA_Msk);
 

@@ -89,7 +89,13 @@ static pxp_ps_buffer_config_t s_psBufferConfig;
 #if VIDEO_PXP_CONV_BLOCKING == 0
 AT_NONCACHEABLE_SECTION(static uint8_t s_convBufferYUV[3][APP_PS_HEIGHT][APP_PS_WIDTH]);
 #endif
+#if defined(MP4_LCD_BUFFER_OCRAM) && (MP4_LCD_BUFFER_OCRAM == 1)
+AT_NONCACHEABLE_SECTION_ALIGN(static uint8_t s_psBufferLcd[1][APP_IMG_HEIGHT][APP_IMG_WIDTH][APP_BPP], FRAME_BUFFER_ALIGN);
+static uint8_t s_psBufferLcd_ocram[1][APP_IMG_HEIGHT][APP_IMG_WIDTH][APP_BPP] @ ".psBufferLcdOcram";
+#else
 AT_NONCACHEABLE_SECTION_ALIGN(static uint8_t s_psBufferLcd[APP_LCD_FB_NUM][APP_IMG_HEIGHT][APP_IMG_WIDTH][APP_BPP], FRAME_BUFFER_ALIGN);
+static uint8_t s_psBufferLcd_ocram[1] @ ".psBufferLcdOcram";
+#endif
 
 /*******************************************************************************
  * Code
@@ -257,7 +263,17 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
 
 #if VIDEO_PXP_CONV_BLOCKING == 0
         // Start to show current frame via LCD
-        LCDIFV2_SetLayerBufferAddr(APP_ELCDIF, APP_ELCDIF_LAYER, (uint32_t)s_psBufferLcd[curLcdBufferIdx]);
+#if defined(MP4_LCD_BUFFER_OCRAM) && (MP4_LCD_BUFFER_OCRAM == 1)
+        if (curLcdBufferIdx == 1)
+        {
+            LCDIFV2_SetLayerBufferAddr(APP_ELCDIF, APP_ELCDIF_LAYER, (uint32_t)s_psBufferLcd_ocram[0]);
+        }
+        else
+#endif
+        {
+            LCDIFV2_SetLayerBufferAddr(APP_ELCDIF, APP_ELCDIF_LAYER, (uint32_t)s_psBufferLcd[curLcdBufferIdx]);
+        }
+
         LCDIFV2_TriggerLayerShadowLoad(APP_ELCDIF, APP_ELCDIF_LAYER);
         LCDIFV2_ClearInterruptStatus(APP_ELCDIF, APP_CORE_ID, kLCDIFV2_VerticalBlankingInterrupt);
 
@@ -310,7 +326,16 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
                                   APP_PS_ULC_X + APP_IMG_WIDTH - 1U,
                                   APP_PS_ULC_Y + APP_IMG_HEIGHT - 1U);
 #endif
-    s_outputBufferConfig.buffer0Addr = (uint32_t)s_psBufferLcd[curLcdBufferIdx];
+#if defined(MP4_LCD_BUFFER_OCRAM) && (MP4_LCD_BUFFER_OCRAM == 1)
+    if (curLcdBufferIdx == 1)
+    {
+        s_outputBufferConfig.buffer0Addr = (uint32_t)s_psBufferLcd_ocram[0];
+    }
+    else
+#endif
+    {
+        s_outputBufferConfig.buffer0Addr = (uint32_t)s_psBufferLcd[curLcdBufferIdx];
+    }
     PXP_SetOutputBufferConfig(APP_PXP, &s_outputBufferConfig);
     PXP_Start(APP_PXP);
 
@@ -334,7 +359,16 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
     }
 #endif // #if VIDEO_PXP_CONV_WAITING == 1
 
-    LCDIFV2_SetLayerBufferAddr(APP_ELCDIF, APP_ELCDIF_LAYER, (uint32_t)s_psBufferLcd[curLcdBufferIdx]);
+#if defined(MP4_LCD_BUFFER_OCRAM) && (MP4_LCD_BUFFER_OCRAM == 1)
+    if (curLcdBufferIdx == 1)
+    {
+        LCDIFV2_SetLayerBufferAddr(APP_ELCDIF, APP_ELCDIF_LAYER, (uint32_t)s_psBufferLcd_ocram[0]);
+    }
+    else
+#endif
+    {
+        LCDIFV2_SetLayerBufferAddr(APP_ELCDIF, APP_ELCDIF_LAYER, (uint32_t)s_psBufferLcd[curLcdBufferIdx]);
+    }
     LCDIFV2_TriggerLayerShadowLoad(APP_ELCDIF, APP_ELCDIF_LAYER);
     LCDIFV2_ClearInterruptStatus(APP_ELCDIF, APP_CORE_ID, kLCDIFV2_VerticalBlankingInterrupt);
 

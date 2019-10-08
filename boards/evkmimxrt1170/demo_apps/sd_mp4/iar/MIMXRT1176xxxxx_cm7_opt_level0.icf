@@ -34,9 +34,9 @@ define symbol m_itcm_end              = 0x0007FFFF;
 //define symbol m_dtcm_end              = 0x2003FFFF;
 
 define symbol m_ocram0_start           = 0x20200000;
-define symbol m_ocram0_end             = 0x2031FFFF;
+define symbol m_ocram0_end             = 0x202FFFFF;
 
-define symbol m_ocram1_start           = 0x20320000;
+define symbol m_ocram1_start           = 0x20300000;
 define symbol m_ocram1_end             = 0x2033FFFF;
 
 define symbol m_ocram2_start           = 0x20360000;
@@ -70,6 +70,7 @@ define exported symbol __RAM_VECTOR_TABLE_SIZE = 0x0;
 
 define memory mem with size = 4G;
 define region ITCM_region         = mem:[from m_itcm_start to m_itcm_end];
+define region OCRAM_NCACHE_region = mem:[from m_ocram0_start to m_ocram0_end];
 define region OCRAM_region        = mem:[from m_ocram1_start to m_ocram1_end]
                                   | mem:[from m_ocram2_start to m_ocram2_end];
 define region SDRAM_region        = mem:[from m_sdram_start to m_sdram_end-__size_heap__];
@@ -86,6 +87,8 @@ initialize by copy { readwrite, section .textrw };
 do not initialize  { section .noinit };
 
 place at address mem: m_itcm_interrupts_start     { readonly section .intvec };
+
+place in OCRAM_NCACHE_region                      { readwrite section .psBufferLcdOcram };
 
 place in OCRAM_region                             {
 ////////////////////////////////////////////////////////////////////////////////////////
