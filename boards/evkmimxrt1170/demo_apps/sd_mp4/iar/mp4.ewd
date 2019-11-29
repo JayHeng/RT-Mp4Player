@@ -5956,11 +5956,11 @@
                 </option>
                 <option>
                     <name>MacOverride</name>
-                    <state>1</state>
+                    <state>0</state>
                 </option>
                 <option>
                     <name>MacFile</name>
-                    <state>$PROJ_DIR$/evkmimxrt1060_sdram_init_166mhz.mac</state>
+                    <state>$PROJ_DIR$/evkmimxrt1170_sdram_init.mac</state>
                 </option>
                 <option>
                     <name>MemOverride</name>
@@ -5968,7 +5968,7 @@
                 </option>
                 <option>
                     <name>MemFile</name>
-                    <state>$TOOLKIT_DIR$\CONFIG\debugger\NXP\MIMXRT1062xxx6A.ddf</state>
+                    <state></state>
                 </option>
                 <option>
                     <name>RunToEnable</name>
@@ -6036,7 +6036,7 @@
                 </option>
                 <option>
                     <name>FlashLoadersV3</name>
-                    <state>$PROJ_DIR$\FlashIMXRT1060_EVK_FlexSPI_hyper1v8.board</state>
+                    <state>$TOOLKIT_DIR$\config\flashloader\</state>
                 </option>
                 <option>
                     <name>OCImagesSuppressCheck1</name>
@@ -6064,7 +6064,7 @@
                 </option>
                 <option>
                     <name>OverrideDefFlashBoard</name>
-                    <state>1</state>
+                    <state>0</state>
                 </option>
                 <option>
                     <name>OCImagesOffset1</name>

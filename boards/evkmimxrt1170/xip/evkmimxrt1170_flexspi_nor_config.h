@@ -81,12 +81,12 @@ typedef enum _FlexSpiSerialClockFreq
     kFlexSpiSerialClk_30MHz  = 1,
     kFlexSpiSerialClk_50MHz  = 2,
     kFlexSpiSerialClk_60MHz  = 3,
-    kFlexSpiSerialClk_75MHz  = 4,
-    kFlexSpiSerialClk_80MHz  = 5,
-    kFlexSpiSerialClk_100MHz = 6,
-    kFlexSpiSerialClk_120MHz = 7,
-    kFlexSpiSerialClk_133MHz = 8,
-    kFlexSpiSerialClk_166MHz = 9,
+    kFlexSpiSerialClk_80MHz  = 4,
+    kFlexSpiSerialClk_100MHz  = 5,
+    kFlexSpiSerialClk_120MHz = 6,
+    kFlexSpiSerialClk_133MHz = 7,
+    kFlexSpiSerialClk_166MHz = 8,
+    kFlexSpiSerialClk_200MHz = 9,
 } flexspi_serial_clk_freq_t;
 
 //!@brief FlexSPI clock configuration type

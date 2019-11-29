@@ -17,8 +17,8 @@
 #define FSL_XIP_DEVICE_DRIVER_VERSION (MAKE_VERSION(2, 0, 0))
 /*@}*/
 
-/************************************* 
- *  IVT Data 
+/*************************************
+ *  IVT Data
  *************************************/
 typedef struct _ivt_ {
     /** @ref hdr with tag #HAB_TAG_IVT, length and HAB version fields
@@ -56,42 +56,47 @@ typedef struct _ivt_ {
   ((((major) & IVT_MAJOR_VERSION_MASK) << IVT_MAJOR_VERSION_SHIFT) |  \
   (((minor) & IVT_MINOR_VERSION_MASK) << IVT_MINOR_VERSION_SHIFT))
 
-/* IVT header */  
+/* IVT header */
 #define IVT_TAG_HEADER        0xD1       /**< Image Vector Table */
 #define IVT_SIZE              0x2000
 #define IVT_PAR               IVT_VERSION(IVT_MAJOR_VERSION, IVT_MINOR_VERSION)
 #define IVT_HEADER           (IVT_TAG_HEADER | (IVT_SIZE << 8) | (IVT_PAR << 24))
 
 /* Set resume entry */
-#if defined(__CC_ARM) || defined(__ARMCC_VERSION) 
+#if defined(__CC_ARM) || defined(__ARMCC_VERSION)
     extern uint32_t __Vectors[];
     extern uint32_t Image$$RW_m_config_text$$Base[];
-#define IMAGE_ENTRY_ADDRESS ((uint32_t)__Vectors) 
-#define FLASH_BASE ((uint32_t)Image$$RW_m_config_text$$Base)   
+#define IMAGE_ENTRY_ADDRESS ((uint32_t)__Vectors)
+#define FLASH_BASE ((uint32_t)Image$$RW_m_config_text$$Base - 0x400)
 #elif defined(__MCUXPRESSO)
     extern uint32_t __Vectors[];
     extern uint32_t __boot_hdr_start__[];
 #define IMAGE_ENTRY_ADDRESS ((uint32_t)__Vectors)
-#define FLASH_BASE          ((uint32_t)__boot_hdr_start__)
+#define FLASH_BASE          ((uint32_t)__boot_hdr_start__ - 0x400)
 #elif defined(__ICCARM__)
     extern uint32_t __VECTOR_TABLE[];
     extern uint32_t m_boot_hdr_conf_start[];
-#define IMAGE_ENTRY_ADDRESS ((uint32_t)__VECTOR_TABLE)    
-#define FLASH_BASE ((uint32_t)m_boot_hdr_conf_start)   
+#define IMAGE_ENTRY_ADDRESS ((uint32_t)__VECTOR_TABLE)
+#define FLASH_BASE ((uint32_t)m_boot_hdr_conf_start - 0x400)
 #elif defined(__GNUC__)
     extern uint32_t __VECTOR_TABLE[];
     extern uint32_t __FLASH_BASE[];
-#define IMAGE_ENTRY_ADDRESS ((uint32_t)__VECTOR_TABLE)     
-#define FLASH_BASE ((uint32_t)__FLASH_BASE)   
+#define IMAGE_ENTRY_ADDRESS ((uint32_t)__VECTOR_TABLE)
+#define FLASH_BASE ((uint32_t)__FLASH_BASE - 0x400)
 #endif
-
+#if defined(XIP_BOOT_HEADER_ENABLE) && (XIP_BOOT_HEADER_ENABLE == 1)
+#if defined(XIP_BOOT_HEADER_DCD_ENABLE) && (XIP_BOOT_HEADER_DCD_ENABLE == 1)
 #define DCD_ADDRESS           dcd_data
+#else
+#define DCD_ADDRESS           0
+#endif
+#endif
 #define BOOT_DATA_ADDRESS     &boot_data
 #define CSF_ADDRESS           0
 #define IVT_RSVD             (uint32_t)(0x00000000)
 
-/************************************* 
- *  Boot Data 
+/*************************************
+ *  Boot Data
  *************************************/
 typedef struct _boot_data_ {
   uint32_t start;           /* boot start location */

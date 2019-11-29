@@ -4347,7 +4347,7 @@
                 </option>
                 <option>
                     <name>OGCoreOrChip</name>
-                    <state>1</state>
+                    <state>0</state>
                 </option>
                 <option>
                     <name>GRuntimeLibSelect</name>
@@ -4524,7 +4524,7 @@
                 <option>
                     <name>CCDefines</name>
                     <state>DEBUG</state>
-                    <state>CPU_MIMXRT1062DVL6A</state>
+                    <state>CPU_MIMXRT1176DVMAA_cm7</state>
                     <state>SKIP_SYSCLK_INIT</state>
                     <state>XIP_EXTERNAL_FLASH=1</state>
                     <state>XIP_BOOT_HEADER_ENABLE=1</state>
@@ -4532,7 +4532,6 @@
                     <state>SDK_I2C_BASED_COMPONENT_USED=1</state>
                     <state>FSL_SDK_ENABLE_DRIVER_CACHE_CONTROL=1</state>
                     <state>BOARD_USE_CODEC=1</state>
-                    <state>FLASH_TYPE_HYPER=1</state>
                 </option>
                 <option>
                     <name>CCPreprocFile</name>
@@ -4661,12 +4660,12 @@
                     <state>$PROJ_DIR$/../../../../../devices</state>
                     <state>$PROJ_DIR$/..</state>
                     <state>$PROJ_DIR$/../../..</state>
-                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062/drivers</state>
-                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062</state>
-                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062/utilities/str</state>
-                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062/utilities/debug_console</state>
-                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062/utilities</state>
-                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062/xip</state>
+                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/drivers</state>
+                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176</state>
+                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/utilities/str</state>
+                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/utilities/debug_console</state>
+                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/utilities</state>
+                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/xip</state>
                     <state>$PROJ_DIR$/../../../../../middleware/libjpeg/inc</state>
                     <state>$PROJ_DIR$/../../../../../middleware/sdmmc/src</state>
                     <state>$PROJ_DIR$/../../../../../middleware/sdmmc/inc</state>
@@ -4686,6 +4685,14 @@
                     <state>$PROJ_DIR$/../../../../../components/serial_manager</state>
                     <state>$PROJ_DIR$/../../../../../components/uart</state>
                     <state>$PROJ_DIR$/../../../../../components/i2c</state>
+                    <state>$PROJ_DIR$/../../../../../components/video</state>
+                    <state>$PROJ_DIR$/../../../../../components/video/display</state>
+                    <state>$PROJ_DIR$/../../../../../components/video/display/dc</state>
+                    <state>$PROJ_DIR$/../../../../../components/video/display/dc/elcdif</state>
+                    <state>$PROJ_DIR$/../../../../../components/video/display/dc/lcdifv2</state>
+                    <state>$PROJ_DIR$/../../../../../components/video/display/rm68191</state>
+                    <state>$PROJ_DIR$/../../../../../components/video/display/rm68200</state>
+                    <state>$PROJ_DIR$/../../../../../components/video/display/mipi_dsi_cmd</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -4982,7 +4989,7 @@
                 <option>
                     <name>OOCOutputFormat</name>
                     <version>3</version>
-                    <state>0</state>
+                    <state>3</state>
                 </option>
                 <option>
                     <name>OCOutputOverride</name>
@@ -4990,7 +4997,7 @@
                 </option>
                 <option>
                     <name>OOCOutputFile</name>
-                    <state>mp4.srec</state>
+                    <state>mp4.bin</state>
                 </option>
                 <option>
                     <name>OOCCommandLineProducer</name>
@@ -4998,7 +5005,7 @@
                 </option>
                 <option>
                     <name>OOCObjCopyEnable</name>
-                    <state>0</state>
+                    <state>1</state>
                 </option>
             </data>
         </settings>
@@ -5077,7 +5084,8 @@
                 </option>
                 <option>
                     <name>IlinkConfigDefines</name>
-                    <state></state>
+                    <state>__stack_size__=0x8000</state>
+                    <state>__heap_size__=0x1000000</state>
                 </option>
                 <option>
                     <name>IlinkMapFile</name>
@@ -5109,7 +5117,7 @@
                 </option>
                 <option>
                     <name>IlinkIcfFile</name>
-                    <state>$PROJ_DIR$/MIMXRT1062xxxxx_flexspinor_sdram.icf</state>
+                    <state>$PROJ_DIR$/MIMXRT1176xxxxx_cm7_flexspi_nor_sdram.icf</state>
                 </option>
                 <option>
                     <name>IlinkIcfFileSlave</name>
