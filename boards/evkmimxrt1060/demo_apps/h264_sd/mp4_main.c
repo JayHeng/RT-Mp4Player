@@ -654,6 +654,22 @@ int flush_encoder(AVFormatContext *fmt_ctx, unsigned int stream_index)
 
 static void h264_file_encode(const char *vinfilename, const char *voutfilename)
 {
+    printf("Encode video from '%s' to '%s'\n", vinfilename, voutfilename);
+
+    FRESULT c;
+    c = f_open(&inputFil, vinfilename, FA_READ | FA_OPEN_EXISTING);
+    if (c != FR_OK)
+    {
+        printf("Could not open '%s', erro = %d\n", vinfilename, c);
+        return;
+    }
+    c = f_open(&voutputFil, voutfilename, FA_CREATE_ALWAYS | FA_WRITE);
+    if (c != FR_OK)
+    {
+        printf("Could not open '%s', erro = %d\n", voutfilename, c);
+        return;
+    }
+
     AVFormatContext* pFormatCtx;
     AVOutputFormat* fmt;
     AVStream* video_st;
@@ -665,32 +681,37 @@ static void h264_file_encode(const char *vinfilename, const char *voutfilename)
     int picture_size;
     int y_size;
     int framecnt = 0;
-    FILE *in_file = fopen("../ds_480x272.yuv", "rb");   //Input raw YUV data
     int in_w=480, in_h=272;                              //Input data's width and height
     int framenum = 100;                                   //Frames to encode
-    const char* out_file = "ds.h264";
 
-    av_register_all();
+    ffurl_register_protocol(&ff_file_protocol);
     pFormatCtx = avformat_alloc_context();
     //Guess Format
-    fmt = av_guess_format(NULL, out_file, NULL);
+    fmt = av_guess_format(NULL, voutfilename, NULL);
     pFormatCtx->oformat = fmt;
 
     //Open output URL
-    if (avio_open(&pFormatCtx->pb, out_file, AVIO_FLAG_READ_WRITE) < 0)
+    if (avio_open(&pFormatCtx->pb, voutfilename, AVIO_FLAG_READ_WRITE) < 0)
     {
         printf("Failed to open output file! \n");
         return;
     }
 
-    video_st = avformat_new_stream(pFormatCtx, 0);
+    pCodec = avcodec_find_encoder(AV_CODEC_ID_H264);
+    if (!pCodec)
+    {
+        printf("Can not find encoder! \n");
+        return;
+    }
+
+    video_st = avformat_new_stream(pFormatCtx, pCodec);
     if (video_st == NULL)
     {
         return;
     }
+
     //Param that must set
     pCodecCtx = video_st->codec;
-    //pCodecCtx->codec_id =AV_CODEC_ID_HEVC;
     pCodecCtx->codec_id = fmt->video_codec;
     pCodecCtx->codec_type = AVMEDIA_TYPE_VIDEO;
     pCodecCtx->pix_fmt = AV_PIX_FMT_YUV420P;
@@ -719,14 +740,8 @@ static void h264_file_encode(const char *vinfilename, const char *voutfilename)
     }
 
     //Show some Information
-    av_dump_format(pFormatCtx, 0, out_file, 1);
+    av_dump_format(pFormatCtx, 0, voutfilename, 1);
 
-    pCodec = avcodec_find_encoder(pCodecCtx->codec_id);
-    if (!pCodec)
-    {
-        printf("Can not find encoder! \n");
-        return;
-    }
     if (avcodec_open2(pCodecCtx, pCodec, &param) < 0)
     {
         printf("Failed to open encoder! \n");
@@ -748,12 +763,13 @@ static void h264_file_encode(const char *vinfilename, const char *voutfilename)
     for (int i = 0; i < framenum; i++)
     {
         //Read raw YUV data
-        if (fread(picture_buf, 1, y_size*3/2, in_file) <= 0)
+        uint32_t* bytesRead;
+        if (f_read(&inputFil, picture_buf, y_size*3/2, bytesRead) <= 0)
         {
             printf("Failed to read raw data! \n");
             return;
         }
-        else if(feof(in_file))
+        else if(f_eof(&inputFil))
         {
             break;
         }
@@ -801,11 +817,13 @@ static void h264_file_encode(const char *vinfilename, const char *voutfilename)
     avio_close(pFormatCtx->pb);
     avformat_free_context(pFormatCtx);
 
-    fclose(in_file);
+    f_close(&inputFil);
 }
 
 static void h264_camera_encode(const char *voutfilename)
 {
+    printf("Encode video from camera to '%s'\n", voutfilename);
+
     uint32_t frameAddrToDisplay;
     uint32_t frameAddrToCapture;
 
@@ -869,10 +887,11 @@ int main(void)
     g_audioSaiCfg.sampleWidth_bit = AUDIO_CONV_WIDTH;
     g_videoLcdCfg.isLcdConfigured = false;
 
-    char *filepath_vout="/camera_480x272.h264";
+    char *filepath_vin="/SampleVideo_480x272_10s_yuv420p.yuv";
+    char *filepath_vout="/SampleVideo_480x272_10s_yuv420p.h264";
 
     while(1)
     {
-        h264_camera_encode(filepath_vout);
+        h264_file_encode(filepath_vin, filepath_vout);
     }
 }
