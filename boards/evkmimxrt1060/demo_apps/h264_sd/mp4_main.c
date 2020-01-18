@@ -824,26 +824,36 @@ static void h264_file_encode(const char *vinfilename, const char *voutfilename)
 
 static void h264_file_encode_pure(const char *vinfilename, const char *voutfilename)
 {
+    printf("Encode video from '%s' to '%s'\n", vinfilename, voutfilename);
+
+    FRESULT c;
+    c = f_open(&inputFil, vinfilename, FA_READ | FA_OPEN_EXISTING);
+    if (c != FR_OK)
+    {
+        printf("Could not open '%s', erro = %d\n", vinfilename, c);
+        return;
+    }
+    c = f_open(&voutputFil, voutfilename, FA_CREATE_ALWAYS | FA_WRITE);
+    if (c != FR_OK)
+    {
+        printf("Could not open '%s', erro = %d\n", voutfilename, c);
+        return;
+    }
+
     AVCodec *pCodec;
     AVCodecContext *pCodecCtx = NULL;
     int i, ret, got_output;
-    FILE *fp_in;
-    FILE *fp_out;
     AVFrame *pFrame;
     AVPacket pkt;
     int y_size;
     int framecnt = 0;
 
-    char filename_in[] = "../ds_480x272.yuv";
-    AVCodecID codec_id = AV_CODEC_ID_H264;
-    char filename_out[] = "ds.h264";
-
     int in_w = 480,in_h = 272;
     int framenum = 100;	
 
-    avcodec_register_all();
+    ffurl_register_protocol(&ff_file_protocol);
 
-    pCodec = avcodec_find_encoder(codec_id);
+    pCodec = avcodec_find_encoder(AV_CODEC_ID_H264);
     if (!pCodec) 
     {
         printf("Codec not found\n");
@@ -864,7 +874,7 @@ static void h264_file_encode_pure(const char *vinfilename, const char *voutfilen
     pCodecCtx->max_b_frames = 1;
     pCodecCtx->pix_fmt = AV_PIX_FMT_YUV420P;
 
-    if (codec_id == AV_CODEC_ID_H264)
+    //if (codec_id == AV_CODEC_ID_H264)
     {
         av_opt_set(pCodecCtx->priv_data, "preset", "slow", 0);
     }
@@ -891,20 +901,6 @@ static void h264_file_encode_pure(const char *vinfilename, const char *voutfilen
         printf("Could not allocate raw picture buffer\n");
         return;
     }
-    //Input raw data
-    fp_in = fopen(filename_in, "rb");
-    if (!fp_in)
-    {
-        printf("Could not open %s\n", filename_in);
-        return;
-    }
-    //Output bitstream
-    fp_out = fopen(filename_out, "wb");
-    if (!fp_out)
-    {
-        printf("Could not open %s\n", filename_out);
-        return;
-    }
 
     y_size = pCodecCtx->width * pCodecCtx->height;
     //Encode
@@ -914,13 +910,14 @@ static void h264_file_encode_pure(const char *vinfilename, const char *voutfilen
         pkt.data = NULL;    // packet data will be allocated by the encoder
         pkt.size = 0;
         //Read raw YUV data
-        if (fread(pFrame->data[0],1,y_size,fp_in)<= 0 ||    // Y
-            fread(pFrame->data[1],1,y_size/4,fp_in)<= 0 ||  // U
-            fread(pFrame->data[2],1,y_size/4,fp_in)<= 0)    // V
+        uint32_t* bytesRead;
+        if (f_read(&inputFil, pFrame->data[0], y_size, bytesRead)<= 0 ||    // Y
+            f_read(&inputFil, pFrame->data[1], y_size/4, bytesRead)<= 0 ||  // U
+            f_read(&inputFil, pFrame->data[2], y_size/4, bytesRead)<= 0)    // V
         {
             return;
         }
-        else if (feof(fp_in))
+        else if (f_eof(&inputFil))
         {
             break;
         }
@@ -937,7 +934,8 @@ static void h264_file_encode_pure(const char *vinfilename, const char *voutfilen
         {
             printf("Succeed to encode frame: %5d\tsize:%5d\n",framecnt,pkt.size);
             framecnt++;
-            fwrite(pkt.data, 1, pkt.size, fp_out);
+            uint32_t* bytesWritten;
+            f_write(&voutputFil, pkt.data, pkt.size, bytesWritten);
             av_free_packet(&pkt);
         }
     }
@@ -953,12 +951,13 @@ static void h264_file_encode_pure(const char *vinfilename, const char *voutfilen
         if (got_output)
         {
             printf("Flush Encoder: Succeed to encode 1 frame!\tsize:%5d\n",pkt.size);
-            fwrite(pkt.data, 1, pkt.size, fp_out);
+            uint32_t* bytesWritten;
+            f_write(&voutputFil, pkt.data, pkt.size, bytesWritten);
             av_free_packet(&pkt);
         }
     }
 
-    fclose(fp_out);
+    f_close(&voutputFil);
     avcodec_close(pCodecCtx);
     av_free(pCodecCtx);
     av_freep(&pFrame->data[0]);
