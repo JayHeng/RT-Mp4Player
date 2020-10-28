@@ -1,6 +1,6 @@
-# RT-MediaPlayer
+# RT-Mp4Player
 
-A multi-media player based on i.MXRT+emWin+FFmpeg4.1 | 一款基于i.MXRT的多媒体播放器，多图片(jpeg)/音频(wav)/视频(mp4)格式支持
+An MP4 player based on i.MXRT+emWin+FFmpeg3.0.1 | 一款基于i.MXRT的MP4播放器
 
 ### 1 硬件连接
 #### 1.1 开发板
@@ -95,7 +95,7 @@ A multi-media player based on i.MXRT+emWin+FFmpeg4.1 | 一款基于i.MXRT的多�
 > <font style="font-weight:bold;">.\ffmpeg.exe -i bunny_480x272_8KHz.mp4 -vcodec copy -acodec copy -movflags faststart bunny_480x272_faststart_8KHz.mp4</font>
 
 #### 2.2 配置程序
-　　本应用工程文件为 \RT-MediaPlayer\boards\evkmimxrt1060\demo_apps\sd_mp4\iar\mp4.eww，在测试下载本应用时需要注意以下两处配置：  
+　　本应用工程文件为 \RT-Mp4Player\boards\evkmimxrt1060\demo_apps\sd_mp4\iar\mp4.eww，在测试下载本应用时需要注意以下两处配置：  
 
 ##### 2.2.1 各种linker下的工程
 　　本应用在IAR v8.32.2下编译占用存储资源如下：text（约640KB）、rodata（约240KB）、data & zi（约620KB）、NONCACHEABLE data（最大11MB，具体取决于LCD屏大小）、STACK（2MB）、HEAP（16MB，主要是ffmpeg需要，实测无法减小）。  
@@ -148,7 +148,7 @@ A multi-media player based on i.MXRT+emWin+FFmpeg4.1 | 一款基于i.MXRT的多�
 </table>
 
 ##### 2.2.2 一些重要的配置宏
-　　工程重要的配置宏在 \RT-MediaPlayer\boards\evkmimxrt1060\demo_apps\sd_mp4\mp4.h中：  
+　　工程重要的配置宏在 \RT-Mp4Player\boards\evkmimxrt1060\demo_apps\sd_mp4\mp4.h中：  
 
 ```C
 ////////////////////////////////////////////////////////////////////////////////
@@ -189,24 +189,24 @@ A multi-media player based on i.MXRT+emWin+FFmpeg4.1 | 一款基于i.MXRT的多�
 
 #### 2.3 下载程序
 ##### 2.3.1 使用外部J-Link
-　　推荐使用J-Link下载sdram和flexram_sdram工程，其中对于SDRAM的初始化配置由 \RT-MediaPlayer\boards\evkmimxrt1060\demo_apps\sd_mp4\evkmimxrt1060_sdram_init_166mhz.jlinkscript 脚本完成。  
+　　推荐使用J-Link下载sdram和flexram_sdram工程，其中对于SDRAM的初始化配置由 \RT-Mp4Player\boards\evkmimxrt1060\demo_apps\sd_mp4\evkmimxrt1060_sdram_init_166mhz.jlinkscript 脚本完成。  
 
 <img src="http://henjay724.com/image/github/RT-MPlayer_config_sdram_jlink.PNG" style="zoom:100%" />  
 
 ##### 2.3.2 使用板载CMSIS-DAP
-　　推荐使用CMSIS-DAP下载flexspinor_xxx工程（IAR v8.32.2 Flashloader不支持RT1060EVK Hyper NOR Flash），其中对于SDRAM的初始化配置由 \RT-MediaPlayer\boards\evkmimxrt1060\demo_apps\sd_mp4\iar\evkmimxrt1060_sdram_init_166mhz.mac 脚本完成。  
+　　推荐使用CMSIS-DAP下载flexspinor_xxx工程（IAR v8.32.2 Flashloader不支持RT1060EVK Hyper NOR Flash），其中对于SDRAM的初始化配置由 \RT-Mp4Player\boards\evkmimxrt1060\demo_apps\sd_mp4\iar\evkmimxrt1060_sdram_init_166mhz.mac 脚本完成。  
 
 <img src="http://henjay724.com/image/github/RT-MPlayer_config_sdram_cmsisdap.PNG" style="zoom:100%" />  
 
 ##### 2.3.3 XIP启动配置
 　　XIP启动需要配置FlexSPI NOR Flash和SDRAM，这是由ROM来实现的，应用工程里如下两个源文件里指定了配置参数：  
 
-> FlexSPI NOR配置: \RT-MediaPlayer\boards\evkmimxrt1060\xip\evkmimxrt1060_hyper_nor_config_166mhz.c  
-> SDRAM配置: \RT-MediaPlayer\boards\evkmimxrt1060\xip\evkmimxrt1060_sdram_ini_dcd_166mhz.c  
+> FlexSPI NOR配置: \RT-Mp4Player\boards\evkmimxrt1060\xip\evkmimxrt1060_hyper_nor_config_166mhz.c  
+> SDRAM配置: \RT-Mp4Player\boards\evkmimxrt1060\xip\evkmimxrt1060_sdram_ini_dcd_166mhz.c  
 
 ### 3 其他功能
 #### 3.1 统计FFmpeg解码时间
-　　在 \RT-MediaPlayer\boards\evkmimxrt1060\demo_apps\sd_mp4\mp4.h 中开启下面2个宏，编译应用工程执行后会在SD卡中生成time.txt文件，该文件保存了ffmpeg解码以及PXP,LCD耗时数据（默认是统计2000帧音视频数据，如需修改请在工程中搜索 FF_MEASURE_FRAMES）。  
+　　在 \RT-Mp4Player\boards\evkmimxrt1060\demo_apps\sd_mp4\mp4.h 中开启下面2个宏，编译应用工程执行后会在SD卡中生成time.txt文件，该文件保存了ffmpeg解码以及PXP,LCD耗时数据（默认是统计2000帧音视频数据，如需修改请在工程中搜索 FF_MEASURE_FRAMES）。  
 
 ```C
 // Set to measure FFmpeg decode time for each frame
@@ -217,9 +217,9 @@ A multi-media player based on i.MXRT+emWin+FFmpeg4.1 | 一款基于i.MXRT的多�
 #define MP4_LCD_TIME_ENABLE 0
 ```
 
-　　使用 \RT-MediaPlayer\bin\count_ffmpeg_time.py 脚本可以读取time.txt中的数据并用图表显示出来，脚本命令如下（其中xxResoultion, xxBuild参数仅是用于在图表中显示标题信息）：  
+　　使用 \RT-Mp4Player\bin\count_ffmpeg_time.py 脚本可以读取time.txt中的数据并用图表显示出来，脚本命令如下（其中xxResoultion, xxBuild参数仅是用于在图表中显示标题信息）：  
 
-> jay@pc /d/RT-MediaPlayer/bin
+> jay@pc /d/RT-Mp4Player/bin
 > <font style="font-weight:bold;">python .\count_ffmpeg_time.py .\time.txt 'xxResolution' 'xxBuild'</font>
 
 　　下图为脚本执行结果，共显示4张表，分别是FFmpeg读帧数据时间、解音频帧时间、解视频帧时间、PXP转换视频帧时间（YUV444转RGB565）。  
