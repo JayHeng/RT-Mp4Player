@@ -307,7 +307,7 @@ static int MOUNT_SDCard(void)
 #endif
 
     // Open file to check
-    error = f_open(&jpgFil, _T("/000.jpg"), FA_OPEN_EXISTING);
+    error = f_open(&jpgFil, _T("/001.jpg"), FA_OPEN_EXISTING);
     if (error != FR_OK)
     {
         PRINTF("No demo jpeg file!\r\n");
@@ -388,7 +388,7 @@ void APP_InitDisplay(void)
  */
 int main(void)
 {
-    int i = 0;
+    int i = 1;
     FRESULT error;
     char jpgFileName[20];
     void *freeFb;
@@ -410,12 +410,12 @@ int main(void)
     while (1)
     {
         // format the filename
-        sprintf(jpgFileName, "/G_frames_%03d.jpg", i++);
+        sprintf(jpgFileName, "/%03d.jpg", i++);
         // open it
         error = f_open(&jpgFil, jpgFileName, FA_READ);
         if (error != FR_OK)
         {
-            i = 0;
+            i = 1;
             continue;
         }
 
