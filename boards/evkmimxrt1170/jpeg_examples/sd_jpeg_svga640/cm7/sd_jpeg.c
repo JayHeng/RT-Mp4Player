@@ -390,7 +390,7 @@ int main(void)
 {
     int i = 0;
     FRESULT error;
-    char jpgFileName[10];
+    char jpgFileName[20];
     void *freeFb;
     uint32_t oldIntStat;
 
@@ -410,7 +410,7 @@ int main(void)
     while (1)
     {
         // format the filename
-        sprintf(jpgFileName, "/%03d.jpg", i++);
+        sprintf(jpgFileName, "/G_frames_%03d.jpg", i++);
         // open it
         error = f_open(&jpgFil, jpgFileName, FA_READ);
         if (error != FR_OK)
@@ -427,9 +427,9 @@ int main(void)
             EnableGlobalIRQ(oldIntStat);
         } while (NULL == freeFb);
 
-        PRINTF("Decoding %s...", jpgFileName);
+        //PRINTF("Decoding %s...", jpgFileName);
         jpeg_decode(&jpgFil, freeFb);
-        PRINTF("done!\r\n", jpgFileName);
+        //PRINTF("done!\r\n", jpgFileName);
         f_close(&jpgFil);
 
         DCACHE_CleanInvalidateByRange((uint32_t)freeFb, APP_FB_SIZE_BYTE);
