@@ -4573,6 +4573,12 @@
             <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_gpio.h</name>
         </file>
         <file>
+            <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_gpt.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_gpt.h</name>
+        </file>
+        <file>
             <name>$PROJ_DIR$\..\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_iomuxc.h</name>
         </file>
         <file>
@@ -4874,6 +4880,9 @@
         </file>
         <file>
             <name>$PROJ_DIR$\..\jconfig.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\jpeg_gpt_timer.c</name>
         </file>
         <file>
             <name>$PROJ_DIR$\..\sd_jpeg.c</name>
