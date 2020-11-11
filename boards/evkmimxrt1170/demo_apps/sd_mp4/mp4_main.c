@@ -404,12 +404,18 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
         return;
 
     }
-    AVCodecContext *pInCodecCtx_audio = pInFmtCtx->streams[audioStream]->codec;
-    AVCodec *pInCodec_audio = avcodec_find_decoder(AV_CODEC_ID_AAC);
-    if(avcodec_open2(pInCodecCtx_audio, pInCodec_audio, NULL) < 0)
+    
+    AVCodecContext *pInCodecCtx_audio;
+    AVCodec *pInCodec_audio;
+    if (audioStream != -1)
     {
-        printf("error avcodec_open failed audio.\n");
-        return;
+        pInCodecCtx_audio = pInFmtCtx->streams[audioStream]->codec;
+        pInCodec_audio = avcodec_find_decoder(AV_CODEC_ID_AAC);
+        if(avcodec_open2(pInCodecCtx_audio, pInCodec_audio, NULL) < 0)
+        {
+            printf("error avcodec_open failed audio.\n");
+            return;
+        }
     }
 
     AVPacket packet;
@@ -644,9 +650,9 @@ int main(void)
     g_audioSaiCfg.sampleWidth_bit = AUDIO_CONV_WIDTH;
     g_videoLcdCfg.isLcdConfigured = false;
 
-    char *filepath_in="/SampleVideo_960x540_faststart.mp4";
-    char *filepath_aout="/SampleVideo_960x540_faststart.pcm";
-    char *filepath_vout="/SampleVideo_960x540_faststart.yuv";
+    char *filepath_in="/G_640x640_faststart.mp4";
+    char *filepath_aout="/G_640x640_faststart.pcm";
+    char *filepath_vout="/G_640x640_faststart.yuv";
 
     while(1)
     {
