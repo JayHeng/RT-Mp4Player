@@ -94,10 +94,16 @@ void BOARD_BootClockRUN(void)
 #endif
 
 #if __CORTEX_M == 7
-    /* ARM PLL 996 MHz. */
+    // From RM: ARM_PLL_CTRL register defn
+    // arm_pll_out = (24MHz * loopDivider) / 2.0 / postDivier
+    // 104 <= loopDivider <= 208
     const clock_arm_pll_config_t armPllConfig = {
-        .postDivider = kCLOCK_PllPostDiv2,
-        .loopDivider = 166,
+        /* ARM PLL 996 MHz. */
+        //.postDivider = kCLOCK_PllPostDiv2,
+        //.loopDivider = 166,
+        /* ARM PLL 600 MHz. */
+        .postDivider = kCLOCK_PllPostDiv4,
+        .loopDivider = 200,
     };
 #endif
 
@@ -169,13 +175,19 @@ void BOARD_BootClockRUN(void)
 
     CLOCK_EnableOscRc400M();
     /* Configure Semc using OscRc400M divided by 2 */
-    rootCfg.mux = 2;
+    //rootCfg.mux = 2;
+    //rootCfg.div = 1;
+    //CLOCK_InitPfd(kCLOCK_Pll_SysPll2, kCLOCK_Pfd1, 24);
+    CLOCK_InitPfd(kCLOCK_Pll_SysPll2, kCLOCK_Pfd1, 29);
+    // SysPll2Pfd1 = SysPll2 * 18 / PFD1_FRAC (13 - 35)
+    /* Configure Semc using SysPll2Pfd1 divided by 2 */
+    rootCfg.mux = 6;
     rootCfg.div = 1;
     CLOCK_SetRootClock(kCLOCK_Root_Semc, &rootCfg);
 
-    /* Configure Bus using SysPll3 divided by 4 */
+    /* Configure Bus using SysPll3 divided by 2 */
     rootCfg.mux = 4;
-    rootCfg.div = 3;
+    rootCfg.div = 1;
     CLOCK_SetRootClock(kCLOCK_Root_Bus, &rootCfg);
 
     /* Configure Lpi2c1 using Osc48MDiv2 */

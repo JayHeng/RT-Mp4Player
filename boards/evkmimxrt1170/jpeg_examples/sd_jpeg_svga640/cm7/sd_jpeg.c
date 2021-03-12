@@ -436,6 +436,9 @@ static void jpeg_time_measure_utility(jpeg_time_type_t type)
     }
 }
 
+static uint32_t g_RootClockSemc = 0;
+static uint32_t g_RootClockBus = 0;
+
 /*!
  * @brief Main function
  */
@@ -453,6 +456,12 @@ int main(void)
 
     APP_InitDisplay();
 
+    PRINTF("\n\n\rM7 clock = %d MHz", SystemCoreClock);
+    g_RootClockSemc = CLOCK_GetRootClockFreq(kCLOCK_Root_Semc);
+    PRINTF("\n\n\rSEMC clock = %d MHz", g_RootClockSemc);
+    g_RootClockBus = CLOCK_GetRootClockFreq(kCLOCK_Root_Bus);
+    PRINTF("\n\n\rBUS clock = %d MHz", g_RootClockBus);
+
     // Init the SD card
     if (0 != MOUNT_SDCard())
     {
@@ -461,7 +470,7 @@ int main(void)
     }
 
     UINT bw_wh;
-    char *toutfilename="/time.txt";
+    char *toutfilename="/time1.txt";
     FRESULT c = f_open(&toutputFil, toutfilename, FA_CREATE_ALWAYS | FA_WRITE);
     if (c != FR_OK)
     {
