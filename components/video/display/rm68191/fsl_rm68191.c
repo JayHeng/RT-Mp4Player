@@ -1,5 +1,5 @@
 /*
- * Copyright  2019 NXP
+ * Copyright 2019-2020 NXP
  * All rights reserved.
  *
  *
@@ -20,9 +20,9 @@ typedef struct _rm68191_setting
     uint8_t len;
 } rm68191_setting_t;
 
-#define RM68191_MAKE_SETTING_ITEM(setting) \
-    {                                      \
-        (setting), sizeof(setting)         \
+#define RM68191_MAKE_SETTING_ITEM(setting)  \
+    {                                       \
+        (setting), (uint8_t)sizeof(setting) \
     }
 
 /*******************************************************************************
@@ -167,9 +167,9 @@ const display_operations_t rm68191_ops = {
 status_t RM68191_Init(display_handle_t *handle, const display_config_t *config)
 {
     uint32_t i;
-    status_t status              = kStatus_Success;
-    rm68191_resource_t *resource = (rm68191_resource_t *)(handle->resource);
-    mipi_dsi_device_t *dsiDevice = &(resource->dsiDevice);
+    status_t status                    = kStatus_Success;
+    const rm68191_resource_t *resource = (const rm68191_resource_t *)(handle->resource);
+    mipi_dsi_device_t *dsiDevice       = resource->dsiDevice;
 
     /* Only support 540 * 960 */
     if (config->resolution != FSL_VIDEO_RESOLUTION(540, 960))
@@ -190,7 +190,7 @@ status_t RM68191_Init(display_handle_t *handle, const display_config_t *config)
     /* Set the LCM init settings. */
     for (i = 0; i < ARRAY_SIZE(s_rm68191InitSetting); i++)
     {
-        status = MIPI_DSI_DCS_Write(dsiDevice, s_rm68191InitSetting[i].value, s_rm68191InitSetting[i].len);
+        status = MIPI_DSI_DCS_Write(dsiDevice, s_rm68191InitSetting[i].value, (int32_t)s_rm68191InitSetting[i].len);
 
         if (kStatus_Success != status)
         {
@@ -223,10 +223,10 @@ status_t RM68191_Init(display_handle_t *handle, const display_config_t *config)
 
 status_t RM68191_Deinit(display_handle_t *handle)
 {
-    rm68191_resource_t *resource = (rm68191_resource_t *)(handle->resource);
-    mipi_dsi_device_t *dsiDevice = &(resource->dsiDevice);
+    const rm68191_resource_t *resource = (const rm68191_resource_t *)(handle->resource);
+    mipi_dsi_device_t *dsiDevice       = resource->dsiDevice;
 
-    MIPI_DSI_DCS_EnterSleepMode(dsiDevice, true);
+    (void)MIPI_DSI_DCS_EnterSleepMode(dsiDevice, true);
 
     resource->pullResetPin(false);
     resource->pullPowerPin(false);
@@ -236,16 +236,16 @@ status_t RM68191_Deinit(display_handle_t *handle)
 
 status_t RM68191_Start(display_handle_t *handle)
 {
-    rm68191_resource_t *resource = (rm68191_resource_t *)(handle->resource);
-    mipi_dsi_device_t *dsiDevice = &(resource->dsiDevice);
+    const rm68191_resource_t *resource = (const rm68191_resource_t *)(handle->resource);
+    mipi_dsi_device_t *dsiDevice       = resource->dsiDevice;
 
     return MIPI_DSI_DCS_SetDisplayOn(dsiDevice, true);
 }
 
 status_t RM68191_Stop(display_handle_t *handle)
 {
-    rm68191_resource_t *resource = (rm68191_resource_t *)(handle->resource);
-    mipi_dsi_device_t *dsiDevice = &(resource->dsiDevice);
+    const rm68191_resource_t *resource = (const rm68191_resource_t *)(handle->resource);
+    mipi_dsi_device_t *dsiDevice       = resource->dsiDevice;
 
     return MIPI_DSI_DCS_SetDisplayOn(dsiDevice, false);
 }

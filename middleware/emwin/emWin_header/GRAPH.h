@@ -3,13 +3,13 @@
 *        Solutions for real time microcontroller applications        *
 **********************************************************************
 *                                                                    *
-*        (c) 1996 - 2018  SEGGER Microcontroller GmbH                *
+*        (c) 1996 - 2020  SEGGER Microcontroller GmbH                *
 *                                                                    *
 *        Internet: www.segger.com    Support:  support@segger.com    *
 *                                                                    *
 **********************************************************************
 
-** emWin V5.48 - Graphical user interface for embedded applications **
+** emWin V6.14 - Graphical user interface for embedded applications **
 All  Intellectual Property rights  in the Software belongs to  SEGGER.
 emWin is protected by  international copyright laws.  Knowledge of the
 source code may not be used to write a similar product.  This file may
@@ -34,7 +34,7 @@ License model:            emWin License Agreement, dated August 20th 2011 and Am
 Licensed platform:        NXP's ARM 7/9, Cortex-M0, M3, M4, M7, A7, M33
 ----------------------------------------------------------------------
 Support and Update Agreement (SUA)
-SUA period:               2011-08-19 - 2019-09-02
+SUA period:               2011-08-19 - 2020-09-02
 Contact to extend SUA:    sales@segger.com
 ----------------------------------------------------------------------
 File        : GRAPH.h
@@ -46,7 +46,7 @@ Purpose     : GRAPH include
 #define GRAPH_H
 
 #include "WM.h"
-#include "DIALOG_Intern.h"      /* Req. for Create indirect data structure */
+#include "DIALOG_Type.h"      /* Req. for Create indirect data structure */
 #include "WIDGET.h"
 
 #if GUI_WINSUPPORT
@@ -61,30 +61,65 @@ Purpose     : GRAPH include
 *
 **********************************************************************
 */
-#define GRAPH_CI_BK                  0
-#define GRAPH_CI_BORDER              1
-#define GRAPH_CI_FRAME               2
-#define GRAPH_CI_GRID                3
+/*********************************************************************
+*
+*       GRAPH color indexes
+*
+*  Description
+*    Color indexes used by the GRAPH widget.
+*/
+#define GRAPH_CI_BK                  0           // Background color.
+#define GRAPH_CI_BORDER              1           // Color of the border area.
+#define GRAPH_CI_FRAME               2           // Color of the thin frame line.
+#define GRAPH_CI_GRID                3           // Color of the grid.
 
-#define GRAPH_SCALE_CF_HORIZONTAL    (0 << 0)
-#define GRAPH_SCALE_CF_VERTICAL      (1 << 0)
+/*********************************************************************
+*
+*       SCALE create flags
+*
+*  Description
+*    Create flags used for scale objects.
+*/
+#define GRAPH_SCALE_CF_HORIZONTAL    (0 << 0)    // Creates a horizontal scale object.
+#define GRAPH_SCALE_CF_VERTICAL      (1 << 0)    // Creates a vertical scale object.
 
+/* status flags */
 #define GRAPH_SCALE_SF_HORIZONTAL    GRAPH_SCALE_CF_HORIZONTAL
 #define GRAPH_SCALE_SF_VERTICAL      GRAPH_SCALE_CF_VERTICAL
 
-#define GRAPH_DRAW_FIRST             0
-#define GRAPH_DRAW_AFTER_BORDER      1
-#define GRAPH_DRAW_LAST              2
+/*********************************************************************
+*
+*       GRAPH user draw stages
+*
+*  Description
+*    Stages sent to a user draw routine with the \a{Stage} parameter.
+*    For more information, refer to GRAPH_SetUserDraw().
+*/
+#define GRAPH_DRAW_FIRST             0           // Gives the application the possibility to perform drawing operations at the beginning of the drawing process.
+#define GRAPH_DRAW_AFTER_BORDER      1           // Gives the application the possibility to perform drawing operations after the border was drawn.
+#define GRAPH_DRAW_LAST              2           // Performs final drawing operations.
 
-#define GRAPH_ALIGN_RIGHT            (0 << 0)
-#define GRAPH_ALIGN_LEFT             (1 << 0)
+/*********************************************************************
+*
+*       GRAPH alignment flags
+*
+*  Description
+*    Flags that define the alignment of the date of a graph.
+*/
+#define GRAPH_ALIGN_RIGHT            (0 << 0)    // The data is aligned at the right edge (default).
+#define GRAPH_ALIGN_LEFT             (1 << 0)    // The data is aligned at the left edge.
 
-//
-// Creation flags (ExFlags)
-//
-#define GRAPH_CF_GRID_FIXED_X        (1 << 0)
-#define GRAPH_CF_AVOID_SCROLLBAR_H   (1 << 1)
-#define GRAPH_CF_AVOID_SCROLLBAR_V   (1 << 2)
+/*********************************************************************
+*
+*       GRAPH create flags
+*
+*  Description
+*    Create flags used for GRAPH objects.
+*/
+#define GRAPH_CF_GRID_FIXED_X        (1 << 0)    // This flag 'fixes' the grid in X-axis. That means if horizontal scrolling is used, the grid remains in its position.
+#define GRAPH_CF_AVOID_SCROLLBAR_H   (1 << 1)    // Automatic use of a horizontal scrollbar is disabled. (Default).
+#define GRAPH_CF_AVOID_SCROLLBAR_V   (1 << 2)    // Automatic use of a vertical scrollbar is disabled. (Default).
+/* */
 
 //
 // Status flags
@@ -139,6 +174,7 @@ void      GRAPH_DetachScale            (GRAPH_Handle hObj, GRAPH_SCALE_Handle hS
 GUI_COLOR GRAPH_GetColor               (GRAPH_Handle hObj, unsigned Index);
 I32       GRAPH_GetScrollValue         (GRAPH_Handle hObj, U8 Coord);
 int       GRAPH_GetUserData            (GRAPH_Handle hObj, void * pDest, int NumBytes);
+void      GRAPH_InvertScrollbar        (GRAPH_Handle hObj, U8 Coord);
 void      GRAPH_SetAutoScrollbar       (GRAPH_Handle hObj, U8 Coord, U8 OnOff);
 void      GRAPH_SetBorder              (GRAPH_Handle hObj, unsigned BorderL, unsigned BorderT, unsigned BorderR, unsigned BorderB);
 GUI_COLOR GRAPH_SetColor               (GRAPH_Handle hObj, GUI_COLOR Color, unsigned Index);

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NXP
+ * Copyright (c) 2019-2020 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -77,7 +77,7 @@ status_t DC_FB_LCDIFV2_Init(const dc_fb_t *dc)
 
     dc_fb_lcdifv2_handle_t *dcHandle = dc->prvData;
 
-    if (0 == dcHandle->initTimes++)
+    if (0U == dcHandle->initTimes++)
     {
         dcConfig = (const dc_fb_lcdifv2_config_t *)(dc->config);
 
@@ -85,12 +85,12 @@ status_t DC_FB_LCDIFV2_Init(const dc_fb_t *dc)
 
         lcdifv2Config.panelWidth    = dcConfig->width;
         lcdifv2Config.panelHeight   = dcConfig->height;
-        lcdifv2Config.hsw           = dcConfig->hsw;
-        lcdifv2Config.hfp           = dcConfig->hfp;
-        lcdifv2Config.hbp           = dcConfig->hbp;
-        lcdifv2Config.vsw           = dcConfig->vsw;
-        lcdifv2Config.vfp           = dcConfig->vfp;
-        lcdifv2Config.vbp           = dcConfig->vbp;
+        lcdifv2Config.hsw           = (uint8_t)dcConfig->hsw;
+        lcdifv2Config.hfp           = (uint8_t)dcConfig->hfp;
+        lcdifv2Config.hbp           = (uint8_t)dcConfig->hbp;
+        lcdifv2Config.vsw           = (uint8_t)dcConfig->vsw;
+        lcdifv2Config.vfp           = (uint8_t)dcConfig->vfp;
+        lcdifv2Config.vbp           = (uint8_t)dcConfig->vbp;
         lcdifv2Config.polarityFlags = dcConfig->polarityFlags;
         lcdifv2Config.lineOrder     = dcConfig->lineOrder;
 
@@ -103,7 +103,7 @@ status_t DC_FB_LCDIFV2_Init(const dc_fb_t *dc)
 
         LCDIFV2_SetDisplayConfig(dcHandle->lcdifv2, &lcdifv2Config);
 
-        LCDIFV2_EnableInterrupts(dcHandle->lcdifv2, dcHandle->domain, kLCDIFV2_VerticalBlankingInterrupt);
+        LCDIFV2_EnableInterrupts(dcHandle->lcdifv2, dcHandle->domain, (uint32_t)kLCDIFV2_VerticalBlankingInterrupt);
 
         LCDIFV2_EnableDisplay(dcHandle->lcdifv2, true);
     }
@@ -115,11 +115,12 @@ status_t DC_FB_LCDIFV2_Deinit(const dc_fb_t *dc)
 {
     dc_fb_lcdifv2_handle_t *dcHandle = dc->prvData;
 
-    if (dcHandle->initTimes > 0)
+    if (dcHandle->initTimes > 0U)
     {
-        if (--dcHandle->initTimes == 0)
+        if (--dcHandle->initTimes == 0U)
         {
-            LCDIFV2_DisableInterrupts(dcHandle->lcdifv2, dcHandle->domain, kLCDIFV2_VerticalBlankingInterrupt);
+            LCDIFV2_DisableInterrupts(dcHandle->lcdifv2, dcHandle->domain,
+                                      (uint32_t)kLCDIFV2_VerticalBlankingInterrupt);
             LCDIFV2_Deinit(dcHandle->lcdifv2);
         }
     }
@@ -222,7 +223,7 @@ status_t DC_FB_LCDIFV2_SetFrameBuffer(const dc_fb_t *dc, uint8_t layer, void *fr
     assert(layer < DC_FB_LCDIFV2_MAX_LAYER);
     dc_fb_lcdifv2_handle_t *dcHandle = dc->prvData;
 
-    LCDIFV2_SetLayerBufferAddr(dcHandle->lcdifv2, layer, (uint32_t)frameBuffer);
+    LCDIFV2_SetLayerBufferAddr(dcHandle->lcdifv2, layer, (uint32_t)(uint8_t *)frameBuffer);
     dcHandle->layers[layer].inactiveBuffer = frameBuffer;
 
     if (dcHandle->layers[layer].enabled)
@@ -249,7 +250,7 @@ void DC_FB_LCDIFV2_SetCallback(const dc_fb_t *dc, uint8_t layer, dc_fb_callback_
 
 uint32_t DC_FB_LCDIFV2_GetProperty(const dc_fb_t *dc)
 {
-    return kDC_FB_ReserveFrameBuffer;
+    return (uint32_t)kDC_FB_ReserveFrameBuffer;
 }
 
 void DC_FB_LCDIFV2_IRQHandler(const dc_fb_t *dc)
@@ -262,7 +263,7 @@ void DC_FB_LCDIFV2_IRQHandler(const dc_fb_t *dc)
     intStatus = LCDIFV2_GetInterruptStatus(dcHandle->lcdifv2, dcHandle->domain);
     LCDIFV2_ClearInterruptStatus(dcHandle->lcdifv2, dcHandle->domain, intStatus);
 
-    if (0 == (intStatus & kLCDIFV2_VerticalBlankingInterrupt))
+    if (0U == (intStatus & (uint32_t)kLCDIFV2_VerticalBlankingInterrupt))
     {
         return;
     }

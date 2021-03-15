@@ -3,13 +3,13 @@
 *        Solutions for real time microcontroller applications        *
 **********************************************************************
 *                                                                    *
-*        (c) 1996 - 2018  SEGGER Microcontroller GmbH                *
+*        (c) 1996 - 2020  SEGGER Microcontroller GmbH                *
 *                                                                    *
 *        Internet: www.segger.com    Support:  support@segger.com    *
 *                                                                    *
 **********************************************************************
 
-** emWin V5.48 - Graphical user interface for embedded applications **
+** emWin V6.14 - Graphical user interface for embedded applications **
 All  Intellectual Property rights  in the Software belongs to  SEGGER.
 emWin is protected by  international copyright laws.  Knowledge of the
 source code may not be used to write a similar product.  This file may
@@ -34,7 +34,7 @@ License model:            emWin License Agreement, dated August 20th 2011 and Am
 Licensed platform:        NXP's ARM 7/9, Cortex-M0, M3, M4, M7, A7, M33
 ----------------------------------------------------------------------
 Support and Update Agreement (SUA)
-SUA period:               2011-08-19 - 2019-09-02
+SUA period:               2011-08-19 - 2020-09-02
 Contact to extend SUA:    sales@segger.com
 ----------------------------------------------------------------------
 File        : SWIPELIST.h
@@ -46,9 +46,8 @@ Purpose     : SWIPELIST include
 #define SWIPELIST_H
 
 #include "WM.h"
-#include "DIALOG_Intern.h"      // Req. for Create indirect data structure
+#include "DIALOG_Type.h"      // Req. for Create indirect data structure
 #include "WIDGET.h"
-#include "GUI_Debug.h"
 
 #if GUI_WINSUPPORT
 
@@ -67,46 +66,69 @@ Purpose     : SWIPELIST include
 
 /*********************************************************************
 *
-*       Getting border size
+*       SWIPELIST border indexes
+*
+*  Description
+*    Border indexes to e.g. change the border size of the SWIPELIST widget.
+*    A routine that uses these index flags is SWIPELIST_SetBorderSize().
 */
-#define SWIPELIST_BI_LEFT   0
-#define SWIPELIST_BI_RIGHT  1
-#define SWIPELIST_BI_TOP    2
-#define SWIPELIST_BI_BOTTOM 3
+#define SWIPELIST_BI_LEFT   0               // Left border of the items.
+#define SWIPELIST_BI_RIGHT  1               // Right border of the items.
+#define SWIPELIST_BI_TOP    2               // Top border of the items.
+#define SWIPELIST_BI_BOTTOM 3               // Bottom border of the items.
 
 /*********************************************************************
 *
-*       Getting font
+*       SWIPELIST font indexes
+*
+*  Description
+*    Font indexes used for SWIPELIST routines.
 */
-#define SWIPELIST_FI_SEP_ITEM    0
-#define SWIPELIST_FI_ITEM_HEADER 1
-#define SWIPELIST_FI_ITEM_TEXT   2
+#define SWIPELIST_FI_SEP_ITEM    0          // Font used by the separator item.
+#define SWIPELIST_FI_ITEM_HEADER 1          // Font used by the header of the item.
+#define SWIPELIST_FI_ITEM_TEXT   2          // Font used by the text of the item.
 
 /*********************************************************************
 *
-*       Getting color
+*       SWIPELIST item color indexes
+*
+*  Description
+*    Color indexes used for SWIPELIST routines to return or set the
+*    color of an item.
 */
-#define SWIPELIST_CI_ITEM_HEADER_UNSEL 0
-#define SWIPELIST_CI_ITEM_HEADER_SEL   1
-#define SWIPELIST_CI_ITEM_TEXT_UNSEL   2
-#define SWIPELIST_CI_ITEM_TEXT_SEL     3
-#define SWIPELIST_CI_SEP_ITEM_TEXT     4
-
-#define SWIPELIST_CI_BK_ITEM_UNSEL     0
-#define SWIPELIST_CI_BK_ITEM_SEL       1
-#define SWIPELIST_CI_BK_SEP_ITEM       2
+#define SWIPELIST_CI_ITEM_HEADER_UNSEL 0    // Color used for drawing the header text of an unselected item.
+#define SWIPELIST_CI_ITEM_HEADER_SEL   1    // Color used for drawing the header text of a selected item.
+#define SWIPELIST_CI_ITEM_TEXT_UNSEL   2    // Color used for drawing the text for an unselected item.
+#define SWIPELIST_CI_ITEM_TEXT_SEL     3    // Color used for drawing the text of a selected item.
+#define SWIPELIST_CI_SEP_ITEM_TEXT     4    // Color used for drawing the text of a separator item.
 
 /*********************************************************************
 *
-*       Bitmap align
+*       SWIPELIST background color indexes
+*
+*  Description
+*    Color indexes used for SWIPELIST routines to return or set the
+*    background color of SWIPELIST items.
 */
-#define SWIPELIST_BA_LEFT      (0<<0)
-#define SWIPELIST_BA_RIGHT	   (1<<0)
-#define SWIPELIST_BA_HCENTER	 (2<<0)
+#define SWIPELIST_CI_BK_ITEM_UNSEL     0    // Background of an unselected item.
+#define SWIPELIST_CI_BK_ITEM_SEL       1    // Background of a selected item.
+#define SWIPELIST_CI_BK_SEP_ITEM       2    // Background of a separator item.
 
-#define SWIPELIST_BA_VCENTER   (3<<2)
-#define SWIPELIST_BA_TOP	     (0<<2)
-#define SWIPELIST_BA_BOTTOM	   (1<<2)
+/*********************************************************************
+*
+*       SWIPELIST bitmap alignment flags
+*
+*  Description
+*    Flags to align the bitmaps of a SWIPELIST widget.
+*    These flags are used by the routine SWIPELIST_SetBitmap() and can be OR-combined.
+*/
+#define SWIPELIST_BA_LEFT      (0 << 0)
+#define SWIPELIST_BA_RIGHT	   (1 << 0)
+#define SWIPELIST_BA_HCENTER	 (2 << 0)
+
+#define SWIPELIST_BA_VCENTER   (3 << 2)
+#define SWIPELIST_BA_TOP	     (0 << 2)
+#define SWIPELIST_BA_BOTTOM	   (1 << 2)
 
 
 /*********************************************************************
@@ -170,6 +192,7 @@ GUI_COLOR          SWIPELIST_GetTextColor            (SWIPELIST_Handle hObj, uns
 int                SWIPELIST_GetThreshold            (SWIPELIST_Handle hObj);
 int                SWIPELIST_GetUserData             (SWIPELIST_Handle hObj, void * pDest, int NumBytes);
 
+int                SWIPELIST_IsSepItem               (SWIPELIST_Handle hObj, U32 ItemIndex);
 int                SWIPELIST_ItemAttachWindow        (SWIPELIST_Handle hObj, unsigned ItemIndex, WM_HWIN hWin, int x0, int y0);
 void               SWIPELIST_ItemDetachWindow        (SWIPELIST_Handle hObj, WM_HWIN hWin);
 int                SWIPELIST_OwnerDraw               (const WIDGET_ITEM_DRAW_INFO * pDrawItemInfo);

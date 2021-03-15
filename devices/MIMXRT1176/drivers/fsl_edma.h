@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2015, Freescale Semiconductor, Inc.
- * Copyright 2016-2019 NXP
+ * Copyright 2016-2020 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -23,7 +23,7 @@
 /*! @name Driver version */
 /*@{*/
 /*! @brief eDMA driver version */
-#define FSL_EDMA_DRIVER_VERSION (MAKE_VERSION(2, 2, 0)) /*!< Version 2.2.0. */
+#define FSL_EDMA_DRIVER_VERSION (MAKE_VERSION(2, 4, 1)) /*!< Version 2.4.1. */
 /*@}*/
 
 /*! @brief Compute the offset unit from DCHPRI3 */
@@ -93,16 +93,16 @@ typedef enum _edma_channel_link_type
     kEDMA_MajorLink,       /*!< Channel link while major loop count exhausted */
 } edma_channel_link_type_t;
 
-/*!@brief eDMA channel status flags. */
-enum _edma_channel_status_flags
+/*!@brief _edma_channel_status_flags eDMA channel status flags. */
+enum
 {
     kEDMA_DoneFlag      = 0x1U, /*!< DONE flag, set while transfer finished, CITER value exhausted*/
     kEDMA_ErrorFlag     = 0x2U, /*!< eDMA error flag, an error occurred in a transfer */
     kEDMA_InterruptFlag = 0x4U, /*!< eDMA interrupt flag, set while an interrupt occurred of this channel */
 };
 
-/*! @brief eDMA channel error status flags. */
-enum _edma_error_status_flags
+/*! @brief _edma_error_status_flags eDMA channel error status flags. */
+enum
 {
     kEDMA_DestinationBusErrorFlag    = DMA_ES_DBE_MASK, /*!< Bus error on destination address */
     kEDMA_SourceBusErrorFlag         = DMA_ES_SBE_MASK, /*!< Bus error on the source address */
@@ -138,8 +138,8 @@ typedef enum _edma_transfer_type
     kEDMA_PeripheralToPeripheral, /*!< Transfer from Peripheral to peripheral */
 } edma_transfer_type_t;
 
-/*! @brief eDMA transfer status */
-enum _edma_transfer_status
+/*! @brief _edma_transfer_status eDMA transfer status */
+enum
 {
     kStatus_EDMA_QueueFull = MAKE_STATUS(kStatusGroup_EDMA, 0), /*!< TCD queue is full. */
     kStatus_EDMA_Busy      = MAKE_STATUS(kStatusGroup_EDMA, 1), /*!< Channel is busy and can't handle the
@@ -312,6 +312,50 @@ void EDMA_InstallTCD(DMA_Type *base, uint32_t channel, edma_tcd_t *tcd);
  * @param config A pointer to the eDMA configuration structure.
  */
 void EDMA_GetDefaultConfig(edma_config_t *config);
+
+/*!
+ * @brief Enable/Disable continuous channel link mode.
+ *
+ * @note Do not use continuous link mode with a channel linking to itself if there is only one minor loop
+ * iteration per service request, for example, if the channel's NBYTES value is the same as either
+ * the source or destination size. The same data transfer profile can be achieved by simply
+ * increasing the NBYTES value, which provides more efficient, faster processing.
+ *
+ * @param base EDMA peripheral base address.
+ * @param enable true is enable, false is disable.
+ */
+static inline void EDMA_EnableContinuousChannelLinkMode(DMA_Type *base, bool enable)
+{
+    if (enable)
+    {
+        base->CR |= DMA_CR_CLM_MASK;
+    }
+    else
+    {
+        base->CR &= ~DMA_CR_CLM_MASK;
+    }
+}
+
+/*!
+ * @brief Enable/Disable minor loop mapping.
+ *
+ * The TCDn.word2 is redefined to include individual enable fields, an offset field, and the
+ * NBYTES field.
+ *
+ * @param base EDMA peripheral base address.
+ * @param enable true is enable, false is disable.
+ */
+static inline void EDMA_EnableMinorLoopMapping(DMA_Type *base, bool enable)
+{
+    if (enable)
+    {
+        base->CR |= DMA_CR_EMLM_MASK;
+    }
+    else
+    {
+        base->CR &= ~DMA_CR_EMLM_MASK;
+    }
+}
 
 /* @} */
 /*!
@@ -487,6 +531,18 @@ void EDMA_EnableChannelInterrupts(DMA_Type *base, uint32_t channel, uint32_t mas
  */
 void EDMA_DisableChannelInterrupts(DMA_Type *base, uint32_t channel, uint32_t mask);
 
+/*!
+ * @brief Configures the eDMA channel TCD major offset feature.
+ *
+ * Adjustment value added to the source address at the completion of the major iteration count
+ *
+ * @param base eDMA peripheral base address.
+ * @param channel edma channel number.
+ * @param sourceOffset source address offset will be applied to source address after major loop done.
+ * @param destOffset destination address offset will be applied to source address after major loop done.
+ */
+void EDMA_SetMajorOffsetConfig(DMA_Type *base, uint32_t channel, int32_t sourceOffset, int32_t destOffset);
+
 /* @} */
 /*!
  * @name eDMA TCD Operation
@@ -626,6 +682,17 @@ void EDMA_TcdEnableInterrupts(edma_tcd_t *tcd, uint32_t mask);
  *             the defined edma_interrupt_enable_t type.
  */
 void EDMA_TcdDisableInterrupts(edma_tcd_t *tcd, uint32_t mask);
+
+/*!
+ * @brief Configures the eDMA TCD major offset feature.
+ *
+ * Adjustment value added to the source address at the completion of the major iteration count
+ *
+ * @param tcd A point to the TCD structure.
+ * @param sourceOffset source address offset wiil be applied to source address after major loop done.
+ * @param destOffset destination address offset will be applied to source address after major loop done.
+ */
+void EDMA_TcdSetMajorOffsetConfig(edma_tcd_t *tcd, int32_t sourceOffset, int32_t destOffset);
 
 /*! @} */
 /*!
@@ -782,6 +849,34 @@ void EDMA_InstallTCDMemory(edma_handle_t *handle, edma_tcd_t *tcdPool, uint32_t 
  * @param userData A parameter for the callback function.
  */
 void EDMA_SetCallback(edma_handle_t *handle, edma_callback callback, void *userData);
+
+/*!
+ * @brief Prepares the eDMA transfer structure configurations.
+ *
+ * This function prepares the transfer configuration structure according to the user input.
+ *
+ * @param config The user configuration structure of type edma_transfer_t.
+ * @param srcAddr eDMA transfer source address.
+ * @param srcWidth eDMA transfer source address width(bytes).
+ * @param srcOffset source address offset.
+ * @param destAddr eDMA transfer destination address.
+ * @param destWidth eDMA transfer destination address width(bytes).
+ * @param destOffset destination address offset.
+ * @param bytesEachRequest eDMA transfer bytes per channel request.
+ * @param transferBytes eDMA transfer bytes to be transferred.
+ * @note The data address and the data width must be consistent. For example, if the SRC
+ *       is 4 bytes, the source address must be 4 bytes aligned, or it results in
+ *       source address error (SAE).
+ */
+void EDMA_PrepareTransferConfig(edma_transfer_config_t *config,
+                                void *srcAddr,
+                                uint32_t srcWidth,
+                                int16_t srcOffset,
+                                void *destAddr,
+                                uint32_t destWidth,
+                                int16_t destOffset,
+                                uint32_t bytesEachRequest,
+                                uint32_t transferBytes);
 
 /*!
  * @brief Prepares the eDMA transfer structure.

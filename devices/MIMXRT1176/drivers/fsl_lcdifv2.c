@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 NXP Semiconductors, Inc.
+ * Copyright 2019-2020 NXP
  * All rights reserved.
  *
  *
@@ -7,6 +7,18 @@
  */
 
 #include "fsl_lcdifv2.h"
+
+/*******************************************************************************
+ * Definitions
+ ******************************************************************************/
+
+/* Component ID definition, used by tools. */
+#ifndef FSL_COMPONENT_ID
+#define FSL_COMPONENT_ID "platform.drivers.lcdifv2"
+#endif
+
+#define LCDIFV2_LUT_MEM(base) \
+    ((volatile uint32_t *)(((uint32_t)(base)) + (uint32_t)FSL_FEATURE_LCDIFV2_CLUT_RAM_OFFSET))
 
 /*******************************************************************************
  * Prototypes
@@ -19,6 +31,13 @@
  */
 static uint32_t LCDIFV2_GetInstance(LCDIFV2_Type *base);
 
+/*!
+ * @brief Reset register value to default status.
+ *
+ * @param base LCDIF peripheral base address
+ */
+static void LCDIFV2_ResetRegister(LCDIFV2_Type *base);
+
 /*******************************************************************************
  * Variables
  ******************************************************************************/
@@ -30,6 +49,54 @@ static LCDIFV2_Type *const s_lcdifv2Bases[] = LCDIFV2_BASE_PTRS;
 /*! @brief Pointers to LCDIF clock for each instance. */
 static const clock_ip_name_t s_lcdifv2Clocks[] = LCDIFV2_CLOCKS;
 #endif /* FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL */
+
+/*! @brief Porter Duff layer factors for different configuration. */
+static const lcdifv2_pd_factor_mode_t s_lcdifv2PdLayerFactors[][2] = {
+    /* kLCDIFV2_PD_Src */
+    {
+        /* s1_s0_factor_mode. */
+        kLCDIFV2_PD_FactorZero,
+
+        /* s0_s1_factor_mode. */
+        kLCDIFV2_PD_FactorOne,
+    },
+
+    /* kLCDIFV2_PD_Atop */
+    {kLCDIFV2_PD_FactorInversedAlpha, kLCDIFV2_PD_FactorStraightAlpha},
+
+    /* kLCDIFV2_PD_Over */
+    {kLCDIFV2_PD_FactorInversedAlpha, kLCDIFV2_PD_FactorOne},
+
+    /* kLCDIFV2_PD_In */
+    {kLCDIFV2_PD_FactorZero, kLCDIFV2_PD_FactorStraightAlpha},
+
+    /* kLCDIFV2_PD_Out */
+    {kLCDIFV2_PD_FactorZero, kLCDIFV2_PD_FactorInversedAlpha},
+
+    /* kLCDIFV2_PD_Dst */
+    {kLCDIFV2_PD_FactorOne, kLCDIFV2_PD_FactorZero},
+
+    /* kLCDIFV2_PD_DstAtop */
+    {kLCDIFV2_PD_FactorStraightAlpha, kLCDIFV2_PD_FactorInversedAlpha},
+
+    /* kLCDIFV2_PD_DstOver */
+    {kLCDIFV2_PD_FactorOne, kLCDIFV2_PD_FactorInversedAlpha},
+
+    /* kLCDIFV2_PD_DstIn */
+    {kLCDIFV2_PD_FactorStraightAlpha, kLCDIFV2_PD_FactorZero},
+
+    /* kLCDIFV2_PD_DstOut */
+    {kLCDIFV2_PD_FactorInversedAlpha, kLCDIFV2_PD_FactorZero},
+
+    /* kLCDIFV2_PD_Xor */
+    {kLCDIFV2_PD_FactorInversedAlpha, kLCDIFV2_PD_FactorInversedAlpha},
+
+    /* kLCDIFV2_PD_Clear */
+    {
+        kLCDIFV2_PD_FactorZero,
+        kLCDIFV2_PD_FactorZero,
+    },
+};
 
 /*******************************************************************************
  * Codes
@@ -52,6 +119,41 @@ static uint32_t LCDIFV2_GetInstance(LCDIFV2_Type *base)
     return instance;
 }
 
+static void LCDIFV2_ResetRegister(LCDIFV2_Type *base)
+{
+    uint32_t i;
+
+    base->DISP_PARA         = 0U;
+    base->CTRL              = 0x80000000U;
+    base->DISP_SIZE         = 0U;
+    base->HSYN_PARA         = 0x00C01803U;
+    base->VSYN_PARA         = 0x00C01803U;
+    base->INT[0].INT_ENABLE = 0U;
+    base->INT[1].INT_ENABLE = 0U;
+    base->PDI_PARA          = 0x00001000U;
+
+    for (i = 0; i < (uint32_t)LCDIFV2_LAYER_COUNT; i++)
+    {
+        base->LAYER[i].CTRLDESCL5 = 0U;
+        base->LAYER[i].CTRLDESCL1 = 0U;
+        base->LAYER[i].CTRLDESCL2 = 0U;
+        base->LAYER[i].CTRLDESCL3 = 0U;
+        base->LAYER[i].CTRLDESCL4 = 0U;
+        base->LAYER[i].CTRLDESCL6 = 0U;
+    }
+
+    for (i = 0; i < (uint32_t)LCDIFV2_LAYER_CSC_COUNT; i++)
+    {
+        base->LAYER[i].CSC_COEF0 = 0x04000000U;
+        base->LAYER[i].CSC_COEF1 = 0x01230208U;
+        base->LAYER[i].CSC_COEF2 = 0x076B079CU;
+    }
+
+    /* Clear interrupt status. */
+    base->INT[0].INT_STATUS = 0xFFFFFFFFU;
+    base->INT[1].INT_STATUS = 0xFFFFFFFFU;
+}
+
 /*!
  * brief Initializes the LCDIF v2.
  *
@@ -67,6 +169,8 @@ void LCDIFV2_Init(LCDIFV2_Type *base)
     CLOCK_EnableClock(s_lcdifv2Clocks[instance]);
 #endif /* FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL */
 
+    LCDIFV2_ResetRegister(base);
+
     /* Out of reset. */
     base->CTRL = 0U;
 }
@@ -78,7 +182,7 @@ void LCDIFV2_Init(LCDIFV2_Type *base)
  */
 void LCDIFV2_Deinit(LCDIFV2_Type *base)
 {
-    base->CTRL = LCDIFV2_CTRL_SW_RESET_MASK;
+    LCDIFV2_ResetRegister(base);
 
 #if !(defined(FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL) && FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL)
     uint32_t instance = LCDIFV2_GetInstance(base);
@@ -88,13 +192,26 @@ void LCDIFV2_Deinit(LCDIFV2_Type *base)
 }
 
 /*!
+ * brief Reset the LCDIF v2.
+ *
+ * param base LCDIF peripheral base address.
+ */
+void LCDIFV2_Reset(LCDIFV2_Type *base)
+{
+    LCDIFV2_ResetRegister(base);
+
+    /* Release and ready to work. */
+    base->CTRL = 0U;
+}
+
+/*!
  * brief Gets the LCDIF display default configuration structure.
  *
  * param config Pointer to the LCDIF configuration structure.
  */
 void LCDIFV2_DisplayGetDefaultConfig(lcdifv2_display_config_t *config)
 {
-    assert(config);
+    assert(NULL != config);
 
     config->panelWidth    = 0U;
     config->panelHeight   = 0U;
@@ -104,8 +221,9 @@ void LCDIFV2_DisplayGetDefaultConfig(lcdifv2_display_config_t *config)
     config->vsw           = 3U;
     config->vfp           = 3U;
     config->vbp           = 3U;
-    config->polarityFlags = kLCDIFV2_VsyncActiveHigh | kLCDIFV2_HsyncActiveHigh | kLCDIFV2_DataEnableActiveHigh |
-                            kLCDIFV2_DriveDataOnRisingClkEdge | kLCDIFV2_DataActiveHigh;
+    config->polarityFlags = (uint32_t)kLCDIFV2_VsyncActiveHigh | (uint32_t)kLCDIFV2_HsyncActiveHigh |
+                            (uint32_t)kLCDIFV2_DataEnableActiveHigh | (uint32_t)kLCDIFV2_DriveDataOnRisingClkEdge |
+                            (uint32_t)kLCDIFV2_DataActiveHigh;
     config->lineOrder = kLCDIFV2_LineOrderRGB;
 }
 
@@ -117,17 +235,19 @@ void LCDIFV2_DisplayGetDefaultConfig(lcdifv2_display_config_t *config)
  */
 void LCDIFV2_SetDisplayConfig(LCDIFV2_Type *base, const lcdifv2_display_config_t *config)
 {
-    assert(config);
+    assert(NULL != config);
 
     /* Configure the parameters. */
-    base->DISP_SIZE = (config->panelWidth << LCDIFV2_DISP_SIZE_DELTA_X_SHIFT) |
-                      (config->panelHeight << LCDIFV2_DISP_SIZE_DELTA_Y_SHIFT);
+    base->DISP_SIZE = ((uint32_t)config->panelWidth << LCDIFV2_DISP_SIZE_DELTA_X_SHIFT) |
+                      ((uint32_t)config->panelHeight << LCDIFV2_DISP_SIZE_DELTA_Y_SHIFT);
 
-    base->HSYN_PARA = (config->hsw << LCDIFV2_HSYN_PARA_PW_H_SHIFT) | (config->hbp << LCDIFV2_HSYN_PARA_BP_H_SHIFT) |
-                      (config->hfp << LCDIFV2_HSYN_PARA_FP_H_SHIFT);
+    base->HSYN_PARA = ((uint32_t)config->hsw << LCDIFV2_HSYN_PARA_PW_H_SHIFT) |
+                      ((uint32_t)config->hbp << LCDIFV2_HSYN_PARA_BP_H_SHIFT) |
+                      ((uint32_t)config->hfp << LCDIFV2_HSYN_PARA_FP_H_SHIFT);
 
-    base->VSYN_PARA = (config->vsw << LCDIFV2_VSYN_PARA_PW_H_SHIFT) | (config->vbp << LCDIFV2_VSYN_PARA_BP_H_SHIFT) |
-                      (config->vfp << LCDIFV2_VSYN_PARA_FP_H_SHIFT);
+    base->VSYN_PARA = ((uint32_t)config->vsw << LCDIFV2_VSYN_PARA_PW_V_SHIFT) |
+                      ((uint32_t)config->vbp << LCDIFV2_VSYN_PARA_BP_V_SHIFT) |
+                      ((uint32_t)config->vfp << LCDIFV2_VSYN_PARA_FP_V_SHIFT);
 
     base->DISP_PARA = LCDIFV2_DISP_PARA_LINE_PATTERN(config->lineOrder);
 
@@ -145,7 +265,7 @@ void LCDIFV2_SetDisplayConfig(LCDIFV2_Type *base, const lcdifv2_display_config_t
  */
 void LCDIFV2_SetCscMode(LCDIFV2_Type *base, uint8_t layerIndex, lcdifv2_csc_mode_t mode)
 {
-    assert(layerIndex < LCDIFV2_CSC_COUNT);
+    assert(layerIndex < (uint32_t)LCDIFV2_LAYER_CSC_COUNT);
 
     /*
      * The equations used for Colorspace conversion are:
@@ -194,7 +314,7 @@ void LCDIFV2_SetCscMode(LCDIFV2_Type *base, uint8_t layerIndex, lcdifv2_csc_mode
  */
 void LCDIFV2_SetLayerBufferConfig(LCDIFV2_Type *base, uint8_t layerIndex, const lcdifv2_buffer_config_t *config)
 {
-    assert(config);
+    assert(NULL != config);
     uint32_t reg;
 
     base->LAYER[layerIndex].CTRLDESCL3 = config->strideBytes;
@@ -208,21 +328,6 @@ void LCDIFV2_SetLayerBufferConfig(LCDIFV2_Type *base, uint8_t layerIndex, const 
     }
 
     base->LAYER[layerIndex].CTRLDESCL5 = reg;
-}
-
-/*!
- * brief Set the store buffer configuration.
- *
- * param base LCDIFv2 peripheral base address.
- * param config Pointer to the store buffer.
- */
-void LCDIFV2_SetStoreBufferConfig(LCDIFV2_Type *base, const lcdifv2_store_buffer_config_t *config)
-{
-    assert(config);
-
-    base->BASE_ADDR = config->bufferAddr;
-    base->PITCH     = config->strideBytes;
-    base->WR_CTRL   = (base->WR_CTRL & ~LCDIFV2_WR_CTRL_BPP_MASK) | LCDIFV2_WR_CTRL_BPP(config->pixelFormat);
 }
 
 /*!
@@ -243,9 +348,9 @@ void LCDIFV2_SetStoreBufferConfig(LCDIFV2_Type *base, const lcdifv2_store_buffer
 status_t LCDIFV2_SetLut(
     LCDIFV2_Type *base, uint8_t layerIndex, const uint32_t *lutData, uint16_t count, bool useShadowLoad)
 {
-    assert(count < LCDIFV2_LUT_ENTRY_NUM);
+    assert(count <= LCDIFV2_LUT_ENTRY_NUM);
 
-    uint32_t i;
+    uint16_t i;
     status_t status;
 
     /* Previous setting is not updated. */
@@ -266,7 +371,7 @@ status_t LCDIFV2_SetLut(
 
         for (i = 0; i < count; i++)
         {
-            base->CLUT_RAM[i + LCDIFV2_LUT_ENTRY_NUM * layerIndex] = lutData[i];
+            (LCDIFV2_LUT_MEM(base))[i + LCDIFV2_LUT_ENTRY_NUM * layerIndex] = lutData[i];
         }
 
         status = kStatus_Success;
@@ -284,7 +389,7 @@ status_t LCDIFV2_SetLut(
  */
 void LCDIFV2_SetLayerBlendConfig(LCDIFV2_Type *base, uint8_t layerIndex, const lcdifv2_blend_config_t *config)
 {
-    assert(config);
+    assert(NULL != config);
 
     uint32_t reg;
 
@@ -308,23 +413,38 @@ void LCDIFV2_SetLayerBlendConfig(LCDIFV2_Type *base, uint8_t layerIndex, const l
     base->LAYER[layerIndex].CTRLDESCL5 = reg;
 }
 
-/*!
- * brief Start the store.
+/*
+ * brief Get the blend configuration for Porter Duff blend.
  *
- * If repeat mode not enabled, the store function stops after one frame. If the
- * repeat mode is enabled, the store continues working until reset the module.
+ * This is the basic Porter Duff blend configuration, user still could
+ * modify the configurations after this function.
  *
- * param base LCDIFv2 peripheral base address.
- * param repeat Use repeat mode or not.
+ * param mode Porter Duff blend mode.
+ * param layer The configuration for source layer or destination layer.
+ * param config Pointer to the configuration.
+ * retval kStatus_Success Get the configuration successfully.
+ * retval kStatus_InvalidArgument The argument is invalid.
  */
-void LCDIFV2_StartStore(LCDIFV2_Type *base, bool repeat)
+status_t LCDIFV2_GetPorterDuffConfig(lcdifv2_pd_blend_mode_t mode,
+                                     lcdifv2_pd_layer_t layer,
+                                     lcdifv2_blend_config_t *config)
 {
-    uint32_t reg = LCDIFV2_WR_CTRL_ENABLE_MASK;
+    status_t status;
 
-    if (repeat)
+    if ((NULL == config) || (mode >= kLCDIFV2_PD_Max) || (layer >= kLCDIFV2_PD_LayerMax))
     {
-        reg |= LCDIFV2_WR_CTRL_REPEAT_MASK;
+        status = kStatus_InvalidArgument;
+    }
+    else
+    {
+        config->pdAlphaMode       = kLCDIFV2_PD_AlphaStraight;
+        config->pdColorMode       = kLCDIFV2_PD_ColorWithAlpha;
+        config->pdGlobalAlphaMode = kLCDIFV2_PD_LocalAlpha;
+        config->pdFactorMode      = s_lcdifv2PdLayerFactors[mode][(uint8_t)layer];
+        config->alphaMode         = kLCDIFV2_AlphaPoterDuff;
+
+        status = kStatus_Success;
     }
 
-    base->WR_CTRL |= reg;
+    return status;
 }

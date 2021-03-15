@@ -1,7 +1,6 @@
 /*
- * Copyright 2017, 2019 NXP
+ * Copyright 2020 NXP
  * All rights reserved.
- *
  *
  * SPDX-License-Identifier: BSD-3-Clause
  */
@@ -14,12 +13,12 @@
 
 /* Component ID definition, used by tools. */
 #ifndef FSL_COMPONENT_ID
-#define FSL_COMPONENT_ID "platform.drivers.mipi_dsi"
+#define FSL_COMPONENT_ID "platform.drivers.mipi_dsi_split"
 #endif
 
 /* The timeout cycles to wait for DSI state machine idle. */
 #ifndef FSL_MIPI_DSI_IDLE_TIMEOUT
-#define FSL_MIPI_DSI_IDLE_TIMEOUT 0x1000
+#define FSL_MIPI_DSI_IDLE_TIMEOUT 0x1000U
 #endif
 
 /* PLL CN should be in the range of 1 to 32. */
@@ -38,54 +37,67 @@
 #define DSI_DPHY_PLL_VCO_MAX 1500000000U
 #define DSI_DPHY_PLL_VCO_MIN (DSI_DPHY_PLL_REFCLK_CN_MIN * DSI_DPHY_PLL_CM_MIN)
 
-#define DSI_HOST_PKT_CONTROL_WORD_COUNT(wc) ((uint32_t)(wc) << 0U)
-#define DSI_HOST_PKT_CONTROL_VC(vc) ((uint32_t)(vc) << 16U)
-#define DSI_HOST_PKT_CONTROL_HEADER_TYPE(type) ((uint32_t)(type) << 18U)
-#define DSI_HOST_PKT_CONTROL_HS_MASK (1U << 24U)
-#define DSI_HOST_PKT_CONTROL_BTA_MASK (1U << 25U)
-#define DSI_HOST_PKT_CONTROL_BTA_ONLY_MASK (1U << 26U)
+#define PKT_CONTROL_WORD_COUNT(wc)    ((uint32_t)(wc) << 0U)
+#define PKT_CONTROL_VC(vc)            ((uint32_t)(vc) << 16U)
+#define PKT_CONTROL_HEADER_TYPE(type) ((uint32_t)(type) << 18U)
+#define PKT_CONTROL_HS_MASK           (1UL << 24U)
+#define PKT_CONTROL_BTA_MASK          (1UL << 25U)
+#define PKT_CONTROL_BTA_ONLY_MASK     (1UL << 26U)
 
 /* Macro used for D-PHY timing setting. */
-#define DSI_THS_ZERO_BYTE_CLK_BASE 6U
-#define DSI_TCLK_ZERO_BYTE_CLK_BASE 3U
-#define DSI_THS_PREPARE_HALF_ESC_CLK_BASE 2U
+#define DSI_THS_ZERO_BYTE_CLK_BASE         6U
+#define DSI_TCLK_ZERO_BYTE_CLK_BASE        3U
+#define DSI_THS_PREPARE_HALF_ESC_CLK_BASE  2U
 #define DSI_TCLK_PREPARE_HALF_ESC_CLK_BASE 2U
+
+#define DSI_THS_PREPARE_HALF_ESC_CLK_MIN  (DSI_THS_PREPARE_HALF_ESC_CLK_BASE)
+#define DSI_TCLK_PREPARE_HALF_ESC_CLK_MIN (DSI_TCLK_PREPARE_HALF_ESC_CLK_BASE)
+
+#define DSI_THS_PREPARE_HALF_ESC_CLK_MAX  (5U)
+#define DSI_TCLK_PREPARE_HALF_ESC_CLK_MAX (3U)
 
 /* Convert ns to byte clock. */
 #define DSI_NS_TO_BYTE_CLK(ns, byte_clk_khz) ((ns) * (byte_clk_khz) / 1000000U)
+/* Convert ns+UI to byte clock. */
+#define DSI_NS_UI_TO_BYTE_CLK(ns, UI, byte_clk_khz) ((((ns) * (byte_clk_khz)) + ((UI)*125000U)) / 1000000U)
 
 /* Packet overhead for HSA, HFP, HBP */
-#define DSI_HSA_OVERHEAD_BYTE 10 /* HSS + HSA header + HSA CRC. */
-#define DSI_HFP_OVERHEAD_BYTE 8  /* RGB data packet CRC + HFP header + HFP CRC. */
-#define DSI_HBP_OVERHEAD_BYTE 14 /* HSE + HBP header + HBP CRC + RGB data packet header */
+#define DSI_HSA_OVERHEAD_BYTE 10UL /* HSS + HSA header + HSA CRC. */
+#define DSI_HFP_OVERHEAD_BYTE 8UL  /* RGB data packet CRC + HFP header + HFP CRC. */
+#define DSI_HBP_OVERHEAD_BYTE 14UL /* HSE + HBP header + HBP CRC + RGB data packet header */
 
-#define DSI_INT_STATUS_TRIGGER_MASK                                                       \
-    (kDSI_InterruptGroup1ResetTriggerReceived | kDSI_InterruptGroup1TearTriggerReceived | \
-     kDSI_InterruptGroup1AckTriggerReceived)
+#define DSI_INT_STATUS_TRIGGER_MASK                                                                           \
+    ((uint32_t)kDSI_InterruptGroup1ResetTriggerReceived | (uint32_t)kDSI_InterruptGroup1TearTriggerReceived | \
+     (uint32_t)kDSI_InterruptGroup1AckTriggerReceived)
 #define DSI_INT_STATUS_ERROR_REPORT_MASK (0xFFFFU << 9U)
 
 #if (defined(FSL_FEATURE_DSI_CSR_OFFSET) && FSL_FEATURE_DSI_CSR_OFFSET)
-#define DSI_GET_CSR(dsi_base) (MIPI_DSI_CSR_Type *)((uint32_t)(dsi_base)-FSL_FEATURE_DSI_CSR_OFFSET)
+#if (defined(FSL_FEATURE_LDB_COMBO_PHY) && FSL_FEATURE_LDB_COMBO_PHY)
+typedef MIPI_DSI_LVDS_COMBO_CSR_Type MIPI_DSI_CSR_Type;
+#define MIPI_DSI_CSR_ULPS_CTRL(csr)      ((csr)->ULPS_CTRL)
+#define MIPI_DSI_CSR_ULPS_CTRL_ULPS_MASK MIPI_DSI_LVDS_COMBO_CSR_ULPS_CTRL_TX_ULPS_MASK
+#define MIPI_DSI_CSR_PXL2DPI(csr)        ((csr)->PXL2DPI_CTRL)
+#else
+#define MIPI_DSI_CSR_ULPS_CTRL(csr)      ((csr)->TX_ULPS_ENABLE)
+#define MIPI_DSI_CSR_ULPS_CTRL_ULPS_MASK MIPI_DSI_TX_ULPS_ENABLE_TX_ULPS_ENABLE_MASK
+#define MIPI_DSI_CSR_PXL2DPI(csr)        ((csr)->PXL2DPI_CONFIG)
 #endif
 
-#if defined(MIPI_DSI_HOST_DPHY_PD_TX_dphy_pd_tx_MASK)
-#define DPHY_PD_REG DPHY_PD_TX
-#elif defined(MIPI_DSI_HOST_DPHY_PD_DPHY_dphy_pd_dphy_MASK)
-#define DPHY_PD_REG DPHY_PD_DPHY
+#define DSI_GET_CSR(dsi_base) (MIPI_DSI_CSR_Type *)((uint32_t)(dsi_base) - (uint32_t)FSL_FEATURE_DSI_CSR_OFFSET)
 #endif
 
 /*! @brief Typedef for MIPI DSI interrupt handler. */
-typedef void (*dsi_isr_t)(MIPI_DSI_HOST_Type *base, dsi_handle_t *handle);
+typedef void (*dsi_isr_t)(MIPI_DSI_Type *base, dsi_handle_t *handle);
 
 /*******************************************************************************
  * Variables
  ******************************************************************************/
-#if defined(MIPI_DSI_HOST_IRQS)
+#if defined(DSI_HOST_IRQS)
 /* Array of DSI IRQ number. */
-static const IRQn_Type s_dsiIRQ[] = MIPI_DSI_HOST_IRQS;
+static const DSI_HOST_IRQn s_dsiIRQ[] = DSI_HOST_IRQS;
 #endif
 /*! @brief Pointers to MIPI DSI bases for each instance. */
-static MIPI_DSI_HOST_Type *const s_dsiBases[] = MIPI_DSI_HOST_BASE_PTRS;
+static DSI_HOST_Type *const s_dsiBases[] = DSI_HOST_BASE_PTRS;
 /*! @brief MIPI DSI internal handle pointer array */
 static dsi_handle_t *s_dsiHandle[ARRAY_SIZE(s_dsiBases)];
 /*! @brief Pointer to IRQ handler. */
@@ -105,9 +117,9 @@ static const clock_ip_name_t s_dsiClocks[] = MIPI_DSI_HOST_CLOCKS;
  * @param base MIPI DSI peripheral base address.
  * @return MIPI DSI instance.
  */
-uint32_t DSI_GetInstance(MIPI_DSI_HOST_Type *base);
+uint32_t DSI_GetInstance(MIPI_DSI_Type *base);
 
-#if !((defined(FSL_FEATURE_MIPI_DSI_HOST_NO_DPHY_PLL) && (FSL_FEATURE_MIPI_DSI_HOST_NO_DPHY_PLL)))
+#if !((defined(FSL_FEATURE_MIPI_NO_DPHY_PLL) && (FSL_FEATURE_MIPI_DSI_HOST_NO_DPHY_PLL)))
 /*!
  * @brief Convert the D-PHY PLL CN to the value could be set to register.
  *
@@ -151,7 +163,7 @@ static uint32_t DSI_DphyGetPllDivider(
  *
  * @param base MIPI DSI host peripheral base address.
  */
-static void DSI_ApbClearRxFifo(MIPI_DSI_HOST_Type *base);
+static void DSI_ApbClearRxFifo(MIPI_DSI_Type *base);
 
 /*!
  * @brief Handle the DSI transfer result.
@@ -166,10 +178,7 @@ static void DSI_ApbClearRxFifo(MIPI_DSI_HOST_Type *base);
  * @retval kStatus_DSI_ErrorReportReceived Error Report packet received.
  * @retval kStatus_DSI_Fail Transfer failed for other reasons.
  */
-static status_t DSI_HandleResult(MIPI_DSI_HOST_Type *base,
-                                 uint32_t intFlags1,
-                                 uint32_t intFlags2,
-                                 dsi_transfer_t *xfer);
+static status_t DSI_HandleResult(MIPI_DSI_Type *base, uint32_t intFlags1, uint32_t intFlags2, dsi_transfer_t *xfer);
 
 /*!
  * @brief Prepare for the DSI APB transfer.
@@ -183,20 +192,20 @@ static status_t DSI_HandleResult(MIPI_DSI_HOST_Type *base,
  * @retval kStatus_Success It is ready to start transfer.
  * @retval kStatus_DSI_NotSupported The transfer format is not supported.
  */
-static status_t DSI_PrepareApbTransfer(MIPI_DSI_HOST_Type *base, dsi_transfer_t *xfer);
+static status_t DSI_PrepareApbTransfer(MIPI_DSI_Type *base, dsi_transfer_t *xfer);
 
 /*******************************************************************************
  * Code
  ******************************************************************************/
 
-uint32_t DSI_GetInstance(MIPI_DSI_HOST_Type *base)
+uint32_t DSI_GetInstance(MIPI_DSI_Type *base)
 {
     uint32_t instance;
 
     /* Find the instance index from base address mappings. */
     for (instance = 0; instance < ARRAY_SIZE(s_dsiBases); instance++)
     {
-        if (s_dsiBases[instance] == base)
+        if (s_dsiBases[instance] == base->host)
         {
             break;
         }
@@ -207,34 +216,34 @@ uint32_t DSI_GetInstance(MIPI_DSI_HOST_Type *base)
     return instance;
 }
 
-#if !((defined(FSL_FEATURE_MIPI_DSI_HOST_NO_DPHY_PLL) && (FSL_FEATURE_MIPI_DSI_HOST_NO_DPHY_PLL)))
+#if !((defined(FSL_FEATURE_MIPI_NO_DPHY_PLL) && (FSL_FEATURE_MIPI_DSI_HOST_NO_DPHY_PLL)))
 static uint8_t DSI_EncodeDphyPllCn(uint8_t cn)
 {
-    assert((cn >= 1) && (cn <= 32));
+    assert((cn >= 1U) && (cn <= 32U));
 
-    if (1 == cn)
+    if (1U == cn)
     {
         return 0x1FU;
     }
     else
     {
-        return (0x65BD44E0U >> ((uint32_t)cn - 2U)) & 0x1FU;
+        return (uint8_t)((0x65BD44E0UL >> ((uint32_t)cn - 2U)) & 0x1FU);
     }
 }
 
 static uint8_t DSI_EncodeDphyPllCm(uint8_t cm)
 {
-    assert(cm >= 16);
+    assert(cm >= 16U);
 
-    if (cm <= 31)
+    if (cm <= 31U)
     {
         return 0xE0U | cm;
     }
-    else if (cm <= 63)
+    else if (cm <= 63U)
     {
         return 0xC0U | (cm & 0x1FU);
     }
-    else if (cm <= 127)
+    else if (cm <= 127U)
     {
         return 0x80U | (cm & 0x3FU);
     }
@@ -329,14 +338,14 @@ static uint32_t DSI_DphyGetPllDivider(
 }
 #endif
 
-static void DSI_ApbClearRxFifo(MIPI_DSI_HOST_Type *base)
+static void DSI_ApbClearRxFifo(MIPI_DSI_Type *base)
 {
     volatile uint32_t dummy;
-    uint32_t level = base->DSI_HOST_PKT_FIFO_RD_LEVEL;
+    uint32_t level = base->apb->PKT_FIFO_RD_LEVEL;
 
-    while (level--)
+    while (0U != (level--))
     {
-        dummy = base->DSI_HOST_PKT_RX_PAYLOAD;
+        dummy = base->apb->PKT_RX_PAYLOAD;
     }
 
     (void)dummy;
@@ -351,58 +360,60 @@ static void DSI_ApbClearRxFifo(MIPI_DSI_HOST_Type *base)
  * param base MIPI DSI host peripheral base address.
  * param config Pointer to a user-defined configuration structure.
  */
-void DSI_Init(MIPI_DSI_HOST_Type *base, const dsi_config_t *config)
+void DSI_Init(MIPI_DSI_Type *base, const dsi_config_t *config)
 {
     assert(config);
 
 #if !(defined(FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL) && FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL)
-    CLOCK_EnableClock(s_dsiClocks[DSI_GetInstance(base)]);
+    (void)CLOCK_EnableClock(s_dsiClocks[DSI_GetInstance(base)]);
 #endif /* FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL */
+
+    DSI_HOST_Type *host = base->host;
 
 #if (defined(FSL_FEATURE_DSI_CSR_OFFSET) && FSL_FEATURE_DSI_CSR_OFFSET)
     MIPI_DSI_CSR_Type *csr = DSI_GET_CSR(base);
     if (config->enableTxUlps)
     {
-        csr->TX_ULPS_ENABLE = MIPI_DSI_TX_ULPS_ENABLE_TX_ULPS_ENABLE_MASK;
+        MIPI_DSI_CSR_ULPS_CTRL(csr) = MIPI_DSI_CSR_ULPS_CTRL_ULPS_MASK;
     }
     else
     {
-        csr->TX_ULPS_ENABLE = 0;
+        MIPI_DSI_CSR_ULPS_CTRL(csr) = 0U;
     }
 #endif
 
-    base->DSI_HOST_CFG_NUM_LANES = config->numLanes - 1U;
+    host->CFG_NUM_LANES = config->numLanes - 1UL;
 
     if (config->enableNonContinuousHsClk)
     {
-        base->DSI_HOST_CFG_NONCONTINUOUS_CLK = 0x01U;
+        host->CFG_NONCONTINUOUS_CLK = 0x01U;
     }
     else
     {
-        base->DSI_HOST_CFG_NONCONTINUOUS_CLK = 0x00U;
+        host->CFG_NONCONTINUOUS_CLK = 0x00U;
     }
 
     if (config->autoInsertEoTp)
     {
-        base->DSI_HOST_CFG_AUTOINSERT_EOTP = 0x01U;
+        host->CFG_AUTOINSERT_EOTP = 0x01U;
     }
     else
     {
-        base->DSI_HOST_CFG_AUTOINSERT_EOTP = 0x00U;
+        host->CFG_AUTOINSERT_EOTP = 0x00U;
     }
 
-    base->DSI_HOST_CFG_EXTRA_CMDS_AFTER_EOTP = config->numExtraEoTp;
-    base->DSI_HOST_CFG_HTX_TO_COUNT          = config->htxTo_ByteClk;
-    base->DSI_HOST_CFG_LRX_H_TO_COUNT        = config->lrxHostTo_ByteClk;
-    base->DSI_HOST_CFG_BTA_H_TO_COUNT        = config->btaTo_ByteClk;
+    host->CFG_EXTRA_CMDS_AFTER_EOTP = config->numExtraEoTp;
+    host->CFG_HTX_TO_COUNT          = config->htxTo_ByteClk;
+    host->CFG_LRX_H_TO_COUNT        = config->lrxHostTo_ByteClk;
+    host->CFG_BTA_H_TO_COUNT        = config->btaTo_ByteClk;
 
     DSI_ApbClearRxFifo(base);
 
     /* Disable all interrupts by default, user could enable
      * the desired interrupts later.
      */
-    base->DSI_HOST_IRQ_MASK  = 0xFFFFFFFFU;
-    base->DSI_HOST_IRQ_MASK2 = 0xFFFFFFFFU;
+    base->apb->IRQ_MASK  = 0xFFFFFFFFU;
+    base->apb->IRQ_MASK2 = 0xFFFFFFFFU;
 }
 
 /*!
@@ -412,10 +423,10 @@ void DSI_Init(MIPI_DSI_HOST_Type *base, const dsi_config_t *config)
  *
  * param base MIPI DSI host peripheral base address.
  */
-void DSI_Deinit(MIPI_DSI_HOST_Type *base)
+void DSI_Deinit(MIPI_DSI_Type *base)
 {
 #if !(defined(FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL) && FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL)
-    CLOCK_DisableClock(s_dsiClocks[DSI_GetInstance(base)]);
+    (void)CLOCK_DisableClock(s_dsiClocks[DSI_GetInstance(base)]);
 #endif /* FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL */
 }
 
@@ -441,7 +452,7 @@ void DSI_GetDefaultConfig(dsi_config_t *config)
     assert(config);
 
     /* Initializes the configure structure to zero. */
-    memset(config, 0, sizeof(*config));
+    (void)memset(config, 0, sizeof(*config));
 
     config->numLanes                 = 4;
     config->enableNonContinuousHsClk = false;
@@ -466,7 +477,7 @@ void DSI_GetDefaultConfig(dsi_config_t *config)
  * param dsiHsBitClkFreq_Hz The DSI high speed bit clock frequency in Hz. It is
  * the same with DPHY PLL output.
  */
-void DSI_SetDpiConfig(MIPI_DSI_HOST_Type *base,
+void DSI_SetDpiConfig(MIPI_DSI_Type *base,
                       const dsi_dpi_config_t *config,
                       uint8_t numLanes,
                       uint32_t dpiPixelClkFreq_Hz,
@@ -475,72 +486,75 @@ void DSI_SetDpiConfig(MIPI_DSI_HOST_Type *base,
     assert(config);
 
     /* coefficient DPI event size to number of DSI bytes. */
-    uint32_t coff = (numLanes * dsiHsBitClkFreq_Hz) / (dpiPixelClkFreq_Hz * 8);
+    uint32_t coff = (numLanes * dsiHsBitClkFreq_Hz) / (dpiPixelClkFreq_Hz * 8U);
+
+    DSI_HOST_DPI_INTFC_Type *dpi = base->dpi;
 
 #if (defined(FSL_FEATURE_DSI_CSR_OFFSET) && FSL_FEATURE_DSI_CSR_OFFSET)
-    MIPI_DSI_CSR_Type *csr = DSI_GET_CSR(base);
-    csr->PXL2DPI_CONFIG    = config->dpiColorCoding;
+    MIPI_DSI_CSR_Type *csr    = DSI_GET_CSR(base);
+    MIPI_DSI_CSR_PXL2DPI(csr) = (uint32_t)config->dpiColorCoding;
 #endif
 
-    base->DSI_HOST_CFG_DPI_PIXEL_PAYLOAD_SIZE     = config->pixelPayloadSize;
-    base->DSI_HOST_CFG_DPI_INTERFACE_COLOR_CODING = config->dpiColorCoding;
-    base->DSI_HOST_CFG_DPI_PIXEL_FORMAT           = config->pixelPacket;
-    base->DSI_HOST_CFG_DPI_VIDEO_MODE             = config->videoMode;
+    dpi->PIXEL_PAYLOAD_SIZE     = config->pixelPayloadSize;
+    dpi->INTERFACE_COLOR_CODING = (uint32_t)config->dpiColorCoding;
+    dpi->PIXEL_FORMAT           = (uint32_t)config->pixelPacket;
+    dpi->VIDEO_MODE             = (uint32_t)config->videoMode;
 
     if (kDSI_DpiBllpLowPower == config->bllpMode)
     {
-        base->DSI_HOST_CFG_DPI_BLLP_MODE         = 0x1U;
-        base->DSI_HOST_CFG_DPI_USE_NULL_PKT_BLLP = 0x0U;
+        dpi->BLLP_MODE         = 0x1U;
+        dpi->USE_NULL_PKT_BLLP = 0x0U;
     }
     else if (kDSI_DpiBllpBlanking == config->bllpMode)
     {
-        base->DSI_HOST_CFG_DPI_BLLP_MODE         = 0x0U;
-        base->DSI_HOST_CFG_DPI_USE_NULL_PKT_BLLP = 0x0U;
+        dpi->BLLP_MODE         = 0x0U;
+        dpi->USE_NULL_PKT_BLLP = 0x0U;
     }
     else
     {
-        base->DSI_HOST_CFG_DPI_BLLP_MODE         = 0x0U;
-        base->DSI_HOST_CFG_DPI_USE_NULL_PKT_BLLP = 0x1U;
+        dpi->BLLP_MODE         = 0x0U;
+        dpi->USE_NULL_PKT_BLLP = 0x1U;
     }
 
-    if (config->polarityFlags & kDSI_DpiVsyncActiveHigh)
+    if (0U != (config->polarityFlags & (uint32_t)kDSI_DpiVsyncActiveHigh))
     {
-        base->DSI_HOST_CFG_DPI_VSYNC_POLARITY = 0x01U;
+        dpi->VSYNC_POLARITY = 0x01U;
     }
     else
     {
-        base->DSI_HOST_CFG_DPI_VSYNC_POLARITY = 0x00U;
+        dpi->VSYNC_POLARITY = 0x00U;
     }
 
-    if (config->polarityFlags & kDSI_DpiHsyncActiveHigh)
+    if (0U != (config->polarityFlags & (uint32_t)kDSI_DpiHsyncActiveHigh))
     {
-        base->DSI_HOST_CFG_DPI_HSYNC_POLARITY = 0x01U;
+        dpi->HSYNC_POLARITY = 0x01U;
     }
     else
     {
-        base->DSI_HOST_CFG_DPI_HSYNC_POLARITY = 0x00U;
+        dpi->HSYNC_POLARITY = 0x00U;
     }
 
     if (kDSI_DpiNonBurstWithSyncPulse == config->videoMode)
     {
-        base->DSI_HOST_CFG_DPI_HFP                   = config->hfp - DSI_HFP_OVERHEAD_BYTE;
-        base->DSI_HOST_CFG_DPI_HBP                   = config->hbp - DSI_HBP_OVERHEAD_BYTE;
-        base->DSI_HOST_CFG_DPI_HSA                   = config->hsw - DSI_HSA_OVERHEAD_BYTE;
-        base->DSI_HOST_CFG_DPI_PIXEL_FIFO_SEND_LEVEL = 8;
+        dpi->HFP                   = config->hfp - DSI_HFP_OVERHEAD_BYTE;
+        dpi->HBP                   = config->hbp - DSI_HBP_OVERHEAD_BYTE;
+        dpi->HSA                   = config->hsw - DSI_HSA_OVERHEAD_BYTE;
+        dpi->PIXEL_FIFO_SEND_LEVEL = 8;
     }
     else
     {
-        base->DSI_HOST_CFG_DPI_HFP                   = config->hfp * coff;
-        base->DSI_HOST_CFG_DPI_HBP                   = config->hbp * coff;
-        base->DSI_HOST_CFG_DPI_HSA                   = config->hsw * coff;
-        base->DSI_HOST_CFG_DPI_PIXEL_FIFO_SEND_LEVEL = config->pixelPayloadSize;
+        dpi->HFP                   = config->hfp * coff;
+        dpi->HBP                   = config->hbp * coff;
+        dpi->HSA                   = config->hsw * coff;
+        dpi->PIXEL_FIFO_SEND_LEVEL = config->pixelPayloadSize;
     }
 
-    base->DSI_HOST_CFG_DPI_VBP = config->vbp;
-    base->DSI_HOST_CFG_DPI_VFP = config->vfp;
+    dpi->VBP = config->vbp;
+    dpi->VFP = config->vfp;
 
-    base->DSI_HOST_CFG_DPI_VACTIVE = config->panelHeight - 1U;
-    base->DSI_HOST_CFG_DPI_VC      = config->virtualChannel;
+    dpi->VACTIVE = config->panelHeight - 1UL;
+
+    /* TODO: Configure VC if it is available. */
 }
 
 /*!
@@ -556,68 +570,71 @@ void DSI_SetDpiConfig(MIPI_DSI_HOST_Type *base,
  * return The actual D-PHY PLL output frequency. If could not configure the
  * PLL to the target frequency, the return value is 0.
  */
-uint32_t DSI_InitDphy(MIPI_DSI_HOST_Type *base, const dsi_dphy_config_t *config, uint32_t refClkFreq_Hz)
+uint32_t DSI_InitDphy(MIPI_DSI_Type *base, const dsi_dphy_config_t *config, uint32_t refClkFreq_Hz)
 {
     assert(config);
 
-#if !((defined(FSL_FEATURE_MIPI_DSI_HOST_NO_DPHY_PLL) && (FSL_FEATURE_MIPI_DSI_HOST_NO_DPHY_PLL)))
+    DSI_HOST_NXP_FDSOI28_DPHY_INTFC_Type *dphy = base->dphy;
+    DSI_HOST_Type *host                        = base->host;
+
+#if !((defined(FSL_FEATURE_MIPI_NO_DPHY_PLL) && (FSL_FEATURE_MIPI_DSI_HOST_NO_DPHY_PLL)))
     uint32_t cn, cm, co, outputPllFreq;
 
     outputPllFreq = DSI_DphyGetPllDivider(&cn, &cm, &co, refClkFreq_Hz, config->txHsBitClk_Hz);
 
     /* If could not find dividers for the output PLL frequency. */
-    if (!outputPllFreq)
+    if (0U == outputPllFreq)
     {
         return 0U;
     }
 
     /* Set the DPHY parameters. */
-    base->DPHY_CN = DSI_EncodeDphyPllCn(cn);
-    base->DPHY_CM = DSI_EncodeDphyPllCm(cm);
-    base->DPHY_CO = co;
+    dphy->CN = (uint32_t)DSI_EncodeDphyPllCn((uint8_t)cn);
+    dphy->CM = (uint32_t)DSI_EncodeDphyPllCm((uint8_t)cm);
+    dphy->CO = co;
 #endif
 
     /* Set the timing parameters. */
-    base->DPHY_M_PRG_HS_PREPARE  = config->tHsPrepare_HalfEscClk - DSI_THS_PREPARE_HALF_ESC_CLK_BASE;
-    base->DPHY_MC_PRG_HS_PREPARE = config->tClkPrepare_HalfEscClk - DSI_TCLK_PREPARE_HALF_ESC_CLK_BASE;
-    base->DPHY_M_PRG_HS_ZERO     = config->tHsZero_ByteClk - DSI_THS_ZERO_BYTE_CLK_BASE;
-    base->DPHY_MC_PRG_HS_ZERO    = config->tClkZero_ByteClk - DSI_TCLK_ZERO_BYTE_CLK_BASE;
-    base->DPHY_M_PRG_HS_TRAIL    = config->tHsTrail_ByteClk;
-    base->DPHY_MC_PRG_HS_TRAIL   = config->tClkTrail_ByteClk;
+    dphy->M_PRG_HS_PREPARE  = (uint32_t)config->tHsPrepare_HalfEscClk - DSI_THS_PREPARE_HALF_ESC_CLK_BASE;
+    dphy->MC_PRG_HS_PREPARE = (uint32_t)config->tClkPrepare_HalfEscClk - DSI_TCLK_PREPARE_HALF_ESC_CLK_BASE;
+    dphy->M_PRG_HS_ZERO     = (uint32_t)config->tHsZero_ByteClk - DSI_THS_ZERO_BYTE_CLK_BASE;
+    dphy->MC_PRG_HS_ZERO    = (uint32_t)config->tClkZero_ByteClk - DSI_TCLK_ZERO_BYTE_CLK_BASE;
+    dphy->M_PRG_HS_TRAIL    = config->tHsTrail_ByteClk;
+    dphy->MC_PRG_HS_TRAIL   = config->tClkTrail_ByteClk;
 
-    base->DSI_HOST_CFG_T_PRE   = config->tClkPre_ByteClk;
-    base->DSI_HOST_CFG_T_POST  = config->tClkPost_ByteClk;
-    base->DSI_HOST_CFG_TX_GAP  = config->tHsExit_ByteClk;
-    base->DSI_HOST_CFG_TWAKEUP = config->tWakeup_EscClk;
+    host->CFG_T_PRE   = config->tClkPre_ByteClk;
+    host->CFG_T_POST  = config->tClkPost_ByteClk;
+    host->CFG_TX_GAP  = config->tHsExit_ByteClk;
+    host->CFG_TWAKEUP = config->tWakeup_EscClk;
 
-#if defined(MIPI_DSI_HOST_DPHY_RTERM_SEL_dphy_rterm_sel_MASK)
-    base->DPHY_RTERM_SEL = MIPI_DSI_HOST_DPHY_RTERM_SEL_dphy_rterm_sel_MASK;
+#if defined(MIPI_RTERM_SEL_dphy_rterm_sel_MASK)
+    dphy->RTERM_SEL = MIPI_RTERM_SEL_dphy_rterm_sel_MASK;
 #endif
-#if defined(MIPI_DSI_HOST_DPHY_TX_RCAL_dphy_tx_rcal_MASK)
-    base->DPHY_TX_RCAL = 1;
+#if defined(MIPI_TX_RCAL_dphy_tx_rcal_MASK)
+    dphy->TX_RCAL = 1;
 #endif
-    base->DPHY_RXLPRP = 1;
-    base->DPHY_RXCDRP = 1;
+    dphy->RXLPRP = 1;
+    dphy->RXCDRP = 1;
 
     /* Auto power down the inactive lanes. */
-    base->DPHY_AUTO_PD_EN = 0x1U;
+    dphy->AUTO_PD_EN = 0x1U;
 
-    base->DPHY_TST = 0x25U;
+    dphy->TST = 0x25U;
 
-#if !((defined(FSL_FEATURE_MIPI_DSI_HOST_NO_DPHY_PLL) && (FSL_FEATURE_MIPI_DSI_HOST_NO_DPHY_PLL)))
+#if !((defined(FSL_FEATURE_MIPI_NO_PLL) && (FSL_FEATURE_MIPI_DSI_HOST_NO_PLL)))
     /* Power up the PLL. */
-    base->DPHY_PD_PLL = 0U;
+    dphy->PD_PLL = 0U;
 
     /* Wait for the PLL lock. */
-    while (!base->DPHY_LOCK)
+    while (0UL == dphy->LOCK)
     {
     }
 #endif
 
     /* Power up the DPHY. */
-    base->DPHY_PD_REG = 0U;
+    dphy->PD_TX = 0U;
 
-#if !((defined(FSL_FEATURE_MIPI_DSI_HOST_NO_DPHY_PLL) && (FSL_FEATURE_MIPI_DSI_HOST_NO_DPHY_PLL)))
+#if !((defined(FSL_FEATURE_MIPI_NO_PLL) && (FSL_FEATURE_MIPI_DSI_HOST_NO_PLL)))
     return outputPllFreq;
 #else
     return config->txHsBitClk_Hz;
@@ -631,15 +648,15 @@ uint32_t DSI_InitDphy(MIPI_DSI_HOST_Type *base, const dsi_dphy_config_t *config,
  *
  * param base MIPI DSI host peripheral base address.
  */
-void DSI_DeinitDphy(MIPI_DSI_HOST_Type *base)
+void DSI_DeinitDphy(MIPI_DSI_Type *base)
 {
-#if !((defined(FSL_FEATURE_MIPI_DSI_HOST_NO_DPHY_PLL) && (FSL_FEATURE_MIPI_DSI_HOST_NO_DPHY_PLL)))
+#if !((defined(FSL_FEATURE_MIPI_NO_DPHY_PLL) && (FSL_FEATURE_MIPI_DSI_HOST_NO_DPHY_PLL)))
     /* Power down the PLL. */
-    base->DPHY_PD_PLL = 1U;
+    base->dphy->PD_PLL = 1U;
 #endif
 
     /* Power down the DPHY. */
-    base->DPHY_PD_REG = 1U;
+    base->dphy->PD_TX = 1U;
 }
 
 /*!
@@ -658,58 +675,89 @@ void DSI_GetDphyDefaultConfig(dsi_dphy_config_t *config, uint32_t txHsBitClk_Hz,
     assert(config);
 
     /* Initializes the configure structure to zero. */
-    memset(config, 0, sizeof(*config));
+    (void)memset(config, 0, sizeof(*config));
 
     uint32_t byteClkFreq_kHz = txHsBitClk_Hz / 8U / 1000U;
+    uint32_t txEscClk_kHz    = txEscClk_Hz / 1000U;
 
     config->txHsBitClk_Hz = txHsBitClk_Hz;
 
-    /* TCLK-PRE in byte clock. At least 8*UI. */
-    config->tClkPre_ByteClk = 1U;
-
-    /* TCLK-POST in byte clock. At least 60ns + 52*UI. */
-    config->tClkPost_ByteClk = DSI_NS_TO_BYTE_CLK(60U, byteClkFreq_kHz) + (52U / 8U) + 2U;
-
     /* THS-EXIT in byte clock. At least 100ns. */
-    config->tHsExit_ByteClk = DSI_NS_TO_BYTE_CLK(100U, byteClkFreq_kHz) + 1U;
+    config->tHsExit_ByteClk = (uint8_t)(DSI_NS_TO_BYTE_CLK(100U, byteClkFreq_kHz) + 1U);
 
     /* T-WAKEUP. At least 1ms. */
     config->tWakeup_EscClk = txEscClk_Hz / 1000U + 1U;
 
     /* THS-PREPARE. 40ns+4*UI to 85ns+6*UI. */
     config->tHsPrepare_HalfEscClk =
-        (40U * txEscClk_Hz * 2U) / 1000000000U + (4U * txEscClk_Hz * 2U / txHsBitClk_Hz) + 1U;
-    if (config->tHsPrepare_HalfEscClk < DSI_THS_PREPARE_HALF_ESC_CLK_BASE)
+        (uint8_t)((40U * txEscClk_kHz * 2U) / 1000000U + (4U * txEscClk_Hz * 2U / txHsBitClk_Hz) + 1U);
+    if (config->tHsPrepare_HalfEscClk < DSI_THS_PREPARE_HALF_ESC_CLK_MIN)
     {
-        config->tHsPrepare_HalfEscClk = DSI_THS_PREPARE_HALF_ESC_CLK_BASE;
+        config->tHsPrepare_HalfEscClk = DSI_THS_PREPARE_HALF_ESC_CLK_MIN;
+    }
+    else if (config->tHsPrepare_HalfEscClk > DSI_THS_PREPARE_HALF_ESC_CLK_MAX)
+    {
+        config->tHsPrepare_HalfEscClk = DSI_THS_PREPARE_HALF_ESC_CLK_MAX;
+    }
+    else
+    {
+        /* For MISRA check. */
     }
 
     /* TCLK-PREPARE. 38ns to 95ns. */
-    config->tClkPrepare_HalfEscClk = (38U * txEscClk_Hz * 2U) / 1000000000U + 1U;
-    if (config->tClkPrepare_HalfEscClk < DSI_TCLK_PREPARE_HALF_ESC_CLK_BASE)
+    config->tClkPrepare_HalfEscClk = (uint8_t)((38U * txEscClk_kHz * 2U) / 1000000U + 1U);
+    if (config->tClkPrepare_HalfEscClk < DSI_TCLK_PREPARE_HALF_ESC_CLK_MIN)
     {
-        config->tClkPrepare_HalfEscClk = DSI_TCLK_PREPARE_HALF_ESC_CLK_BASE;
+        config->tClkPrepare_HalfEscClk = DSI_TCLK_PREPARE_HALF_ESC_CLK_MIN;
+    }
+    else if (config->tClkPrepare_HalfEscClk > DSI_TCLK_PREPARE_HALF_ESC_CLK_MAX)
+    {
+        config->tClkPrepare_HalfEscClk = DSI_TCLK_PREPARE_HALF_ESC_CLK_MAX;
+    }
+    else
+    {
+        /* For MISRA check. */
     }
 
     /* THS-ZERO, At least 105ns+6*UI. */
-    config->tHsZero_ByteClk = DSI_NS_TO_BYTE_CLK(105U, byteClkFreq_kHz) + 1U;
-    if (config->tHsZero_ByteClk < DSI_THS_ZERO_BYTE_CLK_BASE + 1U)
+    config->tHsZero_ByteClk = (uint8_t)(DSI_NS_UI_TO_BYTE_CLK(105U, 6U, byteClkFreq_kHz) + 1U);
+    if (config->tHsZero_ByteClk < DSI_THS_ZERO_BYTE_CLK_BASE)
     {
-        config->tHsZero_ByteClk = DSI_THS_ZERO_BYTE_CLK_BASE + 1U;
+        config->tHsZero_ByteClk = DSI_THS_ZERO_BYTE_CLK_BASE;
     }
 
     /* TCLK-ZERO, At least 262ns. */
-    config->tClkZero_ByteClk = DSI_NS_TO_BYTE_CLK(262U, byteClkFreq_kHz) + 1U;
-    if (config->tClkZero_ByteClk < DSI_TCLK_ZERO_BYTE_CLK_BASE + 1U)
+    config->tClkZero_ByteClk = (uint8_t)(DSI_NS_TO_BYTE_CLK(262U, byteClkFreq_kHz) + 1U);
+    if (config->tClkZero_ByteClk < DSI_TCLK_ZERO_BYTE_CLK_BASE)
     {
-        config->tClkZero_ByteClk = DSI_TCLK_ZERO_BYTE_CLK_BASE + 1U;
+        config->tClkZero_ByteClk = DSI_TCLK_ZERO_BYTE_CLK_BASE;
     }
 
     /* THS-TRAIL, 60ns+4*UI to 105ns+12UI. */
-    config->tHsTrail_ByteClk = DSI_NS_TO_BYTE_CLK(60U, byteClkFreq_kHz) + 2U;
+    /* Due to IP design, extra 4*UI should be added. */
+    config->tHsTrail_ByteClk = (uint8_t)(DSI_NS_UI_TO_BYTE_CLK(60U, 8U, byteClkFreq_kHz) + 1U);
 
     /* TCLK-TRAIL, at least 60ns. */
-    config->tClkTrail_ByteClk = DSI_NS_TO_BYTE_CLK(60U, byteClkFreq_kHz) + 1U;
+    /* Due to IP design, extra 4*UI should be added. */
+    config->tClkTrail_ByteClk = (uint8_t)(DSI_NS_UI_TO_BYTE_CLK(60U, 4U, byteClkFreq_kHz) + 1U);
+
+    /*
+     * T_LPX + T_CLK-PREPARE + T_CLK-ZERO + T_CLK-PRE
+     * T_LPX >= 50ns
+     * T_CLK-PREPARE >= 38ns
+     * T_CLK-ZERO >= 262ns
+     * T_CLK-PRE >= 8*UI
+     */
+    config->tClkPre_ByteClk =
+        (uint8_t)(DSI_NS_UI_TO_BYTE_CLK(88U, 8U, byteClkFreq_kHz) + 1U) + config->tClkZero_ByteClk;
+
+    /*
+     * T_CLK-POST + T_CLK-TRAIL
+     * T_CLK-POST >= 60ns + 52*UI.
+     * T_CLK-TRAIL >= 60ns
+     */
+    config->tClkPost_ByteClk =
+        (uint8_t)(DSI_NS_UI_TO_BYTE_CLK(60U, 52U, byteClkFreq_kHz) + 1U) + config->tClkTrail_ByteClk;
 }
 
 /*!
@@ -728,22 +776,25 @@ void DSI_GetDphyDefaultConfig(dsi_dphy_config_t *config, uint32_t txHsBitClk_Hz,
  * param flags The transfer control flags, see ref _dsi_transfer_flags.
  */
 void DSI_SetApbPacketControl(
-    MIPI_DSI_HOST_Type *base, uint16_t wordCount, uint8_t virtualChannel, dsi_tx_data_type_t dataType, uint8_t flags)
+    MIPI_DSI_Type *base, uint16_t wordCount, uint8_t virtualChannel, dsi_tx_data_type_t dataType, uint8_t flags)
 {
-    uint32_t pktCtrl = DSI_HOST_PKT_CONTROL_WORD_COUNT(wordCount) | DSI_HOST_PKT_CONTROL_VC(virtualChannel) |
-                       DSI_HOST_PKT_CONTROL_HEADER_TYPE(dataType);
+    uint32_t pktCtrl = PKT_CONTROL_WORD_COUNT(wordCount) | PKT_CONTROL_HEADER_TYPE(dataType);
 
-    if (flags & kDSI_TransferUseHighSpeed)
+#if defined(DSI_HOST_PKT_CONTROL_VC)
+    pktCtrl |= DSI_HOST_PKT_CONTROL_VC(virtualChannel);
+#endif
+
+    if (0U != (flags & (uint8_t)kDSI_TransferUseHighSpeed))
     {
-        pktCtrl |= DSI_HOST_PKT_CONTROL_HS_MASK;
+        pktCtrl |= PKT_CONTROL_HS_MASK;
     }
 
-    if (flags & kDSI_TransferPerformBTA)
+    if (0U != (flags & (uint8_t)kDSI_TransferPerformBTA))
     {
-        pktCtrl |= DSI_HOST_PKT_CONTROL_BTA_MASK;
+        pktCtrl |= PKT_CONTROL_BTA_MASK;
     }
 
-    base->DSI_HOST_PKT_CONTROL = pktCtrl;
+    base->apb->PKT_CONTROL = pktCtrl;
 }
 
 /*!
@@ -755,16 +806,18 @@ void DSI_SetApbPacketControl(
  * param payload Pointer to the payload.
  * param payloadSize Payload size in byte.
  */
-void DSI_WriteApbTxPayload(MIPI_DSI_HOST_Type *base, const uint8_t *payload, uint16_t payloadSize)
+void DSI_WriteApbTxPayload(MIPI_DSI_Type *base, const uint8_t *payload, uint16_t payloadSize)
 {
     DSI_WriteApbTxPayloadExt(base, payload, payloadSize, false, 0U);
 }
 
 void DSI_WriteApbTxPayloadExt(
-    MIPI_DSI_HOST_Type *base, const uint8_t *payload, uint16_t payloadSize, bool sendDscCmd, uint8_t dscCmd)
+    MIPI_DSI_Type *base, const uint8_t *payload, uint16_t payloadSize, bool sendDscCmd, uint8_t dscCmd)
 {
     uint32_t firstWord;
-    uint32_t i;
+    uint16_t i;
+
+    DSI_HOST_APB_PKT_IF_Type *apb = base->apb;
 
     payloadSize = sendDscCmd ? payloadSize + 1U : payloadSize;
 
@@ -783,11 +836,11 @@ void DSI_WriteApbTxPayloadExt(
 
     payloadSize--;
 
-    for (i = 1; i < 4; i++)
+    for (i = 1U; i < 4U; i++)
     {
-        if (payloadSize > 0)
+        if (payloadSize > 0U)
         {
-            firstWord |= ((*payload) << (i << 3U));
+            firstWord |= ((uint32_t)(*payload) << (i << 3U));
             payload++;
             payloadSize--;
         }
@@ -797,12 +850,12 @@ void DSI_WriteApbTxPayloadExt(
         }
     }
 
-    base->DSI_HOST_TX_PAYLOAD = firstWord;
+    apb->TX_PAYLOAD = firstWord;
 
     /* Write the payload to the FIFO. */
     for (i = 0; i < payloadSize / 4U; i++)
     {
-        base->DSI_HOST_TX_PAYLOAD = *(uint32_t *)payload;
+        apb->TX_PAYLOAD = *(const uint32_t *)(const void *)payload;
         payload += 4U;
     }
 
@@ -810,20 +863,21 @@ void DSI_WriteApbTxPayloadExt(
     switch (payloadSize & 0x03U)
     {
         case 3:
-            base->DSI_HOST_TX_PAYLOAD = ((uint32_t)payload[2] << 16U) | ((uint32_t)payload[1] << 8U) | payload[0];
+            apb->TX_PAYLOAD = ((uint32_t)payload[2] << 16U) | ((uint32_t)payload[1] << 8U) | payload[0];
             break;
         case 2:
-            base->DSI_HOST_TX_PAYLOAD = ((uint32_t)payload[1] << 8U) | payload[0];
+            apb->TX_PAYLOAD = ((uint32_t)payload[1] << 8U) | payload[0];
             break;
         case 1:
-            base->DSI_HOST_TX_PAYLOAD = payload[0];
+            apb->TX_PAYLOAD = payload[0];
             break;
         default:
+            /* For MISRA 2012 16.4 */
             break;
     }
 }
 
-static status_t DSI_PrepareApbTransfer(MIPI_DSI_HOST_Type *base, dsi_transfer_t *xfer)
+static status_t DSI_PrepareApbTransfer(MIPI_DSI_Type *base, dsi_transfer_t *xfer)
 {
     /* The receive data size should be smaller than the RX FIRO. */
     assert(xfer->rxDataSize <= FSL_DSI_RX_MAX_PAYLOAD_BYTE);
@@ -834,21 +888,21 @@ static status_t DSI_PrepareApbTransfer(MIPI_DSI_HOST_Type *base, dsi_transfer_t 
     uint32_t intFlags1, intFlags2;
     uint32_t txDataSize;
 
-    if (xfer->rxDataSize > 2)
+    if (xfer->rxDataSize > 2U)
     {
         return kStatus_DSI_NotSupported;
     }
 
-    if (xfer->rxDataSize)
+    if (xfer->rxDataSize != 0U)
     {
-        xfer->flags |= kDSI_TransferPerformBTA;
+        xfer->flags |= (uint8_t)kDSI_TransferPerformBTA;
     }
 
     /* ========================== Prepare TX. ========================== */
     /* If xfer->sendDscCmd is true, then the DSC command is not included in the
        xfer->txData, but specified by xfer->dscCmd.
      */
-    txDataSize = xfer->sendDscCmd ? xfer->txDataSize + 1U : xfer->txDataSize;
+    txDataSize = xfer->sendDscCmd ? (uint32_t)xfer->txDataSize + 1U : (uint32_t)xfer->txDataSize;
 
     /* Short packet. */
     if (txDataSize <= 2U)
@@ -872,7 +926,7 @@ static status_t DSI_PrepareApbTransfer(MIPI_DSI_HOST_Type *base, dsi_transfer_t 
 
             if (2U == txDataSize)
             {
-                wordCount |= ((uint32_t)xfer->txData[txDataIndex] << 8U);
+                wordCount |= ((uint16_t)xfer->txData[txDataIndex] << 8U);
             }
         }
     }
@@ -902,28 +956,28 @@ static status_t DSI_PrepareApbTransfer(MIPI_DSI_HOST_Type *base, dsi_transfer_t 
  * param payload Pointer to the payload.
  * param payloadSize Payload size in byte.
  */
-void DSI_ReadApbRxPayload(MIPI_DSI_HOST_Type *base, uint8_t *payload, uint16_t payloadSize)
+void DSI_ReadApbRxPayload(MIPI_DSI_Type *base, uint8_t *payload, uint16_t payloadSize)
 {
     uint32_t tmp;
 
-    for (uint32_t i = 0; i < payloadSize / 4U; i++)
+    for (uint16_t i = 0; i < payloadSize / 4U; i++)
     {
-        tmp        = base->DSI_HOST_PKT_RX_PAYLOAD;
-        payload[0] = tmp & 0xFFU;
-        payload[1] = (tmp >> 8U) & 0xFFU;
-        payload[2] = (tmp >> 16U) & 0xFFU;
-        payload[3] = (tmp >> 24U) & 0xFFU;
+        tmp        = base->apb->PKT_RX_PAYLOAD;
+        payload[0] = (uint8_t)(tmp & 0xFFU);
+        payload[1] = (uint8_t)((tmp >> 8U) & 0xFFU);
+        payload[2] = (uint8_t)((tmp >> 16U) & 0xFFU);
+        payload[3] = (uint8_t)((tmp >> 24U) & 0xFFU);
         payload += 4U;
     }
 
     /* Read out the remaining data. */
-    if (payloadSize & 0x03U)
+    if (0U != (payloadSize & 0x03U))
     {
-        tmp = base->DSI_HOST_PKT_RX_PAYLOAD;
+        tmp = base->apb->PKT_RX_PAYLOAD;
 
-        for (uint32_t i = 0; i < (payloadSize & 0x3U); i++)
+        for (uint16_t i = 0; i < (payloadSize & 0x3U); i++)
         {
-            payload[i] = tmp & 0xFFU;
+            payload[i] = (uint8_t)(tmp & 0xFFU);
             tmp >>= 8U;
         }
     }
@@ -946,14 +1000,16 @@ void DSI_ReadApbRxPayload(MIPI_DSI_HOST_Type *base, uint8_t *payload, uint16_t p
  * retval kStatus_DSI_NotSupported Transfer format not supported.
  * retval kStatus_DSI_Fail Transfer failed for other reasons.
  */
-status_t DSI_TransferBlocking(MIPI_DSI_HOST_Type *base, dsi_transfer_t *xfer)
+status_t DSI_TransferBlocking(MIPI_DSI_Type *base, dsi_transfer_t *xfer)
 {
     status_t status;
     uint32_t intFlags1Old, intFlags2Old;
     uint32_t intFlags1New, intFlags2New;
 
+    DSI_HOST_APB_PKT_IF_Type *apb = base->apb;
+
     /* Wait for the APB state idle. */
-    while (base->DSI_HOST_PKT_STATUS & kDSI_ApbNotIdle)
+    while (0U != (apb->PKT_STATUS & (uint32_t)kDSI_ApbNotIdle))
     {
     }
 
@@ -967,27 +1023,28 @@ status_t DSI_TransferBlocking(MIPI_DSI_HOST_Type *base, dsi_transfer_t *xfer)
     DSI_SendApbPacket(base);
 
     /* Make sure the transfer is started. */
-    while (1)
+    while (true)
     {
         DSI_GetAndClearInterruptStatus(base, &intFlags1Old, &intFlags2Old);
 
-        if (intFlags1Old & kDSI_InterruptGroup1ApbNotIdle)
+        if (0U != (intFlags1Old & (uint32_t)kDSI_InterruptGroup1ApbNotIdle))
         {
             break;
         }
     }
 
     /* Wait for transfer finished. */
-    while (1)
+    while (true)
     {
         /* Transfer completed. */
-        if (!(base->DSI_HOST_PKT_STATUS & kDSI_ApbNotIdle))
+        if (0U == (apb->PKT_STATUS & (uint32_t)kDSI_ApbNotIdle))
         {
             break;
         }
 
         /* Time out. */
-        if (base->DSI_HOST_RX_ERROR_STATUS & (kDSI_RxErrorHtxTo | kDSI_RxErrorLrxTo | kDSI_RxErrorBtaTo))
+        if (0U != (base->host->RX_ERROR_STATUS &
+                   ((uint32_t)kDSI_RxErrorHtxTo | (uint32_t)kDSI_RxErrorLrxTo | (uint32_t)kDSI_RxErrorBtaTo)))
         {
             DSI_GetAndClearInterruptStatus(base, &intFlags1New, &intFlags2New);
             return kStatus_Timeout;
@@ -999,31 +1056,33 @@ status_t DSI_TransferBlocking(MIPI_DSI_HOST_Type *base, dsi_transfer_t *xfer)
     return DSI_HandleResult(base, intFlags1Old | intFlags1New, intFlags2Old | intFlags2New, xfer);
 }
 
-static status_t DSI_HandleResult(MIPI_DSI_HOST_Type *base, uint32_t intFlags1, uint32_t intFlags2, dsi_transfer_t *xfer)
+static status_t DSI_HandleResult(MIPI_DSI_Type *base, uint32_t intFlags1, uint32_t intFlags2, dsi_transfer_t *xfer)
 {
     uint32_t rxPktHeader;
 
     /* If hardware detect timeout. */
-    if ((kDSI_InterruptGroup1HtxTo | kDSI_InterruptGroup1LrxTo | kDSI_InterruptGroup1BtaTo) & intFlags1)
+    if (0U != (((uint32_t)kDSI_InterruptGroup1HtxTo | (uint32_t)kDSI_InterruptGroup1LrxTo |
+                (uint32_t)kDSI_InterruptGroup1BtaTo) &
+               intFlags1))
     {
         return kStatus_Timeout;
     }
 
     /* If received data error. */
-    if ((kDSI_InterruptGroup2EccMultiBit | kDSI_InterruptGroup2CrcError) & intFlags2)
+    if (0U != (((uint32_t)kDSI_InterruptGroup2EccMultiBit | (uint32_t)kDSI_InterruptGroup2CrcError) & intFlags2))
     {
         return kStatus_DSI_RxDataError;
     }
 
     /* If BTA is performed. */
-    if (xfer->flags & kDSI_TransferPerformBTA)
+    if (0U != (xfer->flags & (uint32_t)kDSI_TransferPerformBTA))
     {
-        if (intFlags1 & DSI_INT_STATUS_ERROR_REPORT_MASK)
+        if (0U != (intFlags1 & DSI_INT_STATUS_ERROR_REPORT_MASK))
         {
             return kStatus_DSI_ErrorReportReceived;
         }
 
-        if (kDSI_InterruptGroup1ApbRxHeaderReceived & intFlags1)
+        if (0U != ((uint32_t)kDSI_InterruptGroup1ApbRxHeaderReceived & intFlags1))
         {
             rxPktHeader = DSI_GetRxPacketHeader(base);
 
@@ -1035,11 +1094,11 @@ static status_t DSI_HandleResult(MIPI_DSI_HOST_Type *base, uint32_t intFlags1, u
             else
             {
                 /* Only handle short packet, long packet is not supported currently. */
-                xfer->rxData[0] = rxPktHeader & 0xFFU;
+                xfer->rxData[0] = (uint8_t)(rxPktHeader & 0xFFU);
 
                 if (2U == xfer->rxDataSize)
                 {
-                    xfer->rxData[1] = (rxPktHeader >> 8U) & 0xFFU;
+                    xfer->rxData[1] = (uint8_t)((rxPktHeader >> 8U) & 0xFFU);
                 }
 
                 return kStatus_Success;
@@ -1051,7 +1110,7 @@ static status_t DSI_HandleResult(MIPI_DSI_HOST_Type *base, uint32_t intFlags1, u
     else
     {
         /* Tx Done. */
-        if (kDSI_InterruptGroup1ApbTxDone & intFlags1)
+        if (0U != ((uint32_t)kDSI_InterruptGroup1ApbTxDone & intFlags1))
         {
             return kStatus_Success;
         }
@@ -1070,26 +1129,24 @@ static status_t DSI_HandleResult(MIPI_DSI_HOST_Type *base, uint32_t intFlags1, u
  * param callback Callback function.
  * param userData User data.
  */
-status_t DSI_TransferCreateHandle(MIPI_DSI_HOST_Type *base,
-                                  dsi_handle_t *handle,
-                                  dsi_callback_t callback,
-                                  void *userData)
+status_t DSI_TransferCreateHandle(MIPI_DSI_Type *base, dsi_handle_t *handle, dsi_callback_t callback, void *userData)
 {
     assert(handle);
 
-    uint8_t instance = DSI_GetInstance(base);
+    uint32_t instance = DSI_GetInstance(base);
 
     /* Zero the handle */
-    memset(handle, 0, sizeof(*handle));
+    (void)memset(handle, 0, sizeof(*handle));
 
     /* Initialize the handle */
     s_dsiHandle[instance] = handle;
     handle->callback      = callback;
     handle->userData      = userData;
     handle->isBusy        = false;
+    handle->dsi           = base;
     s_dsiIsr              = DSI_TransferHandleIRQ;
 
-#if defined(MIPI_DSI_HOST_IRQS)
+#if defined(MIPI_IRQS)
     /* Enable interrupt in NVIC. */
     EnableIRQ(s_dsiIRQ[instance]);
 #endif
@@ -1111,11 +1168,11 @@ status_t DSI_TransferCreateHandle(MIPI_DSI_HOST_Type *base,
  * retval kStatus_DSI_Busy Failed to start transfer because DSI is busy with pervious transfer.
  * retval kStatus_DSI_NotSupported Transfer format not supported.
  */
-status_t DSI_TransferNonBlocking(MIPI_DSI_HOST_Type *base, dsi_handle_t *handle, dsi_transfer_t *xfer)
+status_t DSI_TransferNonBlocking(MIPI_DSI_Type *base, dsi_handle_t *handle, dsi_transfer_t *xfer)
 {
     status_t status;
 
-    if ((handle->isBusy) || (base->DSI_HOST_PKT_STATUS & kDSI_ApbNotIdle))
+    if ((handle->isBusy) || (0U != (base->apb->PKT_STATUS & (uint32_t)kDSI_ApbNotIdle)))
     {
         return kStatus_DSI_Busy;
     }
@@ -1133,18 +1190,18 @@ status_t DSI_TransferNonBlocking(MIPI_DSI_HOST_Type *base, dsi_handle_t *handle,
     handle->isBusy = true;
 
     /* Enable the interrupts. */
-    if (handle->xfer.flags & kDSI_TransferPerformBTA)
+    if (0U != (handle->xfer.flags & (uint32_t)kDSI_TransferPerformBTA))
     {
         DSI_EnableInterrupts(base,
-                             DSI_INT_STATUS_TRIGGER_MASK | kDSI_InterruptGroup1ApbRxHeaderReceived |
-                                 kDSI_InterruptGroup1ApbRxPacketReceived | kDSI_InterruptGroup1BtaTo |
-                                 kDSI_InterruptGroup1LrxTo | kDSI_InterruptGroup1HtxTo |
-                                 kDSI_InterruptGroup1AckTriggerReceived,
-                             kDSI_InterruptGroup2EccMultiBit | kDSI_InterruptGroup2CrcError);
+                             DSI_INT_STATUS_TRIGGER_MASK | (uint32_t)kDSI_InterruptGroup1ApbRxHeaderReceived |
+                                 (uint32_t)kDSI_InterruptGroup1ApbRxPacketReceived |
+                                 (uint32_t)kDSI_InterruptGroup1BtaTo | (uint32_t)kDSI_InterruptGroup1LrxTo |
+                                 (uint32_t)kDSI_InterruptGroup1HtxTo | (uint32_t)kDSI_InterruptGroup1AckTriggerReceived,
+                             (uint32_t)kDSI_InterruptGroup2EccMultiBit | (uint32_t)kDSI_InterruptGroup2CrcError);
     }
     else
     {
-        DSI_EnableInterrupts(base, kDSI_InterruptGroup1ApbTxDone | kDSI_InterruptGroup1HtxTo, 0U);
+        DSI_EnableInterrupts(base, (uint32_t)kDSI_InterruptGroup1ApbTxDone | (uint32_t)kDSI_InterruptGroup1HtxTo, 0U);
     }
 
     return kStatus_Success;
@@ -1156,7 +1213,7 @@ status_t DSI_TransferNonBlocking(MIPI_DSI_HOST_Type *base, dsi_handle_t *handle,
  * param base MIPI DSI host peripheral base address.
  * param handle pointer to dsi_handle_t structure which stores the transfer state.
  */
-void DSI_TransferAbort(MIPI_DSI_HOST_Type *base, dsi_handle_t *handle)
+void DSI_TransferAbort(MIPI_DSI_Type *base, dsi_handle_t *handle)
 {
     assert(handle);
 
@@ -1164,14 +1221,15 @@ void DSI_TransferAbort(MIPI_DSI_HOST_Type *base, dsi_handle_t *handle)
     {
         /* Disable the interrupts. */
         DSI_DisableInterrupts(base,
-                              kDSI_InterruptGroup1ApbTxDone | DSI_INT_STATUS_TRIGGER_MASK |
-                                  DSI_INT_STATUS_ERROR_REPORT_MASK | kDSI_InterruptGroup1ApbRxHeaderReceived |
-                                  kDSI_InterruptGroup1ApbRxPacketReceived | kDSI_InterruptGroup1BtaTo |
-                                  kDSI_InterruptGroup1LrxTo | kDSI_InterruptGroup1HtxTo,
-                              kDSI_InterruptGroup2EccMultiBit | kDSI_InterruptGroup2CrcError);
+                              (uint32_t)kDSI_InterruptGroup1ApbTxDone | DSI_INT_STATUS_TRIGGER_MASK |
+                                  DSI_INT_STATUS_ERROR_REPORT_MASK | (uint32_t)kDSI_InterruptGroup1ApbRxHeaderReceived |
+                                  (uint32_t)kDSI_InterruptGroup1ApbRxPacketReceived |
+                                  (uint32_t)kDSI_InterruptGroup1BtaTo | (uint32_t)kDSI_InterruptGroup1LrxTo |
+                                  (uint32_t)kDSI_InterruptGroup1HtxTo,
+                              (uint32_t)kDSI_InterruptGroup2EccMultiBit | (uint32_t)kDSI_InterruptGroup2CrcError);
 
         /* Reset transfer info. */
-        memset(&handle->xfer, 0, sizeof(handle->xfer));
+        (void)memset(&handle->xfer, 0, sizeof(handle->xfer));
 
         /* Reset the state to idle. */
         handle->isBusy = false;
@@ -1190,13 +1248,14 @@ void DSI_TransferAbort(MIPI_DSI_HOST_Type *base, dsi_handle_t *handle)
  * param base MIPI DSI host peripheral base address.
  * param handle pointer to dsi_handle_t structure which stores the transfer state.
  */
-void DSI_TransferHandleIRQ(MIPI_DSI_HOST_Type *base, dsi_handle_t *handle)
+void DSI_TransferHandleIRQ(MIPI_DSI_Type *base, dsi_handle_t *handle)
 {
     assert(handle);
 
     status_t status;
     uint32_t intFlags1, intFlags2;
     uint32_t timeout;
+    base = handle->dsi;
 
     /* If no transfer in progress, return directly. */
     if (!handle->isBusy)
@@ -1206,15 +1265,15 @@ void DSI_TransferHandleIRQ(MIPI_DSI_HOST_Type *base, dsi_handle_t *handle)
 
     /* Make sure the transfer is completed. */
     timeout = FSL_MIPI_DSI_IDLE_TIMEOUT;
-    while (timeout--)
+    while (0U != (timeout--))
     {
-        if (!(base->DSI_HOST_PKT_STATUS & kDSI_ApbNotIdle))
+        if (0U == (base->apb->PKT_STATUS & (uint32_t)kDSI_ApbNotIdle))
         {
             break;
         }
     }
 
-    if (!timeout)
+    if (0U == timeout)
     {
         DSI_TransferAbort(base, handle);
         status = kStatus_Timeout;
@@ -1223,11 +1282,12 @@ void DSI_TransferHandleIRQ(MIPI_DSI_HOST_Type *base, dsi_handle_t *handle)
     {
         /* Disable the interrupts. */
         DSI_DisableInterrupts(base,
-                              kDSI_InterruptGroup1ApbTxDone | DSI_INT_STATUS_TRIGGER_MASK |
-                                  DSI_INT_STATUS_ERROR_REPORT_MASK | kDSI_InterruptGroup1ApbRxHeaderReceived |
-                                  kDSI_InterruptGroup1ApbRxPacketReceived | kDSI_InterruptGroup1BtaTo |
-                                  kDSI_InterruptGroup1LrxTo | kDSI_InterruptGroup1HtxTo,
-                              kDSI_InterruptGroup2EccMultiBit | kDSI_InterruptGroup2CrcError);
+                              (uint32_t)kDSI_InterruptGroup1ApbTxDone | DSI_INT_STATUS_TRIGGER_MASK |
+                                  DSI_INT_STATUS_ERROR_REPORT_MASK | (uint32_t)kDSI_InterruptGroup1ApbRxHeaderReceived |
+                                  (uint32_t)kDSI_InterruptGroup1ApbRxPacketReceived |
+                                  (uint32_t)kDSI_InterruptGroup1BtaTo | (uint32_t)kDSI_InterruptGroup1LrxTo |
+                                  (uint32_t)kDSI_InterruptGroup1HtxTo,
+                              (uint32_t)kDSI_InterruptGroup2EccMultiBit | (uint32_t)kDSI_InterruptGroup2CrcError);
 
         DSI_GetAndClearInterruptStatus(base, &intFlags1, &intFlags2);
 
@@ -1235,29 +1295,19 @@ void DSI_TransferHandleIRQ(MIPI_DSI_HOST_Type *base, dsi_handle_t *handle)
         handle->isBusy = false;
     }
 
-    if (handle->callback)
+    if (NULL != handle->callback)
     {
         handle->callback(base, handle, status, handle->userData);
     }
 }
 
-#if defined(MIPI_DSI_HOST)
-void MIPI_IRQHandler(void)
+#if defined(MIPI_DSI__DSI_HOST)
+void MIPI_DriverIRQHandler(void);
+void MIPI_DriverIRQHandler(void)
 {
-    s_dsiIsr(MIPI_DSI_HOST, s_dsiHandle[0]);
-}
-#endif
-
-#if defined(MIPI_DSI_HOST0)
-void MIPI_DSI0_INT_OUT_IRQHandler(void)
-{
-    s_dsiIsr(MIPI_DSI_HOST0, s_dsiHandle[0]);
-}
-#endif
-
-#if defined(MIPI_DSI_HOST1)
-void MIPI_DSI1_INT_OUT_IRQHandler(void)
-{
-    s_dsiIsr(MIPI_DSI_HOST1, s_dsiHandle[1]);
+    /* The first parameter is not used, use the peripheral address defined in
+     * handle.
+     */
+    s_dsiIsr(NULL, s_dsiHandle[0]);
 }
 #endif

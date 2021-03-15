@@ -1,5 +1,5 @@
 /*
- * Copyright  2017 NXP
+ * Copyright 2017, 2020 NXP
  * All rights reserved.
  *
  *
@@ -10,6 +10,19 @@
 #define _FSL_VIDEO_COMMON_H_
 
 #include "fsl_common.h"
+
+/*
+ * Change log:
+ *
+ *   1.0.2
+ *     - Fixed MISRA-C 2012 issues.
+ *
+ *   1.0.1
+ *     - Update the VIDEO_DelayMs for bare metal.
+ *
+ *   1.0.0
+ *     - Initial version
+ */
 
 /*******************************************************************************
  * Definitions
@@ -22,7 +35,7 @@
 /*! @brief Macro to define resolution. */
 #define FSL_VIDEO_RESOLUTION(width, height) ((uint32_t)(width) | ((uint32_t)(height) << 16U))
 
-#define FSL_VIDEO_EXTRACT_WIDTH(resolution) ((uint16_t)((resolution)&0xFFFFU))
+#define FSL_VIDEO_EXTRACT_WIDTH(resolution)  ((uint16_t)((resolution)&0xFFFFU))
 #define FSL_VIDEO_EXTRACT_HEIGHT(resolution) ((uint16_t)((resolution) >> 16U))
 
 /*! @brief Pixel format definition. */

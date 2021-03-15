@@ -1,5 +1,5 @@
 /*
- * Copyright  2017-2019 NXP
+ * Copyright 2017-2020 NXP
  * All rights reserved.
  *
  *
@@ -14,6 +14,10 @@
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
+/* Macro remap. */
+#if (!defined(CSI_CSICR3_TWO_8BIT_SENSOR_MASK) && defined(CSI_CR3_SENSOR_16BITS_MASK))
+#define CSI_CSICR3_TWO_8BIT_SENSOR_MASK CSI_CR3_SENSOR_16BITS_MASK
+#endif
 
 /* Component ID definition, used by tools. */
 #ifndef FSL_COMPONENT_ID
@@ -21,10 +25,19 @@
 #endif
 
 /* Two frame buffer loaded to CSI register at most. */
-#define CSI_MAX_ACTIVE_FRAME_NUM 2
+#define CSI_MAX_ACTIVE_FRAME_NUM 2U
 
 /* CSI driver only support RGB565 and YUV422 in fragment mode, 2 bytes per pixel. */
-#define CSI_FRAG_INPUT_BYTES_PER_PIXEL 2
+#define CSI_FRAG_INPUT_BYTES_PER_PIXEL 2U
+
+/*!
+ * @brief Used for conversion between `void*` and `uint32_t`.
+ */
+typedef union pvoid_to_u32
+{
+    void *pvoid;
+    uint32_t u32;
+} pvoid_to_u32_t;
 
 /*******************************************************************************
  * Prototypes
@@ -48,7 +61,7 @@ static uint32_t CSI_GetInstance(CSI_Type *base);
  *
  * @return The delta between startIdx and endIdx in queue.
  */
-static uint32_t CSI_TransferGetQueueDelta(uint32_t startIdx, uint32_t endIdx);
+static uint8_t CSI_TransferGetQueueDelta(uint8_t startIdx, uint8_t endIdx);
 
 /*!
  * @brief Increase a index value in queue.
@@ -60,7 +73,7 @@ static uint32_t CSI_TransferGetQueueDelta(uint32_t startIdx, uint32_t endIdx);
  *
  * @return The index value after increase.
  */
-static uint32_t CSI_TransferIncreaseQueueIdx(uint32_t idx);
+static uint8_t CSI_TransferIncreaseQueueIdx(uint8_t idx);
 
 /*!
  * @brief Get the empty frame buffer count in queue.
@@ -89,7 +102,7 @@ static uint32_t CSI_TransferGetEmptyBuffer(csi_handle_t *handle);
  * @param handle Pointer to CSI driver handle.
  * @param buffer The empty buffer to put.
  */
-static void CSI_TransferPutEmptyBuffer(csi_handle_t *handle, void *buffer);
+static void CSI_TransferPutEmptyBuffer(csi_handle_t *handle, uint32_t buffer);
 
 /*!
  * @brief Get the RX frame buffer address.
@@ -131,7 +144,11 @@ static csi_frag_handle_t *s_csiHandle[ARRAY_SIZE(s_csiBases)];
 static const IRQn_Type s_csiIRQ[] = CSI_IRQS;
 
 /* CSI ISR for transactional APIs. */
+#if defined(__ARMCC_VERSION) && (__ARMCC_VERSION >= 6010050)
+static csi_isr_t s_csiIsr = (csi_isr_t)DefaultISR;
+#else
 static csi_isr_t s_csiIsr;
+#endif
 
 /*******************************************************************************
  * Code
@@ -155,21 +172,25 @@ static uint32_t CSI_GetInstance(CSI_Type *base)
 }
 
 #if !CSI_DRIVER_FRAG_MODE
-static uint32_t CSI_TransferGetQueueDelta(uint32_t startIdx, uint32_t endIdx)
+static uint8_t CSI_TransferGetQueueDelta(uint8_t startIdx, uint8_t endIdx)
 {
+    uint8_t ret;
+
     if (endIdx >= startIdx)
     {
-        return endIdx - startIdx;
+        ret = endIdx - startIdx;
     }
     else
     {
-        return endIdx + CSI_DRIVER_ACTUAL_QUEUE_SIZE - startIdx;
+        ret = (uint8_t)(endIdx + CSI_DRIVER_ACTUAL_QUEUE_SIZE - startIdx);
     }
+
+    return ret;
 }
 
-static uint32_t CSI_TransferIncreaseQueueIdx(uint32_t idx)
+static uint8_t CSI_TransferIncreaseQueueIdx(uint8_t idx)
 {
-    uint32_t ret;
+    uint8_t ret;
 
     /*
      * Here not use the method:
@@ -178,11 +199,11 @@ static uint32_t CSI_TransferIncreaseQueueIdx(uint32_t idx)
      * Because the mod function might be slow.
      */
 
-    ret = idx + 1;
+    ret = idx + 1U;
 
     if (ret >= CSI_DRIVER_ACTUAL_QUEUE_SIZE)
     {
-        ret = 0;
+        ret = 0U;
     }
 
     return ret;
@@ -195,19 +216,22 @@ static uint32_t CSI_TransferGetEmptyBufferCount(csi_handle_t *handle)
 
 static uint32_t CSI_TransferGetEmptyBuffer(csi_handle_t *handle)
 {
-    void *buffer;
+    pvoid_to_u32_t buf;
 
-    buffer = handle->emptyBuffer;
+    buf.pvoid = handle->emptyBuffer;
     handle->emptyBufferCnt--;
-    handle->emptyBuffer = *(void **)buffer;
+    handle->emptyBuffer = *(void **)(buf.pvoid);
 
-    return (uint32_t)buffer;
+    return buf.u32;
 }
 
-static void CSI_TransferPutEmptyBuffer(csi_handle_t *handle, void *buffer)
+static void CSI_TransferPutEmptyBuffer(csi_handle_t *handle, uint32_t buffer)
 {
-    *(void **)buffer    = handle->emptyBuffer;
-    handle->emptyBuffer = buffer;
+    pvoid_to_u32_t buf;
+    buf.u32 = buffer;
+
+    *(void **)(buf.pvoid) = handle->emptyBuffer;
+    handle->emptyBuffer   = buf.pvoid;
     handle->emptyBufferCnt++;
 }
 
@@ -215,13 +239,13 @@ static uint32_t CSI_GetRxBufferAddr(CSI_Type *base, uint8_t index)
 {
     uint32_t addr;
 
-    if (index != 0)
+    if (index != 0U)
     {
-        addr = base->CSIDMASA_FB2;
+        addr = CSI_REG_DMASA_FB2(base);
     }
     else
     {
-        addr = base->CSIDMASA_FB1;
+        addr = CSI_REG_DMASA_FB1(base);
     }
 
     return addr;
@@ -242,15 +266,15 @@ static uint32_t CSI_GetRxBufferAddr(CSI_Type *base, uint8_t index)
  */
 status_t CSI_Init(CSI_Type *base, const csi_config_t *config)
 {
-    assert(config);
+    assert(NULL != config);
     uint32_t reg;
     uint32_t imgWidth_Bytes;
     uint8_t busCyclePerPixel;
 
-    imgWidth_Bytes = config->width * config->bytesPerPixel;
+    imgWidth_Bytes = (uint32_t)config->width * (uint32_t)config->bytesPerPixel;
 
     /* The image width and frame buffer pitch should be multiple of 8-bytes. */
-    if ((imgWidth_Bytes & 0x07) | ((uint32_t)config->linePitch_Bytes & 0x07))
+    if ((0U != (imgWidth_Bytes & 0x07U)) || (0U != ((uint32_t)config->linePitch_Bytes & 0x07U)))
     {
         return kStatus_InvalidArgument;
     }
@@ -270,62 +294,63 @@ status_t CSI_Init(CSI_Type *base, const csi_config_t *config)
         reg |= CSI_CSICR1_EXT_VSYNC_MASK;
     }
 
-    base->CSICR1 = reg;
+    CSI_REG_CR1(base) = reg;
 
     /*
      * Generally, CSIIMAG_PARA[IMAGE_WIDTH] indicates how many data bus cycles per line.
      * One special case is when receiving 24-bit pixels through 8-bit data bus.
      * In this case, the CSIIMAG_PARA[IMAGE_WIDTH] should be set to the pixel number per line.
      */
-    if ((kCSI_DataBus8Bit == config->dataBus) && (2 == config->bytesPerPixel))
+    if ((kCSI_DataBus8Bit == config->dataBus) && (2U == config->bytesPerPixel))
     {
-        busCyclePerPixel = 2;
+        busCyclePerPixel = 2U;
     }
     else
     {
-        busCyclePerPixel = 1;
+        busCyclePerPixel = 1U;
     }
 
     if (4U == config->bytesPerPixel)
     {
-        base->CSICR18 |= CSI_CSICR18_PARALLEL24_EN_MASK;
+        CSI_REG_CR18(base) |= CSI_CSICR18_PARALLEL24_EN_MASK;
     }
 
     if (kCSI_DataBus16Bit == config->dataBus)
     {
-        base->CSICR3 |= CSI_CSICR3_TWO_8BIT_SENSOR_MASK;
+        CSI_REG_CR3(base) |= CSI_CSICR3_TWO_8BIT_SENSOR_MASK;
     }
 
     /* Image parameter. */
-    base->CSIIMAG_PARA = ((uint32_t)(config->width * busCyclePerPixel) << CSI_CSIIMAG_PARA_IMAGE_WIDTH_SHIFT) |
-                         ((uint32_t)(config->height) << CSI_CSIIMAG_PARA_IMAGE_HEIGHT_SHIFT);
+    CSI_REG_IMAG_PARA(base) =
+        (((uint32_t)config->width * (uint32_t)busCyclePerPixel) << CSI_CSIIMAG_PARA_IMAGE_WIDTH_SHIFT) |
+        ((uint32_t)(config->height) << CSI_CSIIMAG_PARA_IMAGE_HEIGHT_SHIFT);
 
     /* The CSI frame buffer bus is 8-byte width. */
-    base->CSIFBUF_PARA = (uint32_t)((config->linePitch_Bytes - imgWidth_Bytes) / 8U)
-                         << CSI_CSIFBUF_PARA_FBUF_STRIDE_SHIFT;
+    CSI_REG_FBUF_PARA(base) = (uint32_t)((config->linePitch_Bytes - imgWidth_Bytes) / 8U)
+                              << CSI_CSIFBUF_PARA_FBUF_STRIDE_SHIFT;
 
     /* Enable auto ECC. */
-    base->CSICR3 |= CSI_CSICR3_ECC_AUTO_EN_MASK;
+    CSI_REG_CR3(base) |= CSI_CSICR3_ECC_AUTO_EN_MASK;
 
     /*
      * For better performance.
      * The DMA burst size could be set to 16 * 8 byte, 8 * 8 byte, or 4 * 8 byte,
      * choose the best burst size based on bytes per line.
      */
-    if (!(imgWidth_Bytes % (8 * 16)))
+    if (0U == (imgWidth_Bytes % (8U * 16U)))
     {
-        base->CSICR2 = CSI_CSICR2_DMA_BURST_TYPE_RFF(3U);
-        base->CSICR3 = (CSI->CSICR3 & ~CSI_CSICR3_RxFF_LEVEL_MASK) | ((2U << CSI_CSICR3_RxFF_LEVEL_SHIFT));
+        CSI_REG_CR2(base) = CSI_CSICR2_DMA_BURST_TYPE_RFF(3U);
+        CSI_REG_CR3(base) = (CSI_REG_CR3(base) & ~CSI_CSICR3_RxFF_LEVEL_MASK) | ((2U << CSI_CSICR3_RxFF_LEVEL_SHIFT));
     }
-    else if (!(imgWidth_Bytes % (8 * 8)))
+    else if (0U == (imgWidth_Bytes % (8U * 8U)))
     {
-        base->CSICR2 = CSI_CSICR2_DMA_BURST_TYPE_RFF(2U);
-        base->CSICR3 = (CSI->CSICR3 & ~CSI_CSICR3_RxFF_LEVEL_MASK) | ((1U << CSI_CSICR3_RxFF_LEVEL_SHIFT));
+        CSI_REG_CR2(base) = CSI_CSICR2_DMA_BURST_TYPE_RFF(2U);
+        CSI_REG_CR3(base) = (CSI_REG_CR3(base) & ~CSI_CSICR3_RxFF_LEVEL_MASK) | ((1U << CSI_CSICR3_RxFF_LEVEL_SHIFT));
     }
     else
     {
-        base->CSICR2 = CSI_CSICR2_DMA_BURST_TYPE_RFF(1U);
-        base->CSICR3 = (CSI->CSICR3 & ~CSI_CSICR3_RxFF_LEVEL_MASK) | ((0U << CSI_CSICR3_RxFF_LEVEL_SHIFT));
+        CSI_REG_CR2(base) = CSI_CSICR2_DMA_BURST_TYPE_RFF(1U);
+        CSI_REG_CR3(base) = (CSI_REG_CR3(base) & ~CSI_CSICR3_RxFF_LEVEL_MASK) | ((0U << CSI_CSICR3_RxFF_LEVEL_SHIFT));
     }
 
     CSI_ReflashFifoDma(base, kCSI_RxFifo);
@@ -365,11 +390,11 @@ void CSI_Reset(CSI_Type *base)
     CSI_Stop(base);
 
     /* Disable DMA request. */
-    base->CSICR3 = 0U;
+    CSI_REG_CR3(base) = 0U;
 
     /* Reset the fame count. */
-    base->CSICR3 |= CSI_CSICR3_FRMCNT_RST_MASK;
-    while (base->CSICR3 & CSI_CSICR3_FRMCNT_RST_MASK)
+    CSI_REG_CR3(base) |= CSI_CSICR3_FRMCNT_RST_MASK;
+    while (0U != (CSI_REG_CR3(base) & CSI_CSICR3_FRMCNT_RST_MASK))
     {
     }
 
@@ -380,20 +405,20 @@ void CSI_Reset(CSI_Type *base)
     CSI_ReflashFifoDma(base, kCSI_AllFifo);
 
     /* Clear the status. */
-    csisr       = base->CSISR;
-    base->CSISR = csisr;
+    csisr            = CSI_REG_SR(base);
+    CSI_REG_SR(base) = csisr;
 
     /* Set the control registers to default value. */
-    base->CSICR1 = CSI_CSICR1_HSYNC_POL_MASK | CSI_CSICR1_EXT_VSYNC_MASK;
-    base->CSICR2 = 0U;
-    base->CSICR3 = 0U;
+    CSI_REG_CR1(base) = CSI_CSICR1_HSYNC_POL_MASK | CSI_CSICR1_EXT_VSYNC_MASK;
+    CSI_REG_CR2(base) = 0U;
+    CSI_REG_CR3(base) = 0U;
 #if defined(CSI_CSICR18_CSI_LCDIF_BUFFER_LINES)
-    base->CSICR18 = CSI_CSICR18_AHB_HPROT(0x0DU) | CSI_CSICR18_CSI_LCDIF_BUFFER_LINES(0x02U);
+    CSI_REG_CR18(base) = CSI_CSICR18_AHB_HPROT(0x0DU) | CSI_CSICR18_CSI_LCDIF_BUFFER_LINES(0x02U);
 #else
-    base->CSICR18 = CSI_CSICR18_AHB_HPROT(0x0DU);
+    CSI_REG_CR18(base) = CSI_CSICR18_AHB_HPROT(0x0DU);
 #endif
-    base->CSIFBUF_PARA = 0U;
-    base->CSIIMAG_PARA = 0U;
+    CSI_REG_FBUF_PARA(base) = 0U;
+    CSI_REG_IMAG_PARA(base) = 0U;
 }
 
 /*!
@@ -416,14 +441,14 @@ void CSI_Reset(CSI_Type *base)
  */
 void CSI_GetDefaultConfig(csi_config_t *config)
 {
-    assert(config);
+    assert(NULL != config);
 
     /* Initializes the configure structure to zero. */
-    memset(config, 0, sizeof(*config));
+    (void)memset(config, 0, sizeof(*config));
 
     config->width           = 320U;
     config->height          = 240U;
-    config->polarityFlags   = kCSI_HsyncActiveHigh | kCSI_DataLatchOnRisingEdge;
+    config->polarityFlags   = (uint32_t)kCSI_HsyncActiveHigh | (uint32_t)kCSI_DataLatchOnRisingEdge;
     config->bytesPerPixel   = 2U;
     config->linePitch_Bytes = 320U * 2U;
     config->workMode        = kCSI_GatedClockMode;
@@ -440,13 +465,13 @@ void CSI_GetDefaultConfig(csi_config_t *config)
  */
 void CSI_SetRxBufferAddr(CSI_Type *base, uint8_t index, uint32_t addr)
 {
-    if (index)
+    if (0U != index)
     {
-        base->CSIDMASA_FB2 = addr;
+        CSI_REG_DMASA_FB2(base) = addr;
     }
     else
     {
-        base->CSIDMASA_FB1 = addr;
+        CSI_REG_DMASA_FB1(base) = addr;
     }
 }
 
@@ -464,28 +489,28 @@ void CSI_ClearFifo(CSI_Type *base, csi_fifo_t fifo)
     uint32_t mask = 0U;
 
     /* The FIFO could only be cleared when CSICR1[FCC] = 0, so first clear the FCC. */
-    cr1          = base->CSICR1;
-    base->CSICR1 = (cr1 & ~CSI_CSICR1_FCC_MASK);
+    cr1               = CSI_REG_CR1(base);
+    CSI_REG_CR1(base) = (cr1 & ~CSI_CSICR1_FCC_MASK);
 
-    if ((uint32_t)fifo & (uint32_t)kCSI_RxFifo)
+    if (0U != ((uint32_t)fifo & (uint32_t)kCSI_RxFifo))
     {
         mask |= CSI_CSICR1_CLR_RXFIFO_MASK;
     }
 
-    if ((uint32_t)fifo & (uint32_t)kCSI_StatFifo)
+    if (0U != ((uint32_t)fifo & (uint32_t)kCSI_StatFifo))
     {
         mask |= CSI_CSICR1_CLR_STATFIFO_MASK;
     }
 
-    base->CSICR1 = (cr1 & ~CSI_CSICR1_FCC_MASK) | mask;
+    CSI_REG_CR1(base) = (cr1 & ~CSI_CSICR1_FCC_MASK) | mask;
 
     /* Wait clear completed. */
-    while (base->CSICR1 & mask)
+    while (0U != (CSI_REG_CR1(base) & mask))
     {
     }
 
     /* Recover the FCC. */
-    base->CSICR1 = cr1;
+    CSI_REG_CR1(base) = cr1;
 }
 
 /*!
@@ -505,20 +530,20 @@ void CSI_ReflashFifoDma(CSI_Type *base, csi_fifo_t fifo)
 {
     uint32_t cr3 = 0U;
 
-    if ((uint32_t)fifo & (uint32_t)kCSI_RxFifo)
+    if (0U != ((uint32_t)fifo & (uint32_t)kCSI_RxFifo))
     {
         cr3 |= CSI_CSICR3_DMA_REFLASH_RFF_MASK;
     }
 
-    if ((uint32_t)fifo & (uint32_t)kCSI_StatFifo)
+    if (0U != ((uint32_t)fifo & (uint32_t)kCSI_StatFifo))
     {
         cr3 |= CSI_CSICR3_DMA_REFLASH_SFF_MASK;
     }
 
-    base->CSICR3 |= cr3;
+    CSI_REG_CR3(base) |= cr3;
 
     /* Wait clear completed. */
-    while (base->CSICR3 & cr3)
+    while (0U != (CSI_REG_CR3(base) & cr3))
     {
     }
 }
@@ -534,23 +559,23 @@ void CSI_EnableFifoDmaRequest(CSI_Type *base, csi_fifo_t fifo, bool enable)
 {
     uint32_t cr3 = 0U;
 
-    if ((uint32_t)fifo & (uint32_t)kCSI_RxFifo)
+    if (0U != ((uint32_t)fifo & (uint32_t)kCSI_RxFifo))
     {
         cr3 |= CSI_CSICR3_DMA_REQ_EN_RFF_MASK;
     }
 
-    if ((uint32_t)fifo & (uint32_t)kCSI_StatFifo)
+    if (0U != ((uint32_t)fifo & (uint32_t)kCSI_StatFifo))
     {
         cr3 |= CSI_CSICR3_DMA_REQ_EN_SFF_MASK;
     }
 
     if (enable)
     {
-        base->CSICR3 |= cr3;
+        CSI_REG_CR3(base) |= cr3;
     }
     else
     {
-        base->CSICR3 &= ~cr3;
+        CSI_REG_CR3(base) &= ~cr3;
     }
 }
 
@@ -562,9 +587,9 @@ void CSI_EnableFifoDmaRequest(CSI_Type *base, csi_fifo_t fifo, bool enable)
  */
 void CSI_EnableInterrupts(CSI_Type *base, uint32_t mask)
 {
-    base->CSICR1 |= (mask & CSI_CSICR1_INT_EN_MASK);
-    base->CSICR3 |= (mask & CSI_CSICR3_INT_EN_MASK);
-    base->CSICR18 |= ((mask & CSI_CSICR18_INT_EN_MASK) >> 6U);
+    CSI_REG_CR1(base) |= (mask & CSI_CSICR1_INT_EN_MASK);
+    CSI_REG_CR3(base) |= (mask & CSI_CSICR3_INT_EN_MASK);
+    CSI_REG_CR18(base) |= ((mask & CSI_CSICR18_INT_EN_MASK) >> 6U);
 }
 
 /*!
@@ -575,9 +600,9 @@ void CSI_EnableInterrupts(CSI_Type *base, uint32_t mask)
  */
 void CSI_DisableInterrupts(CSI_Type *base, uint32_t mask)
 {
-    base->CSICR1 &= ~(mask & CSI_CSICR1_INT_EN_MASK);
-    base->CSICR3 &= ~(mask & CSI_CSICR3_INT_EN_MASK);
-    base->CSICR18 &= ~((mask & CSI_CSICR18_INT_EN_MASK) >> 6U);
+    CSI_REG_CR1(base) &= ~(mask & CSI_CSICR1_INT_EN_MASK);
+    CSI_REG_CR3(base) &= ~(mask & CSI_CSICR3_INT_EN_MASK);
+    CSI_REG_CR18(base) &= ~((mask & CSI_CSICR18_INT_EN_MASK) >> 6U);
 }
 
 #if !CSI_DRIVER_FRAG_MODE
@@ -599,10 +624,10 @@ status_t CSI_TransferCreateHandle(CSI_Type *base,
                                   csi_transfer_callback_t callback,
                                   void *userData)
 {
-    assert(handle);
+    assert(NULL != handle);
     uint32_t instance;
 
-    memset(handle, 0, sizeof(*handle));
+    (void)memset(handle, 0, sizeof(*handle));
 
     /* Set the callback and user data. */
     handle->callback = callback;
@@ -617,7 +642,7 @@ status_t CSI_TransferCreateHandle(CSI_Type *base,
     s_csiIsr = CSI_TransferHandleIRQ;
 
     /* Enable interrupt. */
-    EnableIRQ(s_csiIRQ[instance]);
+    (void)EnableIRQ(s_csiIRQ[instance]);
 
     return kStatus_Success;
 }
@@ -638,7 +663,7 @@ status_t CSI_TransferCreateHandle(CSI_Type *base,
  */
 status_t CSI_TransferStart(CSI_Type *base, csi_handle_t *handle)
 {
-    assert(handle);
+    assert(NULL != handle);
 
     uint32_t emptyBufferCount;
 
@@ -654,12 +679,12 @@ status_t CSI_TransferStart(CSI_Type *base, csi_handle_t *handle)
      * DMA base addr switch at the edge of the first data of each frame, thus
      * if one frame is broken, it could be reset at the next frame.
      */
-    base->CSICR18 = (base->CSICR18 & ~CSI_CSICR18_MASK_OPTION_MASK) | CSI_CSICR18_MASK_OPTION(0) |
-                    CSI_CSICR18_BASEADDR_SWITCH_SEL_MASK | CSI_CSICR18_BASEADDR_SWITCH_EN_MASK;
+    CSI_REG_CR18(base) = (CSI_REG_CR18(base) & ~CSI_CSICR18_MASK_OPTION_MASK) | CSI_CSICR18_MASK_OPTION(0) |
+                         CSI_CSICR18_BASEADDR_SWITCH_SEL_MASK | CSI_CSICR18_BASEADDR_SWITCH_EN_MASK;
 
     /* Load the frame buffer to CSI register, there are at least two empty buffers. */
-    base->CSIDMASA_FB1 = CSI_TransferGetEmptyBuffer(handle);
-    base->CSIDMASA_FB2 = CSI_TransferGetEmptyBuffer(handle);
+    CSI_REG_DMASA_FB1(base) = CSI_TransferGetEmptyBuffer(handle);
+    CSI_REG_DMASA_FB2(base) = CSI_TransferGetEmptyBuffer(handle);
 
     handle->activeBufferNum = CSI_MAX_ACTIVE_FRAME_NUM;
 
@@ -668,7 +693,8 @@ status_t CSI_TransferStart(CSI_Type *base, csi_handle_t *handle)
 
     handle->transferStarted = true;
 
-    CSI_EnableInterrupts(base, kCSI_RxBuffer1DmaDoneInterruptEnable | kCSI_RxBuffer0DmaDoneInterruptEnable);
+    CSI_EnableInterrupts(
+        base, (uint32_t)kCSI_RxBuffer1DmaDoneInterruptEnable | (uint32_t)kCSI_RxBuffer0DmaDoneInterruptEnable);
 
     CSI_Start(base);
 
@@ -689,12 +715,13 @@ status_t CSI_TransferStart(CSI_Type *base, csi_handle_t *handle)
  */
 status_t CSI_TransferStop(CSI_Type *base, csi_handle_t *handle)
 {
-    assert(handle);
+    assert(NULL != handle);
     uint8_t activeBufferNum;
     uint8_t bufIdx;
 
     CSI_Stop(base);
-    CSI_DisableInterrupts(base, kCSI_RxBuffer1DmaDoneInterruptEnable | kCSI_RxBuffer0DmaDoneInterruptEnable);
+    CSI_DisableInterrupts(
+        base, (uint32_t)kCSI_RxBuffer1DmaDoneInterruptEnable | (uint32_t)kCSI_RxBuffer0DmaDoneInterruptEnable);
 
     activeBufferNum = handle->activeBufferNum;
 
@@ -709,7 +736,7 @@ status_t CSI_TransferStop(CSI_Type *base, csi_handle_t *handle)
      */
     for (bufIdx = 0; bufIdx < activeBufferNum; bufIdx++)
     {
-        CSI_TransferPutEmptyBuffer(handle, (void *)(CSI_GetRxBufferAddr(base, bufIdx)));
+        CSI_TransferPutEmptyBuffer(handle, CSI_GetRxBufferAddr(base, bufIdx));
     }
 
     return kStatus_Success;
@@ -734,14 +761,14 @@ status_t CSI_TransferSubmitEmptyBuffer(CSI_Type *base, csi_handle_t *handle, uin
     uint32_t csicr1;
 
     /* Disable the interrupt to protect the index information in handle. */
-    csicr1 = base->CSICR1;
+    csicr1 = CSI_REG_CR1(base);
 
-    base->CSICR1 = (csicr1 & ~(CSI_CSICR1_FB2_DMA_DONE_INTEN_MASK | CSI_CSICR1_FB1_DMA_DONE_INTEN_MASK));
+    CSI_REG_CR1(base) = (csicr1 & ~(CSI_CSICR1_FB2_DMA_DONE_INTEN_MASK | CSI_CSICR1_FB1_DMA_DONE_INTEN_MASK));
 
     /* Save the empty frame buffer address to queue. */
-    CSI_TransferPutEmptyBuffer(handle, (void *)frameBuffer);
+    CSI_TransferPutEmptyBuffer(handle, frameBuffer);
 
-    base->CSICR1 = csicr1;
+    CSI_REG_CR1(base) = csicr1;
 
     return kStatus_Success;
 }
@@ -764,25 +791,35 @@ status_t CSI_TransferSubmitEmptyBuffer(CSI_Type *base, csi_handle_t *handle, uin
 status_t CSI_TransferGetFullBuffer(CSI_Type *base, csi_handle_t *handle, uint32_t *frameBuffer)
 {
     uint32_t csicr1;
+    status_t status;
+    uint8_t queueReadIdx;
+    uint8_t queueWriteIdx;
+
+    queueReadIdx  = handle->queueReadIdx;
+    queueWriteIdx = handle->queueWriteIdx;
 
     /* No full frame buffer. */
-    if (handle->queueReadIdx == handle->queueWriteIdx)
+    if (queueReadIdx == queueWriteIdx)
     {
-        return kStatus_CSI_NoFullBuffer;
+        status = kStatus_CSI_NoFullBuffer;
+    }
+    else
+    {
+        /* Disable the interrupt to protect the index information in handle. */
+        csicr1 = CSI_REG_CR1(base);
+
+        CSI_REG_CR1(base) = (csicr1 & ~(CSI_CSICR1_FB2_DMA_DONE_INTEN_MASK | CSI_CSICR1_FB1_DMA_DONE_INTEN_MASK));
+
+        *frameBuffer = handle->frameBufferQueue[handle->queueReadIdx];
+
+        handle->queueReadIdx = CSI_TransferIncreaseQueueIdx(handle->queueReadIdx);
+
+        CSI_REG_CR1(base) = csicr1;
+
+        status = kStatus_Success;
     }
 
-    /* Disable the interrupt to protect the index information in handle. */
-    csicr1 = base->CSICR1;
-
-    base->CSICR1 = (csicr1 & ~(CSI_CSICR1_FB2_DMA_DONE_INTEN_MASK | CSI_CSICR1_FB1_DMA_DONE_INTEN_MASK));
-
-    *frameBuffer = handle->frameBufferQueue[handle->queueReadIdx];
-
-    handle->queueReadIdx = CSI_TransferIncreaseQueueIdx(handle->queueReadIdx);
-
-    base->CSICR1 = csicr1;
-
-    return kStatus_Success;
+    return status;
 }
 
 /*!
@@ -800,10 +837,10 @@ void CSI_TransferHandleIRQ(CSI_Type *base, csi_handle_t *handle)
     uint8_t queueReadIdx;
     uint8_t dmaDoneBufferIdx;
     uint32_t frameBuffer;
-    uint32_t csisr = base->CSISR;
+    uint32_t csisr = CSI_REG_SR(base);
 
     /* Clear the error flags. */
-    base->CSISR = csisr;
+    CSI_REG_SR(base) = csisr;
 
     /*
      * If both frame buffer 0 and frame buffer 1 flags assert, driver does not
@@ -814,7 +851,7 @@ void CSI_TransferHandleIRQ(CSI_Type *base, csi_handle_t *handle)
     {
         ; /* Skip the frames. */
     }
-    else if (csisr & (CSI_CSISR_DMA_TSF_DONE_FB2_MASK | CSI_CSISR_DMA_TSF_DONE_FB1_MASK))
+    else if (0U != (csisr & (CSI_CSISR_DMA_TSF_DONE_FB2_MASK | CSI_CSISR_DMA_TSF_DONE_FB1_MASK)))
     {
         if (0U != (csisr & CSI_CSISR_DMA_TSF_DONE_FB2_MASK))
         {
@@ -840,7 +877,7 @@ void CSI_TransferHandleIRQ(CSI_Type *base, csi_handle_t *handle)
 
                 handle->activeBufferNum--;
 
-                if (handle->callback)
+                if (NULL != handle->callback)
                 {
                     handle->callback(base, handle, kStatus_CSI_FrameDone, handle->userData);
                 }
@@ -857,7 +894,7 @@ void CSI_TransferHandleIRQ(CSI_Type *base, csi_handle_t *handle)
          */
         if (handle->activeBufferNum < CSI_MAX_ACTIVE_FRAME_NUM)
         {
-            if (CSI_TransferGetEmptyBufferCount(handle) > 0)
+            if (CSI_TransferGetEmptyBufferCount(handle) > 0U)
             {
                 /* Get the empty frameBuffer, and submit to CSI device. */
                 CSI_SetRxBufferAddr(base, dmaDoneBufferIdx, CSI_TransferGetEmptyBuffer(handle));
@@ -868,7 +905,7 @@ void CSI_TransferHandleIRQ(CSI_Type *base, csi_handle_t *handle)
                 /* If there is only one active frame buffer, then the two CSI
                  * output buffer address are all set to this frame buffer.
                  */
-                frameBuffer = CSI_GetRxBufferAddr(base, dmaDoneBufferIdx ^ 1);
+                frameBuffer = CSI_GetRxBufferAddr(base, dmaDoneBufferIdx ^ 1U);
                 CSI_SetRxBufferAddr(base, dmaDoneBufferIdx, frameBuffer);
             }
         }
@@ -880,7 +917,7 @@ void CSI_TransferHandleIRQ(CSI_Type *base, csi_handle_t *handle)
 
 #else /* CSI_DRIVER_FRAG_MODE */
 
-#if defined(__CC_ARM) || defined(__ARMCC_VERSION)
+#if defined(__CC_ARM)
 __asm void CSI_ExtractYFromYUYV(void *datBase, const void *dmaBase, size_t count)
 {
     /* clang-format off */
@@ -935,11 +972,12 @@ __asm void CSI_ExtractYFromUYVY(void *datBase, const void *dmaBase, size_t count
     /* clang-format on */
 }
 
-#elif (defined(__GNUC__) || defined(__ICCARM__))
+#elif (defined(__GNUC__) || defined(__ICCARM__)) || defined(__ARMCC_VERSION)
 #if defined(__ICCARM__)
 #pragma diag_suppress = Pe940
 #endif
-__attribute__((naked)) void CSI_ExtractYFromYUYV(void *datBase, const void *dmaBase, size_t count)
+__attribute__((naked)) void CSI_ExtractYFromYUYV(void *datBase, const void *dmaBase, size_t count);
+void CSI_ExtractYFromYUYV(void *datBase, const void *dmaBase, size_t count)
 {
     /* clang-format off */
     __asm volatile(
@@ -965,7 +1003,8 @@ __attribute__((naked)) void CSI_ExtractYFromYUYV(void *datBase, const void *dmaB
     /* clang-format on */
 }
 
-__attribute__((naked)) void CSI_ExtractYFromUYVY(void *datBase, const void *dmaBase, size_t count)
+__attribute__((naked)) void CSI_ExtractYFromUYVY(void *datBase, const void *dmaBase, size_t count);
+void CSI_ExtractYFromUYVY(void *datBase, const void *dmaBase, size_t count)
 {
     /* clang-format off */
     __asm volatile(
@@ -1003,7 +1042,7 @@ __attribute__((naked)) void CSI_ExtractYFromUYVY(void *datBase, const void *dmaB
 
 static void CSI_MemCopy(void *pDest, const void *pSrc, size_t cnt)
 {
-    memcpy(pDest, pSrc, cnt);
+    (void)memcpy(pDest, pSrc, cnt);
 }
 
 /*!
@@ -1053,7 +1092,7 @@ status_t CSI_FragModeCreateHandle(CSI_Type *base,
                                   csi_frag_transfer_callback_t callback,
                                   void *userData)
 {
-    assert(config);
+    assert(NULL != config);
     uint32_t reg;
     uint32_t instance;
     uint32_t imgWidth_Bytes;
@@ -1063,21 +1102,21 @@ status_t CSI_FragModeCreateHandle(CSI_Type *base,
         return kStatus_InvalidArgument;
     }
 
-    imgWidth_Bytes = config->width * CSI_FRAG_INPUT_BYTES_PER_PIXEL;
+    imgWidth_Bytes = (uint32_t)config->width * CSI_FRAG_INPUT_BYTES_PER_PIXEL;
 
     /* The image buffer line width should be multiple of 8-bytes. */
-    if ((imgWidth_Bytes & 0x07) != 0)
+    if ((imgWidth_Bytes & 0x07U) != 0U)
     {
         return kStatus_InvalidArgument;
     }
 
     /* Camera frame height must be dividable by DMA buffer line. */
-    if (config->height % config->dmaBufferLine != 0)
+    if (config->height % config->dmaBufferLine != 0U)
     {
         return kStatus_InvalidArgument;
     }
 
-    memset(handle, 0, sizeof(*handle));
+    (void)memset(handle, 0, sizeof(*handle));
     handle->callback            = callback;
     handle->userData            = userData;
     handle->height              = config->height;
@@ -1093,7 +1132,7 @@ status_t CSI_FragModeCreateHandle(CSI_Type *base,
 
     s_csiIsr = CSI_FragModeTransferHandleIRQ;
 
-    EnableIRQ(s_csiIRQ[instance]);
+    (void)EnableIRQ(s_csiIRQ[instance]);
 
     /* Configure CSICR1. CSICR1 has been reset to the default value, so could write it directly. */
     reg = ((uint32_t)config->workMode) | config->polarityFlags | CSI_CSICR1_FCC_MASK;
@@ -1103,44 +1142,46 @@ status_t CSI_FragModeCreateHandle(CSI_Type *base,
         reg |= CSI_CSICR1_EXT_VSYNC_MASK;
     }
 
-    base->CSICR1 = reg;
+    CSI_REG_CR1(base) = reg;
 
     /* No stride. */
-    base->CSIFBUF_PARA = 0;
+    CSI_REG_FBUF_PARA(base) = 0;
 
     /* Enable auto ECC. */
-    base->CSICR3 |= CSI_CSICR3_ECC_AUTO_EN_MASK;
+    CSI_REG_CR3(base) |= CSI_CSICR3_ECC_AUTO_EN_MASK;
 
     /*
      * For better performance.
      * The DMA burst size could be set to 16 * 8 byte, 8 * 8 byte, or 4 * 8 byte,
      * choose the best burst size based on bytes per line.
      */
-    if (!(imgWidth_Bytes % (8 * 16)))
+    if (0U == (imgWidth_Bytes % (8U * 16U)))
     {
-        base->CSICR2 = CSI_CSICR2_DMA_BURST_TYPE_RFF(3U);
-        base->CSICR3 = (CSI->CSICR3 & ~CSI_CSICR3_RxFF_LEVEL_MASK) | ((2U << CSI_CSICR3_RxFF_LEVEL_SHIFT));
+        CSI_REG_CR2(base) = CSI_CSICR2_DMA_BURST_TYPE_RFF(3U);
+        CSI_REG_CR3(base) = (CSI_REG_CR3(base) & ~CSI_CSICR3_RxFF_LEVEL_MASK) | ((2U << CSI_CSICR3_RxFF_LEVEL_SHIFT));
     }
-    else if (!(imgWidth_Bytes % (8 * 8)))
+    else if (0U == (imgWidth_Bytes % (8U * 8U)))
     {
-        base->CSICR2 = CSI_CSICR2_DMA_BURST_TYPE_RFF(2U);
-        base->CSICR3 = (CSI->CSICR3 & ~CSI_CSICR3_RxFF_LEVEL_MASK) | ((1U << CSI_CSICR3_RxFF_LEVEL_SHIFT));
+        CSI_REG_CR2(base) = CSI_CSICR2_DMA_BURST_TYPE_RFF(2U);
+        CSI_REG_CR3(base) = (CSI_REG_CR3(base) & ~CSI_CSICR3_RxFF_LEVEL_MASK) | ((1U << CSI_CSICR3_RxFF_LEVEL_SHIFT));
     }
     else
     {
-        base->CSICR2 = CSI_CSICR2_DMA_BURST_TYPE_RFF(1U);
-        base->CSICR3 = (CSI->CSICR3 & ~CSI_CSICR3_RxFF_LEVEL_MASK) | ((0U << CSI_CSICR3_RxFF_LEVEL_SHIFT));
+        CSI_REG_CR2(base) = CSI_CSICR2_DMA_BURST_TYPE_RFF(1U);
+        CSI_REG_CR3(base) = (CSI_REG_CR3(base) & ~CSI_CSICR3_RxFF_LEVEL_MASK) | ((0U << CSI_CSICR3_RxFF_LEVEL_SHIFT));
     }
 
-    base->CSIDMASA_FB1 = config->dmaBufferAddr0;
-    base->CSIDMASA_FB2 = config->dmaBufferAddr1;
+    CSI_REG_DMASA_FB1(base) = config->dmaBufferAddr0;
+    CSI_REG_DMASA_FB2(base) = config->dmaBufferAddr1;
 
     if (handle->isDmaBufferCachable)
     {
-        DCACHE_CleanInvalidateByRange(config->dmaBufferAddr0,
-                                      config->dmaBufferLine * config->width * CSI_FRAG_INPUT_BYTES_PER_PIXEL);
-        DCACHE_CleanInvalidateByRange(config->dmaBufferAddr1,
-                                      config->dmaBufferLine * config->width * CSI_FRAG_INPUT_BYTES_PER_PIXEL);
+        DCACHE_CleanInvalidateByRange(
+            config->dmaBufferAddr0,
+            (uint32_t)config->dmaBufferLine * (uint32_t)config->width * CSI_FRAG_INPUT_BYTES_PER_PIXEL);
+        DCACHE_CleanInvalidateByRange(
+            config->dmaBufferAddr1,
+            (uint32_t)config->dmaBufferLine * (uint32_t)config->width * CSI_FRAG_INPUT_BYTES_PER_PIXEL);
     }
 
     return kStatus_Success;
@@ -1160,7 +1201,7 @@ status_t CSI_FragModeTransferCaptureImage(CSI_Type *base,
                                           csi_frag_handle_t *handle,
                                           const csi_frag_capture_config_t *config)
 {
-    assert(config);
+    assert(NULL != config);
 
     uint16_t windowWidth;
 
@@ -1180,17 +1221,17 @@ status_t CSI_FragModeTransferCaptureImage(CSI_Type *base,
     {
         handle->windowULX   = 0;
         handle->windowULY   = 0;
-        handle->windowLRX   = handle->width - 1;
-        handle->windowLRY   = handle->height - 1;
+        handle->windowLRX   = handle->width - 1U;
+        handle->windowLRY   = handle->height - 1U;
         handle->linePerFrag = handle->maxLinePerFrag;
     }
 
-    windowWidth = handle->windowLRX - handle->windowULX + 1;
+    windowWidth = handle->windowLRX - handle->windowULX + 1U;
 
     if (config->outputGrayScale)
     {
         /* When output format is gray, the window width must be multiple value of 8. */
-        if (windowWidth % 8 != 0)
+        if (windowWidth % 8U != 0U)
         {
             return kStatus_InvalidArgument;
         }
@@ -1216,18 +1257,19 @@ status_t CSI_FragModeTransferCaptureImage(CSI_Type *base,
     handle->datCurWriteAddr = (uint32_t)config->buffer;
 
     /* Image parameter. */
-    base->CSIIMAG_PARA =
-        ((uint32_t)(handle->width * CSI_FRAG_INPUT_BYTES_PER_PIXEL) << CSI_CSIIMAG_PARA_IMAGE_WIDTH_SHIFT) |
+    CSI_REG_IMAG_PARA(base) =
+        (((uint32_t)handle->width * CSI_FRAG_INPUT_BYTES_PER_PIXEL) << CSI_CSIIMAG_PARA_IMAGE_WIDTH_SHIFT) |
         ((uint32_t)(handle->linePerFrag) << CSI_CSIIMAG_PARA_IMAGE_HEIGHT_SHIFT);
 
     /*
      * Write to memory from first completed frame.
      * DMA base addr switch at dma transfer done.
      */
-    base->CSICR18 = (base->CSICR18 & ~CSI_CSICR18_MASK_OPTION_MASK) | CSI_CSICR18_MASK_OPTION(0);
+    CSI_REG_CR18(base) = (CSI_REG_CR18(base) & ~CSI_CSICR18_MASK_OPTION_MASK) | CSI_CSICR18_MASK_OPTION(0);
 
-    CSI_EnableInterrupts(base, kCSI_StartOfFrameInterruptEnable | kCSI_RxBuffer1DmaDoneInterruptEnable |
-                                   kCSI_RxBuffer0DmaDoneInterruptEnable);
+    CSI_EnableInterrupts(base, (uint32_t)kCSI_StartOfFrameInterruptEnable |
+                                   (uint32_t)kCSI_RxBuffer1DmaDoneInterruptEnable |
+                                   (uint32_t)kCSI_RxBuffer0DmaDoneInterruptEnable);
 
     return kStatus_Success;
 }
@@ -1243,8 +1285,9 @@ status_t CSI_FragModeTransferCaptureImage(CSI_Type *base,
 void CSI_FragModeTransferAbortCaptureImage(CSI_Type *base, csi_frag_handle_t *handle)
 {
     CSI_Stop(base);
-    CSI_DisableInterrupts(base, kCSI_StartOfFrameInterruptEnable | kCSI_RxBuffer1DmaDoneInterruptEnable |
-                                    kCSI_RxBuffer0DmaDoneInterruptEnable);
+    CSI_DisableInterrupts(base, (uint32_t)kCSI_StartOfFrameInterruptEnable |
+                                    (uint32_t)kCSI_RxBuffer1DmaDoneInterruptEnable |
+                                    (uint32_t)kCSI_RxBuffer0DmaDoneInterruptEnable);
 }
 
 /*!
@@ -1258,40 +1301,42 @@ void CSI_FragModeTransferAbortCaptureImage(CSI_Type *base, csi_frag_handle_t *ha
  */
 void CSI_FragModeTransferHandleIRQ(CSI_Type *base, csi_frag_handle_t *handle)
 {
-    uint32_t csisr = base->CSISR;
+    uint32_t csisr = CSI_REG_SR(base);
     uint32_t dmaBufAddr;
     uint16_t line;
+    pvoid_to_u32_t memSrc;
+    pvoid_to_u32_t memDest;
 
     /* Clear the error flags. */
-    base->CSISR = csisr;
+    CSI_REG_SR(base) = csisr;
 
     /* Start of frame, clear the FIFO and start receiving. */
-    if (csisr & kCSI_StartOfFrameFlag)
+    if (0U != (csisr & (uint32_t)kCSI_StartOfFrameFlag))
     {
         /* Reflash the DMA and enable RX DMA request. */
-        base->CSICR3 |= (CSI_CSICR3_DMA_REFLASH_RFF_MASK | CSI_CSICR3_DMA_REQ_EN_RFF_MASK);
+        CSI_REG_CR3(base) |= (CSI_CSICR3_DMA_REFLASH_RFF_MASK | CSI_CSICR3_DMA_REQ_EN_RFF_MASK);
         CSI_Start(base);
         handle->dmaCurLine      = 0;
         handle->datCurWriteAddr = handle->outputBuffer;
     }
-    else if ((csisr & (CSI_CSISR_DMA_TSF_DONE_FB2_MASK | CSI_CSISR_DMA_TSF_DONE_FB1_MASK)) != 0)
+    else if ((csisr & (CSI_CSISR_DMA_TSF_DONE_FB2_MASK | CSI_CSISR_DMA_TSF_DONE_FB1_MASK)) != 0U)
     {
         if ((csisr & CSI_CSISR_DMA_TSF_DONE_FB1_MASK) == CSI_CSISR_DMA_TSF_DONE_FB1_MASK)
         {
-            dmaBufAddr = base->CSIDMASA_FB1;
+            dmaBufAddr = CSI_REG_DMASA_FB1(base);
         }
         else
         {
-            dmaBufAddr = base->CSIDMASA_FB2;
+            dmaBufAddr = CSI_REG_DMASA_FB2(base);
         }
 
         if (handle->isDmaBufferCachable)
         {
-            DCACHE_InvalidateByRange(dmaBufAddr, handle->dmaBytePerLine * handle->linePerFrag);
+            DCACHE_InvalidateByRange(dmaBufAddr, (uint32_t)handle->dmaBytePerLine * (uint32_t)handle->linePerFrag);
         }
 
         /* Copy from DMA buffer to user data buffer. */
-        dmaBufAddr += (handle->windowULX * CSI_FRAG_INPUT_BYTES_PER_PIXEL);
+        dmaBufAddr += ((uint32_t)handle->windowULX * CSI_FRAG_INPUT_BYTES_PER_PIXEL);
 
         for (line = 0; line < handle->linePerFrag; line++)
         {
@@ -1302,12 +1347,16 @@ void CSI_FragModeTransferHandleIRQ(CSI_Type *base, csi_frag_handle_t *handle)
             }
             else if (handle->dmaCurLine + line >= handle->windowULY)
             {
-                handle->copyFunc((void *)(handle->datCurWriteAddr), (void const *)dmaBufAddr, handle->datBytePerLine);
+                memDest.u32 = handle->datCurWriteAddr;
+                memSrc.u32  = dmaBufAddr;
+
+                handle->copyFunc(memDest.pvoid, memSrc.pvoid, handle->datBytePerLine);
                 handle->datCurWriteAddr += handle->datBytePerLine;
                 dmaBufAddr += handle->dmaBytePerLine;
             }
             else
             {
+                ; /* For MISRA C-2012 Rule 15.7 */
             }
         }
 
@@ -1316,11 +1365,12 @@ void CSI_FragModeTransferHandleIRQ(CSI_Type *base, csi_frag_handle_t *handle)
         if (handle->dmaCurLine >= handle->height)
         {
             CSI_Stop(base);
-            CSI_DisableInterrupts(base, kCSI_StartOfFrameInterruptEnable | kCSI_RxBuffer1DmaDoneInterruptEnable |
-                                            kCSI_RxBuffer0DmaDoneInterruptEnable);
+            CSI_DisableInterrupts(base, (uint32_t)kCSI_StartOfFrameInterruptEnable |
+                                            (uint32_t)kCSI_RxBuffer1DmaDoneInterruptEnable |
+                                            (uint32_t)kCSI_RxBuffer0DmaDoneInterruptEnable);
 
             /* Image captured. Stop the CSI. */
-            if (handle->callback)
+            if (NULL != handle->callback)
             {
                 handle->callback(base, handle, kStatus_CSI_FrameDone, handle->userData);
             }
@@ -1333,25 +1383,19 @@ void CSI_FragModeTransferHandleIRQ(CSI_Type *base, csi_frag_handle_t *handle)
 #endif /* CSI_DRIVER_FRAG_MODE */
 
 #if defined(CSI)
+void CSI_DriverIRQHandler(void);
 void CSI_DriverIRQHandler(void)
 {
     s_csiIsr(CSI, s_csiHandle[0]);
-/* Add for ARM errata 838869, affects Cortex-M4, Cortex-M4F Store immediate overlapping
-  exception return operation might vector to incorrect interrupt */
-#if defined __CORTEX_M && (__CORTEX_M == 4U)
-    __DSB();
-#endif
+    SDK_ISR_EXIT_BARRIER;
 }
 #endif
 
 #if defined(CSI0)
+void CSI0_DriverIRQHandler(void);
 void CSI0_DriverIRQHandler(void)
 {
     s_csiIsr(CSI, s_csiHandle[0]);
-/* Add for ARM errata 838869, affects Cortex-M4, Cortex-M4F Store immediate overlapping
-  exception return operation might vector to incorrect interrupt */
-#if defined __CORTEX_M && (__CORTEX_M == 4U)
-    __DSB();
-#endif
+    SDK_ISR_EXIT_BARRIER;
 }
 #endif

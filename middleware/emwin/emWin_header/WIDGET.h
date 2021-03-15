@@ -3,13 +3,13 @@
 *        Solutions for real time microcontroller applications        *
 **********************************************************************
 *                                                                    *
-*        (c) 1996 - 2018  SEGGER Microcontroller GmbH                *
+*        (c) 1996 - 2020  SEGGER Microcontroller GmbH                *
 *                                                                    *
 *        Internet: www.segger.com    Support:  support@segger.com    *
 *                                                                    *
 **********************************************************************
 
-** emWin V5.48 - Graphical user interface for embedded applications **
+** emWin V6.14 - Graphical user interface for embedded applications **
 All  Intellectual Property rights  in the Software belongs to  SEGGER.
 emWin is protected by  international copyright laws.  Knowledge of the
 source code may not be used to write a similar product.  This file may
@@ -34,7 +34,7 @@ License model:            emWin License Agreement, dated August 20th 2011 and Am
 Licensed platform:        NXP's ARM 7/9, Cortex-M0, M3, M4, M7, A7, M33
 ----------------------------------------------------------------------
 Support and Update Agreement (SUA)
-SUA period:               2011-08-19 - 2019-09-02
+SUA period:               2011-08-19 - 2020-09-02
 Contact to extend SUA:    sales@segger.com
 ----------------------------------------------------------------------
 File        : WIDGET.h
@@ -49,7 +49,8 @@ Purpose     : Widget interface
 extern "C" {     /* Make sure we have C-declarations in C++ programs */
 #endif
 
-#include "WM_Intern.h"  /* Window manager, including some internals, which speed things up */
+#include "WM.h"  /* Window manager, including some internals, which speed things up */
+#include "GUI_Debug.h"
 
 #if GUI_WINSUPPORT
 
@@ -65,6 +66,7 @@ typedef struct {
   int        ItemIndex;
   int        Col;
   int        x0, y0, x1, y1;
+  I32        Angle;
   void     * p;
 } WIDGET_ITEM_DRAW_INFO;
 
@@ -105,6 +107,7 @@ typedef struct {
 #define FRAMECLNT_ID 0x46524143UL /* FRAC */
 #define GRAPH_ID     0x47524150UL /* GRAP */
 #define HEADER_ID    0x48454144UL /* HEAD */
+#define KEYBOARD_ID  0x4b455942UL /* KEYB */
 #define LISTBOX_ID   0x4C495342UL /* LISB */
 #define LISTVIEW_ID  0x4C495356UL /* LISV */
 #define LISTWHEEL_ID 0x4C495357UL /* LISW */
@@ -124,8 +127,12 @@ typedef struct {
 #define SPINBOX_ID   0x5350494eUL /* SPIN */
 #define KNOB_ID      0x4b4e4f42UL /* KNOB */
 #define WINDOW_ID    0x57494e44UL /* WIND */
+#define ROTARY_ID    0x524f5441UL /* ROTA */
+#define SWITCH_ID    0x53574954UL /* SWIT */
+#define GAUGE_ID     0x47415547UL /* GAUG */
+#define QRCODE_ID    0x5152434fUL /* QRCO */
 
-#define WIDGET_LOCK(hWin)       ((WIDGET*)GUI_LOCK_H(hWin))
+#define WIDGET_LOCK(hWin) ((WIDGET*)GUI_LOCK_H(hWin))
 
 /*********************************************************************
 *
@@ -212,6 +219,9 @@ typedef struct {
                                            // properties of attached widgets from <WIDGET>_DrawSkinFlex().
 #define WIDGET_DRAW_BACKGROUND         30
 
+#define WIDGET_ITEM_DRAW_BUTTON_U      WIDGET_ITEM_DRAW_BUTTON_R
+#define WIDGET_ITEM_DRAW_BUTTON_D      WIDGET_ITEM_DRAW_BUTTON_L
+
 #define WIDGET_DRAW_OVERLAY    WIDGET_ITEM_DRAW_OVERLAY
 
 /*********************************************************************
@@ -277,10 +287,10 @@ typedef struct {
 
 /* Declare Object */
 struct GUI_DRAW {
-  const GUI_DRAW_CONSTS* pConsts;
+  const GUI_DRAW_CONSTS * pConsts;
   union {
     const void * pData;
-    GUI_DRAW_SELF_CB* pfDraw;
+    GUI_DRAW_SELF_CB * pfDraw;
   } Data;
   I16 xOff, yOff;
 };
@@ -293,10 +303,15 @@ int  GUI_DRAW__GetYSize(GUI_DRAW_HANDLE hDrawObj);
 void GUI_DrawStreamedEnableAuto(void);
 
 /* GUI_DRAW_ Constructurs for different objects */
-WM_HMEM GUI_DRAW_BITMAP_Create  (const GUI_BITMAP* pBitmap, int x, int y);
-WM_HMEM GUI_DRAW_BMP_Create     (const void* pBMP, int x, int y);
-WM_HMEM GUI_DRAW_STREAMED_Create(const GUI_BITMAP_STREAM * pBitmap, int x, int y);
-WM_HMEM GUI_DRAW_SELF_Create(GUI_DRAW_SELF_CB* pfDraw, int x, int y);
+WM_HMEM GUI_DRAW_BITMAP_Create     (const GUI_BITMAP * pBitmap, int x, int y);
+WM_HMEM GUI_DRAW_BMP_Create        (const void * pBMP, int x, int y);
+WM_HMEM GUI_DRAW_STREAMED_Create   (const GUI_BITMAP_STREAM * pBitmap, int x, int y);
+WM_HMEM GUI_DRAW_SELF_Create       (GUI_DRAW_SELF_CB * pfDraw, int x, int y);
+WM_HMEM GUI_DRAW_BITMAP_HQHR_Create(const GUI_BITMAP * pBitmap, int x, int y);
+
+#if (GUI_SUPPORT_MEMDEV == 1)
+  void GUI_MEMDEV_DrawBitmapObj32HQHR  (GUI_DRAW_HANDLE hDrawObj, WM_HWIN hWin, int x0HR, int y0HR);  // This function uses parameter which are only available when Widgets and WM are available
+#endif
 
 /*********************************************************************
 *
@@ -336,6 +351,7 @@ void      WIDGET__Init               (WIDGET * pWidget, int Id, U16 State);
 void      WIDGET__RotateRect90       (WIDGET * pWidget, GUI_RECT * pDest, const GUI_RECT * pRect);
 void      WIDGET__SetScrollState     (WM_HWIN hWin, const WM_SCROLL_STATE * pVState, const WM_SCROLL_STATE * pState);
 void      WIDGET__FillStringInRect   (const char * pText, const GUI_RECT * pFillRect, const GUI_RECT * pTextRectMax, const GUI_RECT * pTextRectAct);
+void      WIDGET__FillStringInRectEx (const char * pText, const GUI_RECT * pFillRect, const GUI_RECT * pTextRectMax, const GUI_RECT * pTextRectAct, int xOffset);
 
 //
 // Function pointers for drawing streamed bitmaps

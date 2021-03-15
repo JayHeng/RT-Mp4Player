@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2019, NXP
+ * Copyright (c) 2019-2020 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -11,6 +11,16 @@
 #include "fsl_dc_fb.h"
 #include "fsl_lcdifv2.h"
 
+/*
+ * Change log:
+ *
+ *   1.0.1
+ *     - Fix MISRA-C 2012 issues.
+ *
+ *   1.0.0
+ *     - Initial version
+ */
+
 /*!
  * @addtogroup dc_fb_lcdifv2
  * @{
@@ -20,11 +30,11 @@
  * Definitions
  ******************************************************************************/
 
-#define DC_FB_LCDIFV2_MAX_LAYER LCDIFV2_LAYER_COUNT
-#define DC_FB_LCDIFV2_DEFAULT_BUF_PER_LAYER 3
-#define DC_FB_LCDIFV2_DEFAULT_PIXEL_FORMAT kVIDEO_PixelFormatRGB565
+#define DC_FB_LCDIFV2_MAX_LAYER                    ((uint32_t)LCDIFV2_LAYER_COUNT)
+#define DC_FB_LCDIFV2_DEFAULT_BUF_PER_LAYER        3U
+#define DC_FB_LCDIFV2_DEFAULT_PIXEL_FORMAT         kVIDEO_PixelFormatRGB565
 #define DC_FB_LCDIFV2_DEFAULT_PIXEL_FORMAT_LCDIFV2 kLCDIFV2_PixelFormatRGB565
-#define DC_FB_LCDIFV2_DEFAULT_BYTE_PER_PIXEL 2
+#define DC_FB_LCDIFV2_DEFAULT_BYTE_PER_PIXEL       2U
 
 /*! @brief Data for LCDIFV2 display controller layer. */
 typedef struct _dc_fb_lcdifv2_layer

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 NXP
+ * Copyright 2019-2020 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -19,7 +19,7 @@
  * Definitions
  ******************************************************************************/
 /*! @brief Driver version. */
-#define FSL_SOC_MIPI_CSI2RX_DRIVER_VERSION (MAKE_VERSION(2, 0, 0))
+#define FSL_SOC_MIPI_CSI2RX_DRIVER_VERSION (MAKE_VERSION(2, 0, 2))
 
 /*******************************************************************************
  * API

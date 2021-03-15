@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 NXP.
+ * Copyright 2020 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -13,10 +13,10 @@
 /*
  * TEXT BELOW IS USED AS SETTING FOR TOOLS *************************************
 !!GlobalInfo
-product: Pins v6.0
-processor: MIMXRT1064xxxxA
+product: Pins v8.0
+processor: MIMXRT1176xxxxx
 mcu_data: ksdk2_0
-processor_version: 0.0.9
+processor_version: 0.0.0
  * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS ***********
  */
 
@@ -43,7 +43,7 @@ BOARD_InitPins:
 
 /* FUNCTION ************************************************************************************************************
  *
- * Function Name : BOARD_InitPins
+ * Function Name : BOARD_InitPins, assigned for the Cortex-M7F core.
  * Description   : Configures pin routing and optionally pin electrical features.
  *
  * END ****************************************************************************************************************/

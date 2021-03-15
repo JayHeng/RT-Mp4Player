@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 NXP Semiconductors, Inc.
+ * Copyright 2019-2020 NXP
  * All rights reserved.
  *
  *
@@ -23,8 +23,16 @@
 /*! @name Driver version */
 /*@{*/
 /*! @brief LCDIF v2 driver version */
-#define FSL_LCDIFV2_DRIVER_VERSION (MAKE_VERSION(2, 0, 0))
+#define FSL_LCDIFV2_DRIVER_VERSION (MAKE_VERSION(2, 2, 2))
 /*@}*/
+
+#if defined(FSL_FEATURE_LCDIFV2_LAYER_COUNT) && (!defined(LCDIFV2_LAYER_COUNT))
+#define LCDIFV2_LAYER_COUNT FSL_FEATURE_LCDIFV2_LAYER_COUNT
+#endif
+
+#if defined(FSL_FEATURE_LCDIFV2_LAYER_CSC_COUNT) && (!defined(LCDIFV2_LAYER_CSC_COUNT))
+#define LCDIFV2_LAYER_CSC_COUNT FSL_FEATURE_LCDIFV2_LAYER_CSC_COUNT
+#endif
 
 /*! @brief LCDIF v2 FIFO empty interrupt. */
 #define LCDIFV2_MAKE_FIFO_EMPTY_INTERRUPT(layer) (1U << ((uint32_t)(layer) + 24U))
@@ -34,7 +42,7 @@
 #define LCDIFV2_MAKE_DMA_ERROR_INTERRUPT(layer) (1U << ((uint32_t)(layer) + 8U))
 
 /* LUT memory entery number. */
-#define LCDIFV2_LUT_ENTRY_NUM 256
+#define LCDIFV2_LUT_ENTRY_NUM 256U
 
 /*!
  * @brief LCDIF v2 signal polarity flags
@@ -47,11 +55,10 @@ enum _lcdifv2_polarity_flags
     kLCDIFV2_HsyncActiveHigh           = 0U,                         /*!< HSYNC active high. */
     kLCDIFV2_DataEnableActiveLow       = LCDIFV2_CTRL_INV_DE_MASK,   /*!< Data enable line active low. */
     kLCDIFV2_DataEnableActiveHigh      = 0U,                         /*!< Data enable line active high. */
-    kLCDIFV2_DriveDataOnFallingClkEdge = LCDIFV2_CTRL_INV_PXCK_MASK, /*!< Drive data on falling clock edge, capture data
-                                                 on rising clock edge. */
-    kLCDIFV2_DriveDataOnRisingClkEdge = 0U,                          /*!< Drive data on falling
-                                                                                                 clock edge, capture data
-                                                                                                 on rising clock edge. */
+    kLCDIFV2_DriveDataOnFallingClkEdge = LCDIFV2_CTRL_INV_PXCK_MASK, /*!< Output data on falling clock edge, capture
+                                                                        data on rising clock edge. */
+    kLCDIFV2_DriveDataOnRisingClkEdge = 0U,                          /*!< Output data on rising clock edge, capture data
+                                                                          on falling clock edge. */
     kLCDIFV2_DataActiveLow  = LCDIFV2_CTRL_NEG_MASK,                 /*!< Data active high. */
     kLCDIFV2_DataActiveHigh = 0U,                                    /*!< Data active high. */
 };
@@ -85,8 +92,6 @@ enum _lcdifv2_interrupt
     kLCDIFV2_Layer5DmaErrorInterrupt   = LCDIFV2_MAKE_DMA_ERROR_INTERRUPT(5),  /*!< Layer 5 DMA error. */
     kLCDIFV2_Layer6DmaErrorInterrupt   = LCDIFV2_MAKE_DMA_ERROR_INTERRUPT(6),  /*!< Layer 6 DMA error. */
     kLCDIFV2_Layer7DmaErrorInterrupt   = LCDIFV2_MAKE_DMA_ERROR_INTERRUPT(7),  /*!< Layer 7 DMA error. */
-    kLCDIFV2_StoreErrorInterrupt       = (1U << 5U), /*!< Store frame error on AXI interface. */
-    kLCDIFV2_StoreFrameDoneInterrupt   = (1U << 4U), /*!< Current frame being stored has finished. */
     kLCDIFV2_VerticalBlankingInterrupt = (1U << 2U), /*!< Start of vertical blanking period. */
     kLCDIFV2_OutputUnderrunInterrupt   = (1U << 1U), /*!< Output buffer underrun. */
     kLCDIFV2_VsyncEdgeInterrupt        = (1U << 0U), /*!< Interrupt at VSYNC edge. */
@@ -182,8 +187,8 @@ typedef enum _lcdifv2_pd_alpha_mode
  */
 typedef enum _lcdifv2_pd_color_mode
 {
-    kLCDIFV2_PD_ColorStraight = 0, /*!< Straight mode. */
-    kLCDIFV2_PD_ColorInversed = 1, /*!< Inversed mode. */
+    kLCDIFV2_PD_ColorNoAlpha   = 0, /*!< Output color directly. */
+    kLCDIFV2_PD_ColorWithAlpha = 1, /*!< Output color multiples alpha. */
 } lcdifv2_pd_color_mode_t;
 
 /*!
@@ -202,9 +207,9 @@ typedef enum _lcdifv2_pd_global_alpha_mode
 typedef enum _lcdifv2_pd_factor_mode
 {
     kLCDIFV2_PD_FactorOne           = 0, /*!< Use 1. */
-    kLCDIFV2_PD_FatorZero           = 1, /*!< Use 0. */
+    kLCDIFV2_PD_FactorZero          = 1, /*!< Use 0. */
     kLCDIFV2_PD_FactorStraightAlpha = 2, /*!< Use straight alpha. */
-    kLCDIFV2_PD_FactorInversecAlpha = 3, /*!< Use inversed alpha. */
+    kLCDIFV2_PD_FactorInversedAlpha = 3, /*!< Use inversed alpha. */
 } lcdifv2_pd_factor_mode_t;
 
 /*!
@@ -226,22 +231,31 @@ typedef struct _lcdifv2_blend_config
                                                       kLCDIFV2_AlphaPoterDuff */
 } lcdifv2_blend_config_t;
 
-/*!
- * @brief LCDIF v2 write buffer pixel format.
- */
-typedef enum _lcdifv2_store_pixel_format
+/*! @brief LCDIFv2 Porter Duff blend mode. Note: Don't change the enum item value */
+typedef enum _lcdifv2_pd_blend_mode
 {
-    kLCDIFV2_StorePixelFormatARGB8888, /*!< 32-bpp ARGB8888. */
-    kLCDIFV2_StorePixelFormatRGB888,   /*!< 24-bpp RGB888. */
-} lcdifv2_store_pixel_format_t;
+    kLCDIFV2_PD_Src = 0, /*!< Source Only */
+    kLCDIFV2_PD_Atop,    /*!< Source Atop */
+    kLCDIFV2_PD_Over,    /*!< Source Over */
+    kLCDIFV2_PD_In,      /*!< Source In. */
+    kLCDIFV2_PD_Out,     /*!< Source Out. */
+    kLCDIFV2_PD_Dst,     /*!< Destination Only. */
+    kLCDIFV2_PD_DstAtop, /*!< Destination Atop. */
+    kLCDIFV2_PD_DstOver, /*!< Destination Over. */
+    kLCDIFV2_PD_DstIn,   /*!< Destination In. */
+    kLCDIFV2_PD_DstOut,  /*!< Destination Out. */
+    kLCDIFV2_PD_Xor,     /*!< XOR. */
+    kLCDIFV2_PD_Clear,   /*!< Clear. */
+    kLCDIFV2_PD_Max,     /*!< Used for boarder detection. */
+} lcdifv2_pd_blend_mode_t;
 
-typedef struct _lcdifv2_store_buffer_config
+/*! @brief LCDIFv2 Porter Duff layer. Note: Don't change the enum item value */
+typedef enum _lcdifv2_pd_layer
 {
-    uint32_t bufferAddr;  /*!< Output buffer address, suggest 64-bit aligned for better performance. */
-    uint16_t strideBytes; /*!< Number of bytes between two vertically adjacent pixels, suggest 64-bit aligned for
-                            better performance. */
-    lcdifv2_store_pixel_format_t pixelFormat; /*!< Store pixel format. */
-} lcdifv2_store_buffer_config_t;
+    kLCDIFV2_PD_SrcLayer  = 0, /*!< Source layer.      */
+    kLCDIFV2_PD_DestLayer = 1, /*!< Destination layer. */
+    kLCDIFV2_PD_LayerMax  = 2, /*!< Used for boarder detection. */
+} lcdifv2_pd_layer_t;
 
 /*******************************************************************************
  * APIs
@@ -276,13 +290,8 @@ void LCDIFV2_Deinit(LCDIFV2_Type *base);
  * @brief Reset the LCDIF v2.
  *
  * @param base LCDIF peripheral base address.
- * @param enable Enable or disable.
  */
-static inline void LCDIFV2_Reset(LCDIFV2_Type *base)
-{
-    base->CTRL = LCDIFV2_CTRL_SW_RESET_MASK;
-    base->CTRL = 0U;
-}
+void LCDIFV2_Reset(LCDIFV2_Type *base);
 
 /* @} */
 
@@ -440,7 +449,7 @@ status_t LCDIFV2_SetLut(
 static inline void LCDIFV2_SetLayerSize(LCDIFV2_Type *base, uint8_t layerIndex, uint16_t width, uint16_t height)
 {
     base->LAYER[layerIndex].CTRLDESCL1 =
-        (height << LCDIFV2_CTRLDESCL1_HEIGHT_SHIFT) | (width << LCDIFV2_CTRLDESCL1_WIDTH_SHIFT);
+        ((uint32_t)height << LCDIFV2_CTRLDESCL1_HEIGHT_SHIFT) | ((uint32_t)width << LCDIFV2_CTRLDESCL1_WIDTH_SHIFT);
 }
 
 /*!
@@ -454,7 +463,7 @@ static inline void LCDIFV2_SetLayerSize(LCDIFV2_Type *base, uint8_t layerIndex, 
 static inline void LCDIFV2_SetLayerOffset(LCDIFV2_Type *base, uint8_t layerIndex, uint16_t offsetX, uint16_t offsetY)
 {
     base->LAYER[layerIndex].CTRLDESCL2 =
-        (offsetX << LCDIFV2_CTRLDESCL2_POSX_SHIFT) | (offsetY << LCDIFV2_CTRLDESCL2_POSY_SHIFT);
+        ((uint32_t)offsetX << LCDIFV2_CTRLDESCL2_POSX_SHIFT) | ((uint32_t)offsetY << LCDIFV2_CTRLDESCL2_POSY_SHIFT);
 }
 
 /*!
@@ -552,28 +561,36 @@ void LCDIFV2_SetCscMode(LCDIFV2_Type *base, uint8_t layerIndex, lcdifv2_csc_mode
 /* @} */
 
 /*!
- * @name Store
+ * @name Porter Duff
  * @{
  */
 
 /*!
- * @brief Set the store buffer configuration.
+ * @brief Get the blend configuration for Porter Duff blend.
  *
- * @param base LCDIFv2 peripheral base address.
- * @param config Pointer to the store buffer.
+ * This function gets the blend configuration for Porter Duff blend,
+ * config->pdFactorMode is set according to @p layer and @p mode,
+ * other blend configurations are set to:
+ *
+ * @code
+    config->pdAlphaMode = kLCDIFV2_PD_AlphaStraight;
+    config->pdColorMode = kLCDIFV2_PD_ColorStraight;
+    config->pdGlobalAlphaMode = kLCDIFV2_PD_LocalAlpha;
+    config->alphaMode = kLCDIFV2_AlphaPoterDuff;
+   @endcode
+ *
+ * This is the basic Porter Duff blend configuration, user still could
+ * modify the configurations after this function.
+ *
+ * @param mode Porter Duff blend mode.
+ * @param layer The configuration for source layer or destination layer.
+ * @param config Pointer to the configuration.
+ * @retval kStatus_Success Get the configuration successfully.
+ * @retval kStatus_InvalidArgument The argument is invalid.
  */
-void LCDIFV2_SetStoreBufferConfig(LCDIFV2_Type *base, const lcdifv2_store_buffer_config_t *config);
-
-/*!
- * @brief Start the store.
- *
- * If repeat mode not enabled, the store function stops after one frame. If the
- * repeat mode is enabled, the store continues working until reset the module.
- *
- * @param base LCDIFv2 peripheral base address.
- * @param repeat Use repeat mode or not.
- */
-void LCDIFV2_StartStore(LCDIFV2_Type *base, bool repeat);
+status_t LCDIFV2_GetPorterDuffConfig(lcdifv2_pd_blend_mode_t mode,
+                                     lcdifv2_pd_layer_t layer,
+                                     lcdifv2_blend_config_t *config);
 
 /* @} */
 

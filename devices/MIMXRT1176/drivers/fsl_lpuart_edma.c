@@ -25,7 +25,7 @@ typedef struct _lpuart_edma_private_handle
 } lpuart_edma_private_handle_t;
 
 /* LPUART EDMA transfer handle. */
-enum _lpuart_edma_tansfer_states
+enum
 {
     kLPUART_TxIdle, /* TX idle. */
     kLPUART_TxBusy, /* TX busy. */

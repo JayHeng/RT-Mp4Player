@@ -1,5 +1,5 @@
 /*
- * Copyright  2017 NXP
+ * Copyright 2017-2020 NXP
  * All rights reserved.
  *
  *
@@ -23,7 +23,7 @@
 /*! @name Driver version */
 /*@{*/
 /*! @brief eLCDIF driver version */
-#define FSL_ELCDIF_DRIVER_VERSION (MAKE_VERSION(2, 0, 1)) /*!< Version 2.0.1. */
+#define FSL_ELCDIF_DRIVER_VERSION (MAKE_VERSION(2, 0, 2))
 /*@}*/
 
 /* All IRQ flags in CTRL1 register. */
@@ -55,7 +55,7 @@
 #endif
 
 /* LUT memory entery number. */
-#define ELCDIF_LUT_ENTRY_NUM 256
+#define ELCDIF_LUT_ENTRY_NUM 256U
 
 /*!
  * @brief eLCDIF signal polarity flags
@@ -321,7 +321,7 @@ void ELCDIF_RgbModeInit(LCDIF_Type *base, const elcdif_rgb_mode_config_t *config
     config->bufferAddr = 0U;
     config->pixelFormat = kELCDIF_PixelFormatRGB888;
     config->dataBus = kELCDIF_DataBus24Bit;
-    @code
+   @endcode
  *
  * @param config Pointer to the eLCDIF configuration structure.
  */
@@ -470,15 +470,12 @@ static inline uint32_t ELCDIF_GetBusMasterErrorAddr(LCDIF_Type *base)
    uint32_t statusFlags;
    statusFlags = ELCDIF_GetStatus(LCDIF);
 
-   // If LFIFO is full.
    if (kELCDIF_LFifoFull & statusFlags)
    {
-       // ...;
    }
-   // If TXFIFO is empty.
+
    if (kELCDIF_TxFifoEmpty & statusFlags)
    {
-       // ...;
    }
    @endcode
  *
@@ -670,7 +667,7 @@ static inline void ELCDIF_EnableAlphaSurface(LCDIF_Type *base, bool enable)
  * @brief Enable or disable the process surface.
  *
  * Process surface is the normal frame buffer. The process surface content
- * is controlled by @ref ELCDIF_SetNextBufferAddr.
+ * is controlled by ::ELCDIF_SetNextBufferAddr.
  *
  * @param base eLCDIF peripheral base address.
  * @param enable True to enable, false to disable.

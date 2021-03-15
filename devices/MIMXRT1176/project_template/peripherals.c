@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 NXP.
+ * Copyright 2020 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -13,12 +13,13 @@
 /* clang-format off */
 /* TEXT BELOW IS USED AS SETTING FOR TOOLS *************************************
 !!GlobalInfo
-product: Peripherals v6.0
-processor: MIMXRT1064xxxxA
+product: Peripherals v8.0
+processor: MIMXRT1176xxxxx
 mcu_data: ksdk2_0
-processor_version: 0.0.9
+processor_version: 0.0.0
 functionalGroups:
 - name: BOARD_InitPeripherals
+  UUID: 673cf921-1ec2-4930-93f2-e0768a84092c
   called_from_default_init: true
  * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS **********/
 
@@ -26,7 +27,9 @@ functionalGroups:
 component:
 - type: 'system'
 - type_id: 'system_54b53072540eeeb8f8e9343e71f28176'
-- global_system_definitions: []
+- global_system_definitions:
+  - user_definitions: ''
+  - user_includes: ''
  * BE CAREFUL MODIFYING THIS COMMENT - IT IS YAML SETTINGS FOR TOOLS **********/
 /* clang-format on */
 
@@ -40,6 +43,7 @@ component:
  **********************************************************************************************************************/
 void BOARD_InitPeripherals(void)
 {
+    BOARD_ConfigMPU();
 }
 
 /***********************************************************************************************************************
@@ -47,5 +51,5 @@ void BOARD_InitPeripherals(void)
  **********************************************************************************************************************/
 void BOARD_InitBootPeripherals(void)
 {
-    BOARD_InitPeripherals();
+  BOARD_InitPeripherals();
 }

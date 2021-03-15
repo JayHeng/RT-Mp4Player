@@ -1,5 +1,5 @@
 /*
- * Copyright  2019 NXP
+ * Copyright 2019-2020 NXP
  * All rights reserved.
  *
  *
@@ -12,6 +12,17 @@
 #include "fsl_display.h"
 #include "fsl_mipi_dsi_cmd.h"
 
+/*
+ * Change log:
+ *
+ *   1.1.0
+ *     - Fix MISRA-C 2012 issues.
+ *     - Change rm68191_resource_t structure.
+ *
+ *   1.0.0
+ *     - Initial version
+ */
+
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
@@ -21,7 +32,7 @@
  */
 typedef struct _rm68191_resource
 {
-    mipi_dsi_device_t dsiDevice;       /*!< MIPI DSI device. */
+    mipi_dsi_device_t *dsiDevice;      /*!< MIPI DSI device. */
     void (*pullResetPin)(bool pullUp); /*!< Function to pull reset pin high or low. */
     void (*pullPowerPin)(bool pullUp); /*!< Function to pull power pin high or low. */
 } rm68191_resource_t;

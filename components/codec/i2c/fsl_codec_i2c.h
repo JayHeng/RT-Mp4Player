@@ -10,11 +10,15 @@
 #define _FSL_CODEC_I2C_H_
 
 #include "fsl_common.h"
-#include "i2c.h"
+#include "fsl_adapter_i2c.h"
 
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
+/*! @brief codec i2c handler */
+#ifndef CODEC_I2C_MASTER_HANDLER_SIZE
+#define CODEC_I2C_MASTER_HANDLER_SIZE HAL_I2C_MASTER_HANDLE_SIZE
+#endif
 
 /*! @brief CODEC device register address type. */
 typedef enum _codec_reg_addr
@@ -49,7 +53,7 @@ extern "C" {
  * @brief Codec i2c bus initilization.
  *
  * @param handle i2c master handle.
- * @param i2CInstance instance number of the i2c bus, such as 0 is corresponding to I2C0.
+ * @param i2cInstance instance number of the i2c bus, such as 0 is corresponding to I2C0.
  * @param i2cBaudrate i2c baudrate.
  * @param i2cSourceClockHz i2c source clock frequency.
  * @return kStatus_HAL_I2cSuccess is success, else initial failed.

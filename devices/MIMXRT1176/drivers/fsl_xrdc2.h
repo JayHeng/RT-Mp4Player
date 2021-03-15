@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 NXP
+ * Copyright 2019-2020 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -19,18 +19,18 @@
  * Definitions
  *****************************************************************************/
 /*! @brief Driver version. */
-#define FSL_XRDC2_DRIVER_VERSION (MAKE_VERSION(2, 0, 0))
+#define FSL_XRDC2_DRIVER_VERSION (MAKE_VERSION(2, 0, 2))
 
 /* Definitions for XRDC2 Exclusive access lock. */
-#define XRDC2_EAL_FORCE_RELEASE_MAGIC_0 0x02000046U
-#define XRDC2_EAL_FORCE_RELEASE_MAGIC_1 0x02000052U
+#define XRDC2_EAL_FORCE_RELEASE_MAGIC_0 0x02000046UL
+#define XRDC2_EAL_FORCE_RELEASE_MAGIC_1 0x02000052UL
 
-#define XRDC2_EAL_DISABLE (0U << XRDC2_MGR_MSC_MSAC_W1_EAL_SHIFT)
-#define XRDC2_EAL_DISABLE_UNTIL_RESET (1U << XRDC2_MGR_MSC_MSAC_W1_EAL_SHIFT)
-#define XRDC2_EAL_UNLOCKED (2U << XRDC2_MGR_MSC_MSAC_W1_EAL_SHIFT)
-#define XRDC2_EAL_LOCKED (3U << XRDC2_MGR_MSC_MSAC_W1_EAL_SHIFT)
+#define XRDC2_EAL_DISABLE             (0UL << XRDC2_MSC_MSAC_W1_EAL_SHIFT)
+#define XRDC2_EAL_DISABLE_UNTIL_RESET (1UL << XRDC2_MSC_MSAC_W1_EAL_SHIFT)
+#define XRDC2_EAL_UNLOCKED            (2UL << XRDC2_MSC_MSAC_W1_EAL_SHIFT)
+#define XRDC2_EAL_LOCKED              (3UL << XRDC2_MSC_MSAC_W1_EAL_SHIFT)
 
-#define XRDC2_EAL_MASK XRDC2_MGR_MSC_MSAC_W1_EAL_MASK
+#define XRDC2_EAL_MASK XRDC2_MSC_MSAC_W1_EAL_MASK
 
 /*!
  * @brief Global configuration lock.
@@ -151,14 +151,14 @@ extern "C" {
  *
  * @param base XRDC2 peripheral base address.
  */
-void XRDC2_Init(XRDC2_MGR_Type *base);
+void XRDC2_Init(XRDC2_Type *base);
 
 /*!
  * @brief De-initializes the XRDC2 module.
  *
  * @param base XRDC2 peripheral base address.
  */
-void XRDC2_Deinit(XRDC2_MGR_Type *base);
+void XRDC2_Deinit(XRDC2_Type *base);
 
 /*!
  * @name XRDC2 manager (XRDC2)
@@ -174,7 +174,7 @@ void XRDC2_Deinit(XRDC2_MGR_Type *base);
  * @param base XRDC2 peripheral base address.
  * @param valid True to valid XRDC2.
  */
-void XRDC2_SetGlobalValid(XRDC2_MGR_Type *base, bool valid);
+void XRDC2_SetGlobalValid(XRDC2_Type *base, bool valid);
 
 /*!
  * @brief Gets the domain ID of the current bus master.
@@ -184,9 +184,13 @@ void XRDC2_SetGlobalValid(XRDC2_MGR_Type *base, bool valid);
  * @param base XRDC2 peripheral base address.
  * @return Domain ID of current bus master.
  */
-static inline uint8_t XRDC2_GetCurrentMasterDomainId(XRDC2_MGR_Type *base)
+static inline uint8_t XRDC2_GetCurrentMasterDomainId(XRDC2_Type *base)
 {
-    return (uint8_t)((base->SR & XRDC2_MGR_SR_DID_MASK) >> XRDC2_MGR_SR_DID_SHIFT);
+#if defined(XRDC2_SR_DIN_MASK)
+    return (uint8_t)((base->SR & XRDC2_SR_DIN_MASK) >> XRDC2_SR_DIN_SHIFT);
+#else
+    return (uint8_t)((base->SR & XRDC2_SR_DID_MASK) >> XRDC2_SR_DID_SHIFT);
+#endif
 }
 
 /*!
@@ -197,9 +201,9 @@ static inline uint8_t XRDC2_GetCurrentMasterDomainId(XRDC2_MGR_Type *base)
  * @param base XRDC2 peripheral base address.
  * @param lock The lock mode.
  */
-static inline void XRDC2_SetGlobalConfigLock(XRDC2_MGR_Type *base, xrdc2_global_config_lock_t mode)
+static inline void XRDC2_SetGlobalConfigLock(XRDC2_Type *base, xrdc2_global_config_lock_t mode)
 {
-    base->MCR = (base->MCR & ~XRDC2_MGR_MCR_GCL_MASK) | XRDC2_MGR_MCR_GCL(mode);
+    base->MCR = (base->MCR & ~XRDC2_MCR_GCL_MASK) | XRDC2_MCR_GCL(mode);
 }
 
 /*!
@@ -208,9 +212,9 @@ static inline void XRDC2_SetGlobalConfigLock(XRDC2_MGR_Type *base, xrdc2_global_
  * @param base XRDC2 peripheral base address.
  * @return Domain ID of the global configuration lock owner.
  */
-static inline uint8_t XRDC2_GetCurrentGlobalConfigLockOwnerDomainId(XRDC2_MGR_Type *base)
+static inline uint8_t XRDC2_GetCurrentGlobalConfigLockOwnerDomainId(XRDC2_Type *base)
 {
-    return (uint8_t)((base->SR & XRDC2_MGR_SR_GCLO_MASK) >> XRDC2_MGR_SR_GCLO_SHIFT);
+    return (uint8_t)((base->SR & XRDC2_SR_GCLO_MASK) >> XRDC2_SR_GCLO_SHIFT);
 }
 
 /*@}*/
@@ -246,7 +250,7 @@ void XRDC2_GetDefaultMasterDomainAssignment(xrdc2_master_domain_assignment_t *as
  * @param assignIndex Which assignment register to set.
  * @param assignment Pointer to the assignment structure.
  */
-void XRDC2_SetMasterDomainAssignment(XRDC2_MGR_Type *base,
+void XRDC2_SetMasterDomainAssignment(XRDC2_Type *base,
                                      xrdc2_master_t master,
                                      uint8_t assignIndex,
                                      const xrdc2_master_domain_assignment_t *assignment);
@@ -263,9 +267,9 @@ void XRDC2_SetMasterDomainAssignment(XRDC2_MGR_Type *base,
  * @param master Which master to configure.
  * @param assignIndex Which assignment register to lock.
  */
-static inline void XRDC2_LockMasterDomainAssignment(XRDC2_MGR_Type *base, xrdc2_master_t master, uint8_t assignIndex)
+static inline void XRDC2_LockMasterDomainAssignment(XRDC2_Type *base, xrdc2_master_t master, uint8_t assignIndex)
 {
-    base->MDACI_MDAJ[master][assignIndex].MDAC_MDA_W1 |= XRDC2_MGR_MDAC_MDA_W1_DL_MASK;
+    base->MDACI_MDAJ[master][assignIndex].MDAC_MDA_W1 |= XRDC2_MDAC_MDA_W1_DL_MASK;
 }
 
 /*!
@@ -280,18 +284,18 @@ static inline void XRDC2_LockMasterDomainAssignment(XRDC2_MGR_Type *base, xrdc2_
  * @param assignIndex Index for the domain assignment register.
  * @param valid True to set valid, false to set invalid.
  */
-static inline void XRDC2_SetMasterDomainAssignmentValid(XRDC2_MGR_Type *base,
+static inline void XRDC2_SetMasterDomainAssignmentValid(XRDC2_Type *base,
                                                         xrdc2_master_t master,
                                                         uint8_t assignIndex,
                                                         bool valid)
 {
     if (valid)
     {
-        base->MDACI_MDAJ[master][assignIndex].MDAC_MDA_W1 |= XRDC2_MGR_MDAC_MDA_W1_VLD_MASK;
+        base->MDACI_MDAJ[master][assignIndex].MDAC_MDA_W1 |= XRDC2_MDAC_MDA_W1_VLD_MASK;
     }
     else
     {
-        base->MDACI_MDAJ[master][assignIndex].MDAC_MDA_W1 &= ~XRDC2_MGR_MDAC_MDA_W1_VLD_MASK;
+        base->MDACI_MDAJ[master][assignIndex].MDAC_MDA_W1 &= ~XRDC2_MDAC_MDA_W1_VLD_MASK;
     }
 }
 
@@ -325,7 +329,7 @@ void XRDC2_GetMemSlotAccessDefaultConfig(xrdc2_mem_slot_access_config_t *config)
  * @param memSlot Which memory slot descriptor to set.
  * @param config Pointer to the access policy configuration structure.
  */
-void XRDC2_SetMemSlotAccessConfig(XRDC2_MGR_Type *base,
+void XRDC2_SetMemSlotAccessConfig(XRDC2_Type *base,
                                   xrdc2_mem_slot_t memSlot,
                                   const xrdc2_mem_slot_access_config_t *config);
 
@@ -336,7 +340,7 @@ void XRDC2_SetMemSlotAccessConfig(XRDC2_MGR_Type *base,
  * @param memSlot Which memory slot descriptor to set.
  * @param valid True to set valid, false to set invalid.
  */
-void XRDC2_SetMemSlotAccessValid(XRDC2_MGR_Type *base, xrdc2_mem_slot_t memSlot, bool valid);
+void XRDC2_SetMemSlotAccessValid(XRDC2_Type *base, xrdc2_mem_slot_t memSlot, bool valid);
 
 /*!
  * @brief Sets the memory slot descriptor lock mode.
@@ -345,9 +349,7 @@ void XRDC2_SetMemSlotAccessValid(XRDC2_MGR_Type *base, xrdc2_mem_slot_t memSlot,
  * @param memSlot Which memory slot descriptor to set.
  * @param lockMode The lock mode to set.
  */
-void XRDC2_SetMemSlotAccessLockMode(XRDC2_MGR_Type *base,
-                                    xrdc2_mem_slot_t memSlot,
-                                    xrdc2_access_config_lock_t lockMode);
+void XRDC2_SetMemSlotAccessLockMode(XRDC2_Type *base, xrdc2_mem_slot_t memSlot, xrdc2_access_config_lock_t lockMode);
 
 /*!
  * @brief Sets the memory slot access policy for specific domain.
@@ -357,7 +359,7 @@ void XRDC2_SetMemSlotAccessLockMode(XRDC2_MGR_Type *base,
  * @param domainId The ID of the domain whose policy will be changed.
  * @param policy The access policy to set.
  */
-void XRDC2_SetMemSlotDomainAccessPolicy(XRDC2_MGR_Type *base,
+void XRDC2_SetMemSlotDomainAccessPolicy(XRDC2_Type *base,
                                         xrdc2_mem_slot_t memSlot,
                                         uint8_t domainId,
                                         xrdc2_access_policy_t policy);
@@ -372,7 +374,7 @@ void XRDC2_SetMemSlotDomainAccessPolicy(XRDC2_MGR_Type *base,
  * @param memSlot The memory slot to operate.
  * @param enable True to enable, false to disable.
  */
-void XRDC2_EnableMemSlotExclAccessLock(XRDC2_MGR_Type *base, xrdc2_mem_slot_t memSlot, bool enable);
+void XRDC2_EnableMemSlotExclAccessLock(XRDC2_Type *base, xrdc2_mem_slot_t memSlot, bool enable);
 
 /*!
  * @brief Get current memory slot exclusive access lock owner.
@@ -381,7 +383,7 @@ void XRDC2_EnableMemSlotExclAccessLock(XRDC2_MGR_Type *base, xrdc2_mem_slot_t me
  * @param memSlot The memory slot to operate.
  * @return The domain ID of the lock owner.
  */
-uint8_t XRDC2_GetMemSlotExclAccessLockDomainOwner(XRDC2_MGR_Type *base, xrdc2_mem_slot_t memSlot);
+uint8_t XRDC2_GetMemSlotExclAccessLockDomainOwner(XRDC2_Type *base, xrdc2_mem_slot_t memSlot);
 
 /*!
  * @brief Try to lock the memory slot exclusive access.
@@ -391,7 +393,7 @@ uint8_t XRDC2_GetMemSlotExclAccessLockDomainOwner(XRDC2_MGR_Type *base, xrdc2_me
  * @retval kStatus_Fail Failed to lock.
  * @retval kStatus_Success Locked succussfully.
  */
-status_t XRDC2_TryLockMemSlotExclAccess(XRDC2_MGR_Type *base, xrdc2_mem_slot_t memSlot);
+status_t XRDC2_TryLockMemSlotExclAccess(XRDC2_Type *base, xrdc2_mem_slot_t memSlot);
 
 /*!
  * @brief Lock the memory slot exclusive access using blocking method.
@@ -401,7 +403,7 @@ status_t XRDC2_TryLockMemSlotExclAccess(XRDC2_MGR_Type *base, xrdc2_mem_slot_t m
  *
  * @note This function must be called when the lock is not disabled.
  */
-void XRDC2_LockMemSlotExclAccess(XRDC2_MGR_Type *base, xrdc2_mem_slot_t memSlot);
+void XRDC2_LockMemSlotExclAccess(XRDC2_Type *base, xrdc2_mem_slot_t memSlot);
 
 /*!
  * @brief Unlock the memory slot exclusive access.
@@ -411,7 +413,7 @@ void XRDC2_LockMemSlotExclAccess(XRDC2_MGR_Type *base, xrdc2_mem_slot_t memSlot)
  *
  * @note This function must be called by the lock owner.
  */
-static inline void XRDC2_UnlockMemSlotExclAccess(XRDC2_MGR_Type *base, xrdc2_mem_slot_t memSlot)
+static inline void XRDC2_UnlockMemSlotExclAccess(XRDC2_Type *base, xrdc2_mem_slot_t memSlot)
 {
     base->MSCI_MSAC_WK[(uint32_t)memSlot].MSC_MSAC_W1 = XRDC2_EAL_UNLOCKED;
 }
@@ -424,7 +426,7 @@ static inline void XRDC2_UnlockMemSlotExclAccess(XRDC2_MGR_Type *base, xrdc2_mem
  * @param base XRDC2 peripheral base address.
  * @param memSlot The memory slot to operate.
  */
-static inline void XRDC2_ForceMemSlotExclAccessLockRelease(XRDC2_MGR_Type *base, xrdc2_mem_slot_t memSlot)
+static inline void XRDC2_ForceMemSlotExclAccessLockRelease(XRDC2_Type *base, xrdc2_mem_slot_t memSlot)
 {
     base->MSCI_MSAC_WK[(uint32_t)memSlot].MSC_MSAC_W1 = XRDC2_EAL_FORCE_RELEASE_MAGIC_0;
     base->MSCI_MSAC_WK[(uint32_t)memSlot].MSC_MSAC_W1 = XRDC2_EAL_FORCE_RELEASE_MAGIC_1;
@@ -462,7 +464,7 @@ void XRDC2_GetMemAccessDefaultConfig(xrdc2_mem_access_config_t *config);
  * @param mem Which memory region descriptor to set.
  * @param config Pointer to the access policy configuration structure.
  */
-void XRDC2_SetMemAccessConfig(XRDC2_MGR_Type *base, xrdc2_mem_t mem, const xrdc2_mem_access_config_t *config);
+void XRDC2_SetMemAccessConfig(XRDC2_Type *base, xrdc2_mem_t mem, const xrdc2_mem_access_config_t *config);
 
 /*!
  * @brief Sets the memory region descriptor as valid or invalid.
@@ -471,7 +473,7 @@ void XRDC2_SetMemAccessConfig(XRDC2_MGR_Type *base, xrdc2_mem_t mem, const xrdc2
  * @param mem Which memory region descriptor to set.
  * @param valid True to set valid, false to set invalid.
  */
-void XRDC2_SetMemAccessValid(XRDC2_MGR_Type *base, xrdc2_mem_t mem, bool valid);
+void XRDC2_SetMemAccessValid(XRDC2_Type *base, xrdc2_mem_t mem, bool valid);
 
 /*!
  * @brief Sets the memory descriptor lock mode.
@@ -480,7 +482,7 @@ void XRDC2_SetMemAccessValid(XRDC2_MGR_Type *base, xrdc2_mem_t mem, bool valid);
  * @param mem Which memory descriptor to set.
  * @param lockMode The lock mode to set.
  */
-void XRDC2_SetMemAccessLockMode(XRDC2_MGR_Type *base, xrdc2_mem_t mem, xrdc2_access_config_lock_t lockMode);
+void XRDC2_SetMemAccessLockMode(XRDC2_Type *base, xrdc2_mem_t mem, xrdc2_access_config_lock_t lockMode);
 
 /*!
  * @brief Sets the memory region access policy for specific domain.
@@ -490,10 +492,7 @@ void XRDC2_SetMemAccessLockMode(XRDC2_MGR_Type *base, xrdc2_mem_t mem, xrdc2_acc
  * @param domainId The ID of the domain whose policy will be changed.
  * @param policy The access policy to set.
  */
-void XRDC2_SetMemDomainAccessPolicy(XRDC2_MGR_Type *base,
-                                    xrdc2_mem_t mem,
-                                    uint8_t domainId,
-                                    xrdc2_access_policy_t policy);
+void XRDC2_SetMemDomainAccessPolicy(XRDC2_Type *base, xrdc2_mem_t mem, uint8_t domainId, xrdc2_access_policy_t policy);
 
 /*!
  * @brief Enable or disable the memory region exclusive access lock.
@@ -504,7 +503,7 @@ void XRDC2_SetMemDomainAccessPolicy(XRDC2_MGR_Type *base,
  * @param mem The memory region to operate.
  * @param enable True to enable, false to disable.
  */
-void XRDC2_EnableMemExclAccessLock(XRDC2_MGR_Type *base, xrdc2_mem_t mem, bool enable);
+void XRDC2_EnableMemExclAccessLock(XRDC2_Type *base, xrdc2_mem_t mem, bool enable);
 
 /*!
  * @brief Get current memory region exclusive access lock owner.
@@ -513,7 +512,7 @@ void XRDC2_EnableMemExclAccessLock(XRDC2_MGR_Type *base, xrdc2_mem_t mem, bool e
  * @param mem The memory region to operate.
  * @return The domain ID of the lock owner.
  */
-uint8_t XRDC2_GetMemExclAccessLockDomainOwner(XRDC2_MGR_Type *base, xrdc2_mem_t mem);
+uint8_t XRDC2_GetMemExclAccessLockDomainOwner(XRDC2_Type *base, xrdc2_mem_t mem);
 
 /*!
  * @brief Try to lock the memory region exclusive access.
@@ -523,7 +522,7 @@ uint8_t XRDC2_GetMemExclAccessLockDomainOwner(XRDC2_MGR_Type *base, xrdc2_mem_t 
  * @retval kStatus_Fail Failed to lock.
  * @retval kStatus_Success Locked succussfully.
  */
-status_t XRDC2_TryLockMemExclAccess(XRDC2_MGR_Type *base, xrdc2_mem_t mem);
+status_t XRDC2_TryLockMemExclAccess(XRDC2_Type *base, xrdc2_mem_t mem);
 
 /*!
  * @brief Lock the memory region exclusive access using blocking method.
@@ -533,7 +532,7 @@ status_t XRDC2_TryLockMemExclAccess(XRDC2_MGR_Type *base, xrdc2_mem_t mem);
  *
  * @note This function must be called when the lock is not disabled.
  */
-void XRDC2_LockMemExclAccess(XRDC2_MGR_Type *base, xrdc2_mem_t mem);
+void XRDC2_LockMemExclAccess(XRDC2_Type *base, xrdc2_mem_t mem);
 
 /*!
  * @brief Unlock the memory region exclusive access.
@@ -543,7 +542,7 @@ void XRDC2_LockMemExclAccess(XRDC2_MGR_Type *base, xrdc2_mem_t mem);
  *
  * @note This function must be called by the lock owner.
  */
-void XRDC2_UnlockMemExclAccess(XRDC2_MGR_Type *base, xrdc2_mem_t mem);
+void XRDC2_UnlockMemExclAccess(XRDC2_Type *base, xrdc2_mem_t mem);
 
 /*!
  * @brief Force the memory region exclusive access lock release.
@@ -553,7 +552,7 @@ void XRDC2_UnlockMemExclAccess(XRDC2_MGR_Type *base, xrdc2_mem_t mem);
  * @param base XRDC2 peripheral base address.
  * @param mem The memory region to operate.
  */
-void XRDC2_ForceMemExclAccessLockRelease(XRDC2_MGR_Type *base, xrdc2_mem_t mem);
+void XRDC2_ForceMemExclAccessLockRelease(XRDC2_Type *base, xrdc2_mem_t mem);
 
 /*@}*/
 
@@ -585,9 +584,7 @@ void XRDC2_GetPeriphAccessDefaultConfig(xrdc2_periph_access_config_t *config);
  * @param periph Which peripheral descriptor to set.
  * @param config Pointer to the access policy configuration structure.
  */
-void XRDC2_SetPeriphAccessConfig(XRDC2_MGR_Type *base,
-                                 xrdc2_periph_t periph,
-                                 const xrdc2_periph_access_config_t *config);
+void XRDC2_SetPeriphAccessConfig(XRDC2_Type *base, xrdc2_periph_t periph, const xrdc2_periph_access_config_t *config);
 
 /*!
  * @brief Sets the peripheral descriptor as valid or invalid.
@@ -596,7 +593,7 @@ void XRDC2_SetPeriphAccessConfig(XRDC2_MGR_Type *base,
  * @param periph Which peripheral descriptor to set.
  * @param valid True to set valid, false to set invalid.
  */
-void XRDC2_SetPeriphAccessValid(XRDC2_MGR_Type *base, xrdc2_periph_t periph, bool valid);
+void XRDC2_SetPeriphAccessValid(XRDC2_Type *base, xrdc2_periph_t periph, bool valid);
 
 /*!
  * @brief Sets the peripheral descriptor lock mode.
@@ -605,7 +602,7 @@ void XRDC2_SetPeriphAccessValid(XRDC2_MGR_Type *base, xrdc2_periph_t periph, boo
  * @param periph Which peripheral descriptor to set.
  * @param lockMode The lock mode to set.
  */
-void XRDC2_SetPeriphAccessLockMode(XRDC2_MGR_Type *base, xrdc2_periph_t periph, xrdc2_access_config_lock_t lockMode);
+void XRDC2_SetPeriphAccessLockMode(XRDC2_Type *base, xrdc2_periph_t periph, xrdc2_access_config_lock_t lockMode);
 
 /*!
  * @brief Sets the peripheral access policy for specific domain.
@@ -615,7 +612,7 @@ void XRDC2_SetPeriphAccessLockMode(XRDC2_MGR_Type *base, xrdc2_periph_t periph, 
  * @param domainId The ID of the domain whose policy will be changed.
  * @param policy The access policy to set.
  */
-void XRDC2_SetPeriphDomainAccessPolicy(XRDC2_MGR_Type *base,
+void XRDC2_SetPeriphDomainAccessPolicy(XRDC2_Type *base,
                                        xrdc2_periph_t periph,
                                        uint8_t domainId,
                                        xrdc2_access_policy_t policy);
@@ -629,7 +626,7 @@ void XRDC2_SetPeriphDomainAccessPolicy(XRDC2_MGR_Type *base,
  * @param periph The peripheral to operate.
  * @param enable True to enable, false to disable.
  */
-void XRDC2_EnablePeriphExclAccessLock(XRDC2_MGR_Type *base, xrdc2_periph_t periph, bool enable);
+void XRDC2_EnablePeriphExclAccessLock(XRDC2_Type *base, xrdc2_periph_t periph, bool enable);
 
 /*!
  * @brief Get current peripheral exclusive access lock owner.
@@ -638,7 +635,7 @@ void XRDC2_EnablePeriphExclAccessLock(XRDC2_MGR_Type *base, xrdc2_periph_t perip
  * @param periph The peripheral to operate.
  * @return The domain ID of the lock owner.
  */
-uint8_t XRDC2_GetPeriphExclAccessLockDomainOwner(XRDC2_MGR_Type *base, xrdc2_periph_t periph);
+uint8_t XRDC2_GetPeriphExclAccessLockDomainOwner(XRDC2_Type *base, xrdc2_periph_t periph);
 
 /*!
  * @brief Try to lock the peripheral exclusive access.
@@ -648,7 +645,7 @@ uint8_t XRDC2_GetPeriphExclAccessLockDomainOwner(XRDC2_MGR_Type *base, xrdc2_per
  * @retval kStatus_Fail Failed to lock.
  * @retval kStatus_Success Locked succussfully.
  */
-status_t XRDC2_TryLockPeriphExclAccess(XRDC2_MGR_Type *base, xrdc2_periph_t periph);
+status_t XRDC2_TryLockPeriphExclAccess(XRDC2_Type *base, xrdc2_periph_t periph);
 
 /*!
  * @brief Lock the peripheral exclusive access using blocking method.
@@ -658,7 +655,7 @@ status_t XRDC2_TryLockPeriphExclAccess(XRDC2_MGR_Type *base, xrdc2_periph_t peri
  *
  * @note This function must be called when the lock is not disabled.
  */
-void XRDC2_LockPeriphExclAccess(XRDC2_MGR_Type *base, xrdc2_periph_t periph);
+void XRDC2_LockPeriphExclAccess(XRDC2_Type *base, xrdc2_periph_t periph);
 
 /*!
  * @brief Unlock the peripheral exclusive access.
@@ -668,7 +665,7 @@ void XRDC2_LockPeriphExclAccess(XRDC2_MGR_Type *base, xrdc2_periph_t periph);
  *
  * @note This function must be called by the lock owner.
  */
-void XRDC2_UnlockPeriphExclAccess(XRDC2_MGR_Type *base, xrdc2_periph_t periph);
+void XRDC2_UnlockPeriphExclAccess(XRDC2_Type *base, xrdc2_periph_t periph);
 
 /*!
  * @brief Force the peripheral exclusive access lock release.
@@ -678,7 +675,7 @@ void XRDC2_UnlockPeriphExclAccess(XRDC2_MGR_Type *base, xrdc2_periph_t periph);
  * @param base XRDC2 peripheral base address.
  * @param periph The peripheral to operate.
  */
-void XRDC2_ForcePeriphExclAccessLockRelease(XRDC2_MGR_Type *base, xrdc2_periph_t periph);
+void XRDC2_ForcePeriphExclAccessLockRelease(XRDC2_Type *base, xrdc2_periph_t periph);
 
 /*@}*/
 

@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016, Freescale Semiconductor, Inc.
- * Copyright 2017, NXP
+ * Copyright 2017-2021, NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -22,10 +22,11 @@
 
 /*! @name Driver version */
 /*@{*/
-#define FSL_SNVS_LP_DRIVER_VERSION (MAKE_VERSION(2, 1, 0)) /*!< Version 2.1.0 */
+#define FSL_SNVS_LP_DRIVER_VERSION (MAKE_VERSION(2, 3, 0)) /*!< Version 2.3.0 */
 /*@}*/
 
-#define SNVS_ZMK_REG_COUNT 8 /* 8 Zeroizable Master Key registers. */
+/*! @brief Define of SNVS_LP Zeroizable Master Key registers */
+#define SNVS_ZMK_REG_COUNT 8U /* 8 Zeroizable Master Key registers. */
 
 /*! @brief List of SNVS_LP interrupts */
 typedef enum _snvs_lp_srtc_interrupts
@@ -56,7 +57,51 @@ typedef enum _snvs_lp_external_tamper
 #endif
 } snvs_lp_external_tamper_t;
 
+/*! @brief List of SNVS_LP active tampers */
+typedef enum _snvs_lp_active_tamper
+{
+    kSNVS_activeTamper1 = 1U,
+    kSNVS_ActiveTamper2 = 2U,
+    kSNVS_ActiveTamper3 = 3U,
+    kSNVS_ActiveTamper4 = 4U,
+    kSNVS_ActiveTamper5 = 5U,
+} snvs_lp_active_tamper_t;
+
+/*! @brief List of SNVS_LP external tampers */
+typedef enum _snvs_lp_active_clock
+{
+    kSNVS_ActiveTamper16HZ = 0U,
+    kSNVS_ActiveTamper8HZ  = 1U,
+    kSNVS_ActiveTamper4HZ  = 2U,
+    kSNVS_ActiveTamper2HZ  = 3U
+} snvs_lp_active_clock_t;
+
+/*! @brief Structure is used to configure SNVS LP passive tamper pins */
+typedef struct
+{
+    uint8_t polarity;
+    uint8_t filterenable;
+    uint8_t filter;
+} snvs_lp_passive_tamper_t;
+
+/*! @brief Structure is used to configure SNVS LP active TX tamper pins */
+typedef struct
+{
+    uint16_t polynomial;
+    uint16_t seed;
+    snvs_lp_active_clock_t clock;
+} tamper_active_tx_config_t;
+
+/*! @brief Structure is used to configure SNVS LP active RX tamper pins */
+typedef struct
+{
+    uint16_t filterenable;
+    uint8_t filter;
+    snvs_lp_active_tamper_t activeTamper;
+} tamper_active_rx_config_t;
+
 /* define max possible tamper present */
+/*! @brief Define of SNVS_LP Max possible tamper */
 #if defined(FSL_FEATURE_SNVS_HAS_MULTIPLE_TAMPER) && (FSL_FEATURE_SNVS_HAS_MULTIPLE_TAMPER > 1)
 #define SNVS_LP_MAX_TAMPER kSNVS_ExternalTamper10
 #else
@@ -143,7 +188,6 @@ extern "C" {
  * @note This API should be called at the beginning of the application using the SNVS driver.
  *
  * @param base   SNVS peripheral base address
- * @param config Pointer to the user's SNVS configuration structure.
  */
 void SNVS_LP_Init(SNVS_Type *base);
 
@@ -249,7 +293,7 @@ void SNVS_LP_SRTC_GetAlarm(SNVS_Type *base, snvs_lp_srtc_datetime_t *datetime);
  *
  * @param base SNVS peripheral base address
  * @param mask The interrupts to enable. This is a logical OR of members of the
- *             enumeration ::snvs_interrupt_enable_t
+ *             enumeration :: _snvs_lp_srtc_interrupts
  */
 static inline void SNVS_LP_SRTC_EnableInterrupts(SNVS_Type *base, uint32_t mask)
 {
@@ -261,7 +305,7 @@ static inline void SNVS_LP_SRTC_EnableInterrupts(SNVS_Type *base, uint32_t mask)
  *
  * @param base SNVS peripheral base address
  * @param mask The interrupts to enable. This is a logical OR of members of the
- *             enumeration ::snvs_interrupt_enable_t
+ *             enumeration :: _snvs_lp_srtc_interrupts
  */
 static inline void SNVS_LP_SRTC_DisableInterrupts(SNVS_Type *base, uint32_t mask)
 {
@@ -274,7 +318,7 @@ static inline void SNVS_LP_SRTC_DisableInterrupts(SNVS_Type *base, uint32_t mask
  * @param base SNVS peripheral base address
  *
  * @return The enabled interrupts. This is the logical OR of members of the
- *         enumeration ::snvs_interrupt_enable_t
+ *         enumeration :: _snvs_lp_srtc_interrupts
  */
 uint32_t SNVS_LP_SRTC_GetEnabledInterrupts(SNVS_Type *base);
 
@@ -291,7 +335,7 @@ uint32_t SNVS_LP_SRTC_GetEnabledInterrupts(SNVS_Type *base);
  * @param base SNVS peripheral base address
  *
  * @return The status flags. This is the logical OR of members of the
- *         enumeration ::snvs_status_flags_t
+ *         enumeration :: _snvs_lp_srtc_status_flags
  */
 uint32_t SNVS_LP_SRTC_GetStatusFlags(SNVS_Type *base);
 
@@ -300,7 +344,7 @@ uint32_t SNVS_LP_SRTC_GetStatusFlags(SNVS_Type *base);
  *
  * @param base SNVS peripheral base address
  * @param mask The status flags to clear. This is a logical OR of members of the
- *             enumeration ::snvs_status_flags_t
+ *             enumeration :: _snvs_lp_srtc_status_flags
  */
 static inline void SNVS_LP_SRTC_ClearStatusFlags(SNVS_Type *base, uint32_t mask)
 {
@@ -322,7 +366,7 @@ static inline void SNVS_LP_SRTC_ClearStatusFlags(SNVS_Type *base, uint32_t mask)
 static inline void SNVS_LP_SRTC_StartTimer(SNVS_Type *base)
 {
     base->LPCR |= SNVS_LPCR_SRTC_ENV_MASK;
-    while (!(base->LPCR & SNVS_LPCR_SRTC_ENV_MASK))
+    while ((0U == (base->LPCR & SNVS_LPCR_SRTC_ENV_MASK)))
     {
     }
 }
@@ -335,7 +379,7 @@ static inline void SNVS_LP_SRTC_StartTimer(SNVS_Type *base)
 static inline void SNVS_LP_SRTC_StopTimer(SNVS_Type *base)
 {
     base->LPCR &= ~SNVS_LPCR_SRTC_ENV_MASK;
-    while (base->LPCR & SNVS_LPCR_SRTC_ENV_MASK)
+    while ((base->LPCR & SNVS_LPCR_SRTC_ENV_MASK) != 0U)
     {
     }
 }
@@ -352,11 +396,111 @@ static inline void SNVS_LP_SRTC_StopTimer(SNVS_Type *base)
  *
  * @param base SNVS peripheral base address
  * @param pin SNVS external tamper pin
- * @param polarity Polarity of external tamper
+ * @param config Configuration structure of external passive tamper
  */
-void SNVS_LP_EnableExternalTamper(SNVS_Type *base,
-                                  snvs_lp_external_tamper_t pin,
-                                  snvs_lp_external_tamper_polarity_t polarity);
+void SNVS_LP_EnablePassiveTamper(SNVS_Type *base, snvs_lp_external_tamper_t pin, snvs_lp_passive_tamper_t config);
+
+/*!
+ * @brief Enable active tamper tx external pad
+ *
+ * @param base SNVS peripheral base address
+ * @param pin SNVS active tamper pin
+ * @param config Configuration structure of external active tamper
+ */
+status_t SNVS_LP_EnableTxActiveTamper(SNVS_Type *base, snvs_lp_active_tamper_t pin, tamper_active_tx_config_t config);
+
+/*!
+ * @brief Enable active tamper rx external pad
+ *
+ * @param base SNVS peripheral base address
+ * @param rx SNVS external RX tamper pin
+ * @param config SNVS RX tamper config structure
+ */
+status_t SNVS_LP_EnableRxActiveTamper(SNVS_Type *base, snvs_lp_external_tamper_t rx, tamper_active_rx_config_t config);
+
+/*!
+ * @brief Sets voltage tamper detect
+ *
+ * @param base SNVS peripheral base address
+ * @param enable True if enable false if disable
+ */
+status_t SNVS_LP_SetVoltageTamper(SNVS_Type *base, bool enable);
+
+/*!
+ * @brief Sets temperature tamper detect
+ *
+ * @param base SNVS peripheral base address
+ * @param enable True if enable false if disable
+ */
+status_t SNVS_LP_SetTemperatureTamper(SNVS_Type *base, bool enable);
+
+/*!
+ * @brief Sets clock tamper detect
+ *
+ * @param base SNVS peripheral base address
+ * @param enable True if enable false if disable
+ */
+status_t SNVS_LP_SetClockTamper(SNVS_Type *base, bool enable);
+
+/*!
+ * brief Check voltage tamper
+ *
+ * param base SNVS peripheral base address
+ */
+snvs_lp_external_tamper_status_t SNVS_LP_CheckVoltageTamper(SNVS_Type *base);
+
+/*!
+ * @brief Check temperature tamper
+ *
+ * @param base SNVS peripheral base address
+ */
+snvs_lp_external_tamper_status_t SNVS_LP_CheckTemperatureTamper(SNVS_Type *base);
+
+/*!
+ * brief Check clock tamper
+ *
+ * param base SNVS peripheral base address
+ */
+snvs_lp_external_tamper_status_t SNVS_LP_CheckClockTamper(SNVS_Type *base);
+
+/*!
+ * @brief Fills in the SNVS tamper pin config struct with the default settings.
+ *
+ * The default values are as follows.
+ * code
+ *  config->polarity        = 0U;
+ *  config->filterenable    = 0U;
+ *  config->filter          = 0U;
+ * endcode
+ * @param config Pointer to the user's SNVS configuration structure.
+ */
+void SNVS_LP_TamperPin_GetDefaultConfig(snvs_lp_passive_tamper_t *config);
+
+/*!
+ * @brief Fills in the SNVS tamper pin config struct with the default settings.
+ *
+ * The default values are as follows.
+ * code
+ *  config->clock       = kSNVS_ActiveTamper16HZ;
+ *  config->seed        = 0U;
+ *  config->polynomial  = 0U;
+ * endcode
+ * @param config Pointer to the user's SNVS configuration structure.
+ */
+void SNVS_LP_TamperPinTx_GetDefaultConfig(tamper_active_tx_config_t *config);
+
+/*!
+ * brief Fills in the SNVS tamper pin config struct with the default settings.
+ *
+ * The default values are as follows.
+ * code
+ *  config->filterenable    = 0U;
+ *  config->filter          = 0U;
+ *  config->tx              = kSNVS_activeTamper1;
+ * endcode
+ * param config Pointer to the user's SNVS configuration structure.
+ */
+void SNVS_LP_TamperPinRx_GetDefaultConfig(tamper_active_rx_config_t *config);
 
 /*!
  * @brief Disables the specified SNVS external tamper.
@@ -367,12 +511,19 @@ void SNVS_LP_EnableExternalTamper(SNVS_Type *base,
 void SNVS_LP_DisableExternalTamper(SNVS_Type *base, snvs_lp_external_tamper_t pin);
 
 /*!
+ * @brief Disable all external tamper.
+ *
+ * @param base SNVS peripheral base address
+ */
+void SNVS_LP_DisableAllExternalTamper(SNVS_Type *base);
+
+/*!
  * @brief Returns status of the specified external tamper.
  *
  * @param base SNVS peripheral base address
  * @param pin SNVS external tamper pin
  *
- * @return The status flag. This is the enumeration ::snvs_external_tamper_status_t
+ * @return The status flag. This is the enumeration :: _snvs_lp_external_tamper_status
  */
 snvs_lp_external_tamper_status_t SNVS_LP_GetExternalTamperStatus(SNVS_Type *base, snvs_lp_external_tamper_t pin);
 
@@ -383,6 +534,13 @@ snvs_lp_external_tamper_status_t SNVS_LP_GetExternalTamperStatus(SNVS_Type *base
  * @param pin SNVS external tamper pin
  */
 void SNVS_LP_ClearExternalTamperStatus(SNVS_Type *base, snvs_lp_external_tamper_t pin);
+
+/*!
+ * @brief Clears status of the all external tamper.
+ *
+ * @param base SNVS peripheral base address
+ */
+void SNVS_LP_ClearAllExternalTamperStatus(SNVS_Type *base);
 
 /*! @}*/
 
@@ -427,7 +585,7 @@ uint64_t SNVS_LP_GetMonotonicCounter(SNVS_Type *base);
 static inline void SNVS_LP_IncreaseMonotonicCounter(SNVS_Type *base)
 {
     /* Write to the LPSMCLR or LPSMCLR, the counter increases. */
-    *((volatile uint32_t *)(&(base->LPSMCLR))) = 0xFFFFFFFFU;
+    *((volatile uint32_t *)(uint32_t)(&(base->LPSMCLR))) = 0xFFFFFFFFU;
 }
 
 /*! @}*/
@@ -530,6 +688,18 @@ static inline void SNVS_LP_SetMasterKeyMode(SNVS_Type *base, snvs_lp_master_key_
     lpmkcr          = (lpmkcr & (~SNVS_LPMKCR_MASTER_KEY_SEL_MASK)) | SNVS_LPMKCR_MASTER_KEY_SEL(mode);
     base->LPMKCR    = lpmkcr;
 }
+
+#if defined(FSL_FEATURE_SNVS_HAS_STATE_TRANSITION) && (FSL_FEATURE_SNVS_HAS_STATE_TRANSITION > 0)
+/*!
+ * brief Transition SNVS SSM state to Trusted/Non-secure from Check state
+ *
+ * param base SNVS peripheral base address
+ *
+ * return kStatus_Success: Success in transitioning SSM State
+ *        kStatus_Fail: SSM State transition failed
+ */
+status_t SNVS_LP_SSM_State_Transition(SNVS_Type *base);
+#endif /* FSL_FEATURE_SNVS_HAS_STATE_TRANSITION */
 
 /*! @}*/
 

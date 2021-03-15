@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016, Freescale Semiconductor, Inc.
- * Copyright 2016-2017 NXP
+ * Copyright 2016-2020 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -65,7 +65,8 @@ void DAC12_GetHardwareInfo(DAC_Type *base, dac12_hardware_info_t *info)
 {
     assert(NULL != info);
 
-    info->fifoSizeInfo = (dac12_fifo_size_info_t)((DAC_PARAM_FIFOSZ_MASK & base->PARAM) >> DAC_PARAM_FIFOSZ_SHIFT);
+    info->fifoSizeInfo =
+        (dac12_fifo_size_info_t)(uint32_t)((DAC_PARAM_FIFOSZ_MASK & base->PARAM) >> DAC_PARAM_FIFOSZ_SHIFT);
 }
 
 /*!
@@ -145,7 +146,9 @@ void DAC12_Init(DAC_Type *base, const dac12_config_t *config)
     }
     base->CR2 = tmp32;
 
+#if !(defined(FSL_FEATURE_DAC12_HAS_NO_ITRM_REGISTER) && FSL_FEATURE_DAC12_HAS_NO_ITRM_REGISTER)
     base->ITRM = DAC_ITRM_TRIM(config->currentReferenceInternalTrimValue);
+#endif /* FSL_FEATURE_DAC12_HAS_NO_ITRM_REGISTER */
 }
 
 /*!
@@ -182,14 +185,16 @@ void DAC12_GetDefaultConfig(dac12_config_t *config)
     assert(NULL != config);
 
     /* Initializes the configure structure to zero. */
-    memset(config, 0, sizeof(*config));
+    (void)memset(config, 0, sizeof(*config));
 
-    config->fifoWatermarkLevel                = 0U;
-    config->fifoWorkMode                      = kDAC12_FIFODisabled;
-    config->referenceVoltageSource            = kDAC12_ReferenceVoltageSourceAlt1;
-    config->fifoTriggerMode                   = kDAC12_FIFOTriggerByHardwareMode;
-    config->referenceCurrentSource            = kDAC12_ReferenceCurrentSourceAlt0;
-    config->speedMode                         = kDAC12_SpeedLowMode;
-    config->enableAnalogBuffer                = false;
+    config->fifoWatermarkLevel     = 0U;
+    config->fifoWorkMode           = kDAC12_FIFODisabled;
+    config->referenceVoltageSource = kDAC12_ReferenceVoltageSourceAlt1;
+    config->fifoTriggerMode        = kDAC12_FIFOTriggerByHardwareMode;
+    config->referenceCurrentSource = kDAC12_ReferenceCurrentSourceAlt0;
+    config->speedMode              = kDAC12_SpeedLowMode;
+    config->enableAnalogBuffer     = false;
+#if !(defined(FSL_FEATURE_DAC12_HAS_NO_ITRM_REGISTER) && FSL_FEATURE_DAC12_HAS_NO_ITRM_REGISTER)
     config->currentReferenceInternalTrimValue = 0x4;
+#endif /* FSL_FEATURE_DAC12_HAS_NO_ITRM_REGISTER */
 }

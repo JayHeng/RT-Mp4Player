@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016, Freescale Semiconductor, Inc.
- * Copyright 2017-2018, NXP
+ * Copyright 2017-2020, NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -22,7 +22,7 @@
 
 /*! @name Driver version */
 /*@{*/
-#define FSL_SNVS_HP_DRIVER_VERSION (MAKE_VERSION(2, 1, 2)) /*!< Version 2.1.2 */
+#define FSL_SNVS_HP_DRIVER_VERSION (MAKE_VERSION(2, 2, 0)) /*!< Version 2.2.0 */
 /*@}*/
 
 /*! @brief List of SNVS interrupts */
@@ -41,6 +41,27 @@ typedef enum _snvs_hp_status_flags
     kSNVS_OTPMK_ZeroFlag            = SNVS_HPSR_OTPMK_ZERO_MASK,    /*!< The OTPMK is zero */
 } snvs_hp_status_flags_t;
 
+/* Re-map Security Violation */
+#ifndef SNVS_HPSVSR_SV0_MASK
+#define SNVS_HPSVSR_SV0_MASK SNVS_HPSVSR_CAAM_MASK
+#endif
+
+#ifndef SNVS_HPSVSR_SV1_MASK
+#define SNVS_HPSVSR_SV1_MASK SNVS_HPSVSR_JTAGC_MASK
+#endif
+
+#ifndef SNVS_HPSVSR_SV2_MASK
+#define SNVS_HPSVSR_SV2_MASK SNVS_HPSVSR_WDOG2_MASK
+#endif
+
+#ifndef SNVS_HPSVSR_SV4_MASK
+#define SNVS_HPSVSR_SV4_MASK SNVS_HPSVSR_SRC_MASK
+#endif
+
+#ifndef SNVS_HPSVSR_SV5_MASK
+#define SNVS_HPSVSR_SV5_MASK SNVS_HPSVSR_OCOTP_MASK
+#endif
+
 /*! @brief List of SNVS security violation flags */
 typedef enum _snvs_hp_sv_status_flags
 {
@@ -53,9 +74,11 @@ typedef enum _snvs_hp_sv_status_flags
     kSNVS_Violation0Flag             = SNVS_HPSVSR_SV0_MASK,     /*!< Security Violation 0 */
     kSNVS_Violation1Flag             = SNVS_HPSVSR_SV1_MASK,     /*!< Security Violation 1 */
     kSNVS_Violation2Flag             = SNVS_HPSVSR_SV2_MASK,     /*!< Security Violation 2 */
-    kSNVS_Violation3Flag             = SNVS_HPSVSR_SV3_MASK,     /*!< Security Violation 3 */
-    kSNVS_Violation4Flag             = SNVS_HPSVSR_SV4_MASK,     /*!< Security Violation 4 */
-    kSNVS_Violation5Flag             = SNVS_HPSVSR_SV5_MASK,     /*!< Security Violation 5 */
+#if defined(FLS_FEATURE_SNVS_HAS_NO_SV3) && (FLS_FEATURE_SNVS_HAS_NO_SV3 > 1)
+    kSNVS_Violation3Flag = SNVS_HPSVSR_SV3_MASK, /*!< Security Violation 3 */
+#endif                                           /* FLS_FEATURE_SNVS_HAS_NO_SV3 */
+    kSNVS_Violation4Flag = SNVS_HPSVSR_SV4_MASK, /*!< Security Violation 4 */
+    kSNVS_Violation5Flag = SNVS_HPSVSR_SV5_MASK, /*!< Security Violation 5 */
 } snvs_hp_sv_status_flags_t;
 
 /*!
@@ -96,6 +119,7 @@ typedef struct _snvs_hp_rtc_config
                                          Range from 0 to 15 */
 } snvs_hp_rtc_config_t;
 
+/*! @brief List of SNVS Security State Machine State */
 typedef enum _snvs_hp_ssm_state
 {
     kSNVS_SSMInit      = 0x00, /*!< Init */
@@ -238,7 +262,7 @@ void SNVS_HP_RTC_TimeSynchronize(SNVS_Type *base);
  *
  * @param base SNVS peripheral base address
  * @param mask The interrupts to enable. This is a logical OR of members of the
- *             enumeration ::snvs_interrupt_enable_t
+ *             enumeration :: _snvs_hp_interrupts_t
  */
 static inline void SNVS_HP_RTC_EnableInterrupts(SNVS_Type *base, uint32_t mask)
 {
@@ -249,8 +273,8 @@ static inline void SNVS_HP_RTC_EnableInterrupts(SNVS_Type *base, uint32_t mask)
  * @brief Disables the selected SNVS interrupts.
  *
  * @param base SNVS peripheral base address
- * @param mask The interrupts to enable. This is a logical OR of members of the
- *             enumeration ::snvs_interrupt_enable_t
+ * @param mask The interrupts to disable. This is a logical OR of members of the
+ *             enumeration :: _snvs_hp_interrupts_t
  */
 static inline void SNVS_HP_RTC_DisableInterrupts(SNVS_Type *base, uint32_t mask)
 {
@@ -263,7 +287,7 @@ static inline void SNVS_HP_RTC_DisableInterrupts(SNVS_Type *base, uint32_t mask)
  * @param base SNVS peripheral base address
  *
  * @return The enabled interrupts. This is the logical OR of members of the
- *         enumeration ::snvs_interrupt_enable_t
+ *         enumeration :: _snvs_hp_interrupts_t
  */
 uint32_t SNVS_HP_RTC_GetEnabledInterrupts(SNVS_Type *base);
 
@@ -280,7 +304,7 @@ uint32_t SNVS_HP_RTC_GetEnabledInterrupts(SNVS_Type *base);
  * @param base SNVS peripheral base address
  *
  * @return The status flags. This is the logical OR of members of the
- *         enumeration ::snvs_status_flags_t
+ *         enumeration :: _snvs_hp_status_flags_t
  */
 uint32_t SNVS_HP_RTC_GetStatusFlags(SNVS_Type *base);
 
@@ -289,7 +313,7 @@ uint32_t SNVS_HP_RTC_GetStatusFlags(SNVS_Type *base);
  *
  * @param base SNVS peripheral base address
  * @param mask The status flags to clear. This is a logical OR of members of the
- *             enumeration ::snvs_status_flags_t
+ *             enumeration :: _snvs_hp_status_flags_t
  */
 static inline void SNVS_HP_RTC_ClearStatusFlags(SNVS_Type *base, uint32_t mask)
 {
@@ -311,7 +335,7 @@ static inline void SNVS_HP_RTC_ClearStatusFlags(SNVS_Type *base, uint32_t mask)
 static inline void SNVS_HP_RTC_StartTimer(SNVS_Type *base)
 {
     base->HPCR |= SNVS_HPCR_RTC_EN_MASK;
-    while (!(base->HPCR & SNVS_HPCR_RTC_EN_MASK))
+    while (0U == (base->HPCR & SNVS_HPCR_RTC_EN_MASK))
     {
     }
 }
@@ -324,7 +348,7 @@ static inline void SNVS_HP_RTC_StartTimer(SNVS_Type *base)
 static inline void SNVS_HP_RTC_StopTimer(SNVS_Type *base)
 {
     base->HPCR &= ~SNVS_HPCR_RTC_EN_MASK;
-    while (base->HPCR & SNVS_HPCR_RTC_EN_MASK)
+    while ((base->HPCR & SNVS_HPCR_RTC_EN_MASK) != 0U)
     {
     }
 }
@@ -353,7 +377,6 @@ static inline void SNVS_HP_EnableMasterKeySelection(SNVS_Type *base, bool enable
  * @brief Trigger to program Zeroizable Master Key.
  *
  * @param base SNVS peripheral base address
- * @param enable Pass true to enable, false to disable.
  */
 static inline void SNVS_HP_ProgramZeroizableMasterKey(SNVS_Type *base)
 {
@@ -417,7 +440,7 @@ static inline void SNVS_HP_SetSoftwareSecurityViolation(SNVS_Type *base)
  */
 static inline snvs_hp_ssm_state_t SNVS_HP_GetSSMState(SNVS_Type *base)
 {
-    return (snvs_hp_ssm_state_t)((base->HPSR & SNVS_HPSR_SSM_STATE_MASK) >> SNVS_HPSR_SSM_STATE_SHIFT);
+    return (snvs_hp_ssm_state_t)((uint32_t)((base->HPSR & SNVS_HPSR_SSM_STATE_MASK) >> SNVS_HPSR_SSM_STATE_SHIFT));
 }
 
 /*!
@@ -542,7 +565,8 @@ static inline void SNVS_HP_LockHighAssuranceCounter(SNVS_Type *base)
 /*!
  * @brief Get the SNVS HP status flags.
  *
- * The flags are returned as the OR'ed value of @ref snvs_hp_sgtatus_flags_t.
+ * The flags are returned as the OR'ed value f the
+ *             enumeration :: _snvs_hp_status_flags_t.
  *
  * @param base SNVS peripheral base address
  * @return The OR'ed value of status flags.
@@ -555,7 +579,8 @@ static inline uint32_t SNVS_HP_GetStatusFlags(SNVS_Type *base)
 /*!
  * @brief Clear the SNVS HP status flags.
  *
- * The flags to clear are passed in as the OR'ed value of @ref snvs_hp_status_flags_t.
+ * The flags to clear are passed in as the OR'ed value of the
+ *             enumeration :: _snvs_hp_status_flags_t.
  * Only these flags could be cleared using this API.
  *  - @ref kSNVS_RTC_PeriodicInterruptFlag
  *  - @ref kSNVS_RTC_AlarmInterruptFlag
@@ -571,7 +596,8 @@ static inline void SNVS_HP_ClearStatusFlags(SNVS_Type *base, uint32_t mask)
 /*!
  * @brief Get the SNVS HP security violation status flags.
  *
- * The flags are returned as the OR'ed value of @ref snvs_hp_sv_status_flags_t.
+ * The flags are returned as the OR'ed value of the
+ *             enumeration :: _snvs_hp_sv_status_flags_t.
  *
  * @param base SNVS peripheral base address
  * @return The OR'ed value of security violation status flags.
@@ -584,7 +610,8 @@ static inline uint32_t SNVS_HP_GetSecurityViolationStatusFlags(SNVS_Type *base)
 /*!
  * @brief Clear the SNVS HP security violation status flags.
  *
- * The flags to clear are passed in as the OR'ed value of @ref snvs_hp_sv_status_flags_t.
+ * The flags to clear are passed in as the OR'ed value of the
+ *             enumeration :: _snvs_hp_sv_status_flags_t.
  * Only these flags could be cleared using this API.
  *
  *  - @ref kSNVS_ZMK_EccFailFlag
@@ -602,6 +629,16 @@ static inline void SNVS_HP_ClearSecurityViolationStatusFlags(SNVS_Type *base, ui
 {
     base->HPSVSR = mask;
 }
+
+#if defined(FSL_FEATURE_SNVS_HAS_SET_LOCK) && (FSL_FEATURE_SNVS_HAS_SET_LOCK > 0)
+/*!
+ * brief Set SNVS HP Set locks.
+ *
+ * param base SNVS peripheral base address
+ *
+ */
+void SNVS_HP_SetLocks(SNVS_Type *base);
+#endif /* FSL_FEATURE_SNVS_HAS_SET_LOCK */
 
 #if defined(__cplusplus)
 }

@@ -10,9 +10,9 @@
 **                          Keil ARM C/C++ Compiler
 **                          MCUXpresso Compiler
 **
-**     Reference manual:    IMXRT1170RM_initial_draft, 02/2018
-**     Version:             rev. 0.1, 2018-03-05
-**     Build:               b190530
+**     Reference manual:    IMXRT1170RM, Rev 0, 12/2020
+**     Version:             rev. 1.0, 2020-12-29
+**     Build:               b210203
 **
 **     Abstract:
 **         Provides a system configuration function and a global variable that
@@ -20,7 +20,7 @@
 **         the oscillator (PLL) that is part of the microcontroller device.
 **
 **     Copyright 2016 Freescale Semiconductor, Inc.
-**     Copyright 2016-2019 NXP
+**     Copyright 2016-2021 NXP
 **     All rights reserved.
 **
 **     SPDX-License-Identifier: BSD-3-Clause
@@ -31,14 +31,16 @@
 **     Revisions:
 **     - rev. 0.1 (2018-03-05)
 **         Initial version.
+**     - rev. 1.0 (2020-12-29)
+**         Update header files to align with IMXRT1170RM Rev.0.
 **
 ** ###################################################################
 */
 
 /*!
  * @file MIMXRT1176_cm4
- * @version 0.1
- * @date 2018-03-05
+ * @version 1.0
+ * @date 2021-02-03
  * @brief Device specific configuration file for MIMXRT1176_cm4 (implementation
  *        file)
  *
@@ -75,39 +77,84 @@ void SystemInit (void) {
 /* Watchdog disable */
 
 #if (DISABLE_WDOG)
-    if (WDOG1->WCR & WDOG_WCR_WDE_MASK)
+    if ((WDOG1->WCR & WDOG_WCR_WDE_MASK) != 0U)
     {
-        WDOG1->WCR &= ~WDOG_WCR_WDE_MASK;
+        WDOG1->WCR &= ~(uint16_t) WDOG_WCR_WDE_MASK;
     }
-    if (WDOG2->WCR & WDOG_WCR_WDE_MASK)
+    if ((WDOG2->WCR & WDOG_WCR_WDE_MASK) != 0U)
     {
-        WDOG2->WCR &= ~WDOG_WCR_WDE_MASK;
+        WDOG2->WCR &= ~(uint16_t) WDOG_WCR_WDE_MASK;
     }
-    RTWDOG3->CNT = 0xD928C520U; /* 0xD928C520U is the update key */
+    if ((RTWDOG3->CS & RTWDOG_CS_CMD32EN_MASK) != 0U)
+    {
+        RTWDOG3->CNT = 0xD928C520U; /* 0xD928C520U is the update key */
+    }
+    else
+    {
+        RTWDOG3->CNT = 0xC520U;
+        RTWDOG3->CNT = 0xD928U;
+    }
     RTWDOG3->TOVAL = 0xFFFF;
     RTWDOG3->CS = (uint32_t) ((RTWDOG3->CS) & ~RTWDOG_CS_EN_MASK) | RTWDOG_CS_UPDATE_MASK;
-    RTWDOG4->CNT = 0xD928C520U; /* 0xD928C520U is the update key */
+    if ((RTWDOG4->CS & RTWDOG_CS_CMD32EN_MASK) != 0U)
+    {
+        RTWDOG4->CNT = 0xD928C520U; /* 0xD928C520U is the update key */
+    }
+    else
+    {
+        RTWDOG4->CNT = 0xC520U;
+        RTWDOG4->CNT = 0xD928U;
+    }
     RTWDOG4->TOVAL = 0xFFFF;
     RTWDOG4->CS = (uint32_t) ((RTWDOG4->CS) & ~RTWDOG_CS_EN_MASK) | RTWDOG_CS_UPDATE_MASK;
 #endif /* (DISABLE_WDOG) */
 
     /* Disable Systick which might be enabled by bootrom */
-    if (SysTick->CTRL & SysTick_CTRL_ENABLE_Msk)
+    if ((SysTick->CTRL & SysTick_CTRL_ENABLE_Msk) != 0U)
     {
         SysTick->CTRL &= ~SysTick_CTRL_ENABLE_Msk;
     }
 
-/* Enable instruction and data caches */
-#if defined(__ICACHE_PRESENT) && __ICACHE_PRESENT
-    if (SCB_CCR_IC_Msk != (SCB_CCR_IC_Msk & SCB->CCR)) {
-        SCB_EnableICache();
+    /* Initialize Cache */
+    /* Enable Code Bus Cache */
+    if (0U == (LMEM->PCCCR & LMEM_PCCCR_ENCACHE_MASK))
+    {
+        /* set command to invalidate all ways, and write GO bit to initiate command */
+        LMEM->PCCCR |= LMEM_PCCCR_INVW1_MASK | LMEM_PCCCR_INVW0_MASK | LMEM_PCCCR_GO_MASK;
+        /* Wait until the command completes */
+        while ((LMEM->PCCCR & LMEM_PCCCR_GO_MASK) != 0U) {
+        }
+        /* Enable cache, enable write buffer */
+        LMEM->PCCCR |= (LMEM_PCCCR_ENWRBUF_MASK | LMEM_PCCCR_ENCACHE_MASK);
     }
-#endif
-#if defined(__DCACHE_PRESENT) && __DCACHE_PRESENT
-    if (SCB_CCR_DC_Msk != (SCB_CCR_DC_Msk & SCB->CCR)) {
-        SCB_EnableDCache();
+
+    /* Enable System Bus Cache */
+    if (0U == (LMEM->PSCCR & LMEM_PSCCR_ENCACHE_MASK))
+    {
+        /* set command to invalidate all ways, and write GO bit to initiate command */
+        LMEM->PSCCR |= LMEM_PSCCR_INVW1_MASK | LMEM_PSCCR_INVW0_MASK | LMEM_PSCCR_GO_MASK;
+        /* Wait until the command completes */
+        while ((LMEM->PSCCR & LMEM_PSCCR_GO_MASK) != 0U) {
+        }
+        /* Enable cache, enable write buffer */
+        LMEM->PSCCR |= (LMEM_PSCCR_ENWRBUF_MASK | LMEM_PSCCR_ENCACHE_MASK);
     }
+
+    /* Clear bit 13 to its reset value since it might be set by ROM. */
+    IOMUXC_GPR->GPR28 &= ~IOMUXC_GPR_GPR28_CACHE_USB_MASK;
+
+#if defined(ROM_ECC_ENABLED)
+    /* When ECC is enabled, SRC->SRSR need to be cleared since only correct SRSR value can trigger ROM ECC preload procedure.
+       Save SRSR to SRC->GPR[11] so that application can still check SRSR value from SRC->GPR[11]. */
+    SRC->GPR[11] = SRC->SRSR;
+    /* clear SRSR */
+    SRC->SRSR = 0xFFFFFFFFU;
 #endif
+
+    /* Enable entry to thread mode when divide by zero */
+    SCB->CCR |= SCB_CCR_DIV_0_TRP_Msk;
+    __DSB();
+    __ISB();
 
   SystemInitHook();
 }

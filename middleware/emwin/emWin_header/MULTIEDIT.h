@@ -3,13 +3,13 @@
 *        Solutions for real time microcontroller applications        *
 **********************************************************************
 *                                                                    *
-*        (c) 1996 - 2018  SEGGER Microcontroller GmbH                *
+*        (c) 1996 - 2020  SEGGER Microcontroller GmbH                *
 *                                                                    *
 *        Internet: www.segger.com    Support:  support@segger.com    *
 *                                                                    *
 **********************************************************************
 
-** emWin V5.48 - Graphical user interface for embedded applications **
+** emWin V6.14 - Graphical user interface for embedded applications **
 All  Intellectual Property rights  in the Software belongs to  SEGGER.
 emWin is protected by  international copyright laws.  Knowledge of the
 source code may not be used to write a similar product.  This file may
@@ -34,7 +34,7 @@ License model:            emWin License Agreement, dated August 20th 2011 and Am
 Licensed platform:        NXP's ARM 7/9, Cortex-M0, M3, M4, M7, A7, M33
 ----------------------------------------------------------------------
 Support and Update Agreement (SUA)
-SUA period:               2011-08-19 - 2019-09-02
+SUA period:               2011-08-19 - 2020-09-02
 Contact to extend SUA:    sales@segger.com
 ----------------------------------------------------------------------
 File        : MULTIEDIT.h
@@ -46,7 +46,7 @@ Purpose     : MULTIEDIT include
 #define MULTIEDIT_H
 
 #include "WM.h"
-#include "DIALOG_Intern.h"      /* Req. for Create indirect data structure */
+#include "DIALOG_Type.h"      /* Req. for Create indirect data structure */
 
 #if GUI_WINSUPPORT
 
@@ -54,13 +54,21 @@ Purpose     : MULTIEDIT include
   extern "C" {     /* Make sure we have C-declarations in C++ programs */
 #endif
 
-#define MULTIEDIT_CF_READONLY        (1 << 0)
-#define MULTIEDIT_CF_INSERT          (1 << 2)
-#define MULTIEDIT_CF_AUTOSCROLLBAR_V (1 << 3)
-#define MULTIEDIT_CF_AUTOSCROLLBAR_H (1 << 4)
-#define MULTIEDIT_CF_PASSWORD        (1 << 5)
-#define MULTIEDIT_CF_SHOWCURSOR      (1 << 6)
-
+/*********************************************************************
+*
+*       MULTIEDIT create flags
+*
+*  Description
+*    Create flags that define the behavior of the FRAMEWIN widget. These flags are OR-combinable
+*    and can be specified upon creation of the widget via the \a{ExFlags} parameter of MULTIEDIT_CreateEx().
+*/
+#define MULTIEDIT_CF_READONLY        (1 << 0)     // Enables read only mode.
+#define MULTIEDIT_CF_INSERT          (1 << 2)     // Enables insert mode.
+#define MULTIEDIT_CF_AUTOSCROLLBAR_V (1 << 3)     // Automatic use of a vertical scroll bar.
+#define MULTIEDIT_CF_AUTOSCROLLBAR_H (1 << 4)     // Automatic use of a horizontal scroll bar.
+#define MULTIEDIT_CF_PASSWORD        (1 << 5)     // Enables password mode.
+#define MULTIEDIT_CF_SHOWCURSOR      (1 << 6)     // Shows the cursor.
+/* status flags */
 #define MULTIEDIT_SF_READONLY        MULTIEDIT_CF_READONLY
 #define MULTIEDIT_SF_INSERT          MULTIEDIT_CF_INSERT
 #define MULTIEDIT_SF_AUTOSCROLLBAR_V MULTIEDIT_CF_AUTOSCROLLBAR_V
@@ -69,10 +77,13 @@ Purpose     : MULTIEDIT include
 
 /*********************************************************************
 *
-*       Color indices
+*       MULTIEDIT color indexes
+*
+*  Description
+*    Color indexes used by the MULTIEDIT widget.
 */
-#define MULTIEDIT_CI_EDIT     0
-#define MULTIEDIT_CI_READONLY 1
+#define MULTIEDIT_CI_EDIT     0                   // Color in edit mode.
+#define MULTIEDIT_CI_READONLY 1                   // Color in read-only mode.
 
 /*********************************************************************
 *
@@ -117,9 +128,12 @@ GUI_COLOR        MULTIEDIT_GetBkColor       (MULTIEDIT_HANDLE hObj, unsigned Ind
 int              MULTIEDIT_GetCursorCharPos (MULTIEDIT_HANDLE hObj);
 void             MULTIEDIT_GetCursorPixelPos(MULTIEDIT_HANDLE hObj, int * pxPos, int * pyPos);
 const GUI_FONT * MULTIEDIT_GetFont          (MULTIEDIT_HANDLE hObj);
+int              MULTIEDIT_GetNumChars      (MULTIEDIT_HANDLE hObj);
 void             MULTIEDIT_GetPrompt        (MULTIEDIT_HANDLE hObj, char* sDest, int MaxNumChars);
 void             MULTIEDIT_GetText          (MULTIEDIT_HANDLE hObj, char* sDest, int MaxNumChars);
 GUI_COLOR        MULTIEDIT_GetTextColor     (MULTIEDIT_HANDLE hObj, unsigned Index);
+int              MULTIEDIT_GetTextFromLine  (MULTIEDIT_HANDLE hObj, char * sDest, int MaxLen, unsigned CharPos, unsigned Line);
+int              MULTIEDIT_GetTextFromPos   (MULTIEDIT_HANDLE hObj, char * sDest, int MaxLen, int CharStart, int LineStart, int CharEnd, int LineEnd);
 int              MULTIEDIT_GetTextSize      (MULTIEDIT_HANDLE hObj);
 int              MULTIEDIT_GetUserData      (MULTIEDIT_HANDLE hObj, void * pDest, int NumBytes);
 void             MULTIEDIT_SetTextAlign     (MULTIEDIT_HANDLE hObj, int Align);

@@ -55,8 +55,8 @@ int ff_cre_syncobj (	/* 1:Function succeeded, 0:Could not create the sync object
 )
 {
 	/* Win32 */
-	*sobj = CreateMutex(NULL, FALSE, NULL);
-	return (int)(*sobj != INVALID_HANDLE_VALUE);
+//	*sobj = CreateMutex(NULL, FALSE, NULL);
+//	return (int)(*sobj != INVALID_HANDLE_VALUE);
 
 	/* uITRON */
 //	T_CSEM csem = {TA_TPRI,1,1};
@@ -91,7 +91,7 @@ int ff_del_syncobj (	/* 1:Function succeeded, 0:Could not delete due to an error
 )
 {
 	/* Win32 */
-	return (int)CloseHandle(sobj);
+//	return (int)CloseHandle(sobj);
 
 	/* uITRON */
 //	return (int)(del_sem(sobj) == E_OK);
@@ -122,7 +122,7 @@ int ff_req_grant (	/* 1:Got a grant to access the volume, 0:Could not get a gran
 )
 {
 	/* Win32 */
-	return (int)(WaitForSingleObject(sobj, FF_FS_TIMEOUT) == WAIT_OBJECT_0);
+//	return (int)(WaitForSingleObject(sobj, FF_FS_TIMEOUT) == WAIT_OBJECT_0);
 
 	/* uITRON */
 //	return (int)(wai_sem(sobj) == E_OK);
@@ -151,7 +151,7 @@ void ff_rel_grant (
 )
 {
 	/* Win32 */
-	ReleaseMutex(sobj);
+//	ReleaseMutex(sobj);
 
 	/* uITRON */
 //	sig_sem(sobj);

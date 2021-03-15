@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016, Freescale Semiconductor, Inc.
- * Copyright 2017, NXP
+ * Copyright 2017-2021, NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -17,12 +17,12 @@
 #define FSL_COMPONENT_ID "platform.drivers.snvs_lp"
 #endif
 
-#define SECONDS_IN_A_DAY (86400U)
-#define SECONDS_IN_A_HOUR (3600U)
+#define SECONDS_IN_A_DAY    (86400U)
+#define SECONDS_IN_A_HOUR   (3600U)
 #define SECONDS_IN_A_MINUTE (60U)
-#define DAYS_IN_A_YEAR (365U)
-#define YEAR_RANGE_START (1970U)
-#define YEAR_RANGE_END (2099U)
+#define DAYS_IN_A_YEAR      (365U)
+#define YEAR_RANGE_START    (1970U)
+#define YEAR_RANGE_END      (2099U)
 
 #define SNVS_DEFAULT_PGD_VALUE (0x41736166U)
 
@@ -92,7 +92,7 @@ const clock_ip_name_t s_snvsLpClock[] = SNVS_LP_CLOCKS;
  ******************************************************************************/
 static bool SNVS_LP_CheckDatetimeFormat(const snvs_lp_srtc_datetime_t *datetime)
 {
-    assert(datetime);
+    assert(datetime != NULL);
 
     /* Table of days in a month for a non leap year. First entry in the table is not used,
      * valid months start from 1
@@ -108,7 +108,7 @@ static bool SNVS_LP_CheckDatetimeFormat(const snvs_lp_srtc_datetime_t *datetime)
     }
 
     /* Adjust the days in February for a leap year */
-    if ((((datetime->year & 3U) == 0) && (datetime->year % 100 != 0)) || (datetime->year % 400 == 0))
+    if ((((datetime->year & 3U) == 0U) && (datetime->year % 100U != 0U)) || (datetime->year % 400U == 0U))
     {
         daysPerMonth[2] = 29U;
     }
@@ -124,7 +124,7 @@ static bool SNVS_LP_CheckDatetimeFormat(const snvs_lp_srtc_datetime_t *datetime)
 
 static uint32_t SNVS_LP_ConvertDatetimeToSeconds(const snvs_lp_srtc_datetime_t *datetime)
 {
-    assert(datetime);
+    assert(datetime != NULL);
 
     /* Number of days from begin of the non Leap-year*/
     /* Number of days from begin of the non Leap-year*/
@@ -132,16 +132,16 @@ static uint32_t SNVS_LP_ConvertDatetimeToSeconds(const snvs_lp_srtc_datetime_t *
     uint32_t seconds;
 
     /* Compute number of days from 1970 till given year*/
-    seconds = (datetime->year - 1970U) * DAYS_IN_A_YEAR;
+    seconds = ((uint32_t)datetime->year - 1970U) * DAYS_IN_A_YEAR;
     /* Add leap year days */
-    seconds += ((datetime->year / 4) - (1970U / 4));
+    seconds += (((uint32_t)datetime->year / 4U) - (1970U / 4U));
     /* Add number of days till given month*/
     seconds += monthDays[datetime->month];
     /* Add days in given month. We subtract the current day as it is
      * represented in the hours, minutes and seconds field*/
-    seconds += (datetime->day - 1);
+    seconds += ((uint32_t)datetime->day - 1U);
     /* For leap year if month less than or equal to Febraury, decrement day counter*/
-    if ((!(datetime->year & 3U)) && (datetime->month <= 2U))
+    if ((0U == (datetime->year & 3U)) && (datetime->month <= 2U))
     {
         seconds--;
     }
@@ -154,7 +154,7 @@ static uint32_t SNVS_LP_ConvertDatetimeToSeconds(const snvs_lp_srtc_datetime_t *
 
 static void SNVS_LP_ConvertSecondsToDatetime(uint32_t seconds, snvs_lp_srtc_datetime_t *datetime)
 {
-    assert(datetime);
+    assert(datetime != NULL);
 
     uint32_t x;
     uint32_t secondsRemaining, days;
@@ -170,16 +170,16 @@ static void SNVS_LP_ConvertSecondsToDatetime(uint32_t seconds, snvs_lp_srtc_date
     /* Calcuate the number of days, we add 1 for the current day which is represented in the
      * hours and seconds field
      */
-    days = secondsRemaining / SECONDS_IN_A_DAY + 1;
+    days = secondsRemaining / SECONDS_IN_A_DAY + 1U;
 
     /* Update seconds left*/
     secondsRemaining = secondsRemaining % SECONDS_IN_A_DAY;
 
     /* Calculate the datetime hour, minute and second fields */
-    datetime->hour   = secondsRemaining / SECONDS_IN_A_HOUR;
+    datetime->hour   = (uint8_t)(secondsRemaining / SECONDS_IN_A_HOUR);
     secondsRemaining = secondsRemaining % SECONDS_IN_A_HOUR;
-    datetime->minute = secondsRemaining / 60U;
-    datetime->second = secondsRemaining % SECONDS_IN_A_MINUTE;
+    datetime->minute = (uint8_t)(secondsRemaining / 60U);
+    datetime->second = (uint8_t)(secondsRemaining % SECONDS_IN_A_MINUTE);
 
     /* Calculate year */
     daysInYear     = DAYS_IN_A_YEAR;
@@ -191,18 +191,18 @@ static void SNVS_LP_ConvertSecondsToDatetime(uint32_t seconds, snvs_lp_srtc_date
         datetime->year++;
 
         /* Adjust the number of days for a leap year */
-        if (datetime->year & 3U)
+        if ((datetime->year & 3U) != 0U)
         {
             daysInYear = DAYS_IN_A_YEAR;
         }
         else
         {
-            daysInYear = DAYS_IN_A_YEAR + 1;
+            daysInYear = DAYS_IN_A_YEAR + 1U;
         }
     }
 
     /* Adjust the days in February for a leap year */
-    if (!(datetime->year & 3U))
+    if (0U == (datetime->year & 3U))
     {
         daysPerMonth[2] = 29U;
     }
@@ -211,7 +211,7 @@ static void SNVS_LP_ConvertSecondsToDatetime(uint32_t seconds, snvs_lp_srtc_date
     {
         if (days <= daysPerMonth[x])
         {
-            datetime->month = x;
+            datetime->month = (uint8_t)x;
             break;
         }
         else
@@ -220,7 +220,7 @@ static void SNVS_LP_ConvertSecondsToDatetime(uint32_t seconds, snvs_lp_srtc_date
         }
     }
 
-    datetime->day = days;
+    datetime->day = (uint8_t)days;
 }
 
 #if (!(defined(FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL) && FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL) && \
@@ -248,8 +248,8 @@ void SNVS_LP_Init(SNVS_Type *base)
 #endif /* FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL */
 
     /* Power glitch detector: set the PGD value and clear the previous status. */
-    base->LPPGDR = SNVS_DEFAULT_PGD_VALUE;
-    base->LPSR   = SNVS_LPSR_PGD_MASK;
+    base->LPLVDR = SNVS_DEFAULT_PGD_VALUE;
+    base->LPSR   = SNVS_LPSR_LVD_MASK;
 }
 
 /*!
@@ -276,7 +276,7 @@ void SNVS_LP_Deinit(SNVS_Type *base)
  */
 void SNVS_LP_SRTC_Init(SNVS_Type *base, const snvs_lp_srtc_config_t *config)
 {
-    assert(config);
+    assert(config != NULL);
 
 #if (!(defined(FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL) && FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL) && \
      defined(SNVS_LP_CLOCKS))
@@ -292,7 +292,7 @@ void SNVS_LP_SRTC_Init(SNVS_Type *base, const snvs_lp_srtc_config_t *config)
         base->LPCR |= SNVS_LPCR_LPCALB_EN_MASK;
     }
 
-    for (pin = kSNVS_ExternalTamper1; pin <= SNVS_LP_MAX_TAMPER; pin++)
+    for (pin = (int32_t)kSNVS_ExternalTamper1; pin <= (int32_t)SNVS_LP_MAX_TAMPER; pin++)
     {
         SNVS_LP_DisableExternalTamper(SNVS, (snvs_lp_external_tamper_t)pin);
         SNVS_LP_ClearExternalTamperStatus(SNVS, (snvs_lp_external_tamper_t)pin);
@@ -327,10 +327,10 @@ void SNVS_LP_SRTC_Deinit(SNVS_Type *base)
  */
 void SNVS_LP_SRTC_GetDefaultConfig(snvs_lp_srtc_config_t *config)
 {
-    assert(config);
+    assert(config != NULL);
 
     /* Initializes the configure structure to zero. */
-    memset(config, 0, sizeof(*config));
+    (void)memset(config, 0, sizeof(*config));
 
     config->srtcCalEnable = false;
     config->srtcCalValue  = 0U;
@@ -345,7 +345,8 @@ static uint32_t SNVS_LP_SRTC_GetSeconds(SNVS_Type *base)
     do
     {
         seconds = tmp;
-        tmp     = (base->LPSRTCMR << 17U) | (base->LPSRTCLR >> 15U);
+        tmp     = (base->LPSRTCMR << 17U);
+        tmp |= (base->LPSRTCLR >> 15U);
     } while (tmp != seconds);
 
     return seconds;
@@ -362,7 +363,7 @@ static uint32_t SNVS_LP_SRTC_GetSeconds(SNVS_Type *base)
  */
 status_t SNVS_LP_SRTC_SetDatetime(SNVS_Type *base, const snvs_lp_srtc_datetime_t *datetime)
 {
-    assert(datetime);
+    assert(datetime != NULL);
 
     uint32_t seconds = 0U;
     uint32_t tmp     = base->LPCR;
@@ -383,7 +384,7 @@ status_t SNVS_LP_SRTC_SetDatetime(SNVS_Type *base, const snvs_lp_srtc_datetime_t
     base->LPSRTCLR = (uint32_t)(seconds << 15U);
 
     /* reenable SRTC in case that it was enabled before */
-    if (tmp & SNVS_LPCR_SRTC_ENV_MASK)
+    if ((tmp & SNVS_LPCR_SRTC_ENV_MASK) != 0U)
     {
         SNVS_LP_SRTC_StartTimer(base);
     }
@@ -399,7 +400,7 @@ status_t SNVS_LP_SRTC_SetDatetime(SNVS_Type *base, const snvs_lp_srtc_datetime_t
  */
 void SNVS_LP_SRTC_GetDatetime(SNVS_Type *base, snvs_lp_srtc_datetime_t *datetime)
 {
-    assert(datetime);
+    assert(datetime != NULL);
 
     SNVS_LP_ConvertSecondsToDatetime(SNVS_LP_SRTC_GetSeconds(base), datetime);
 }
@@ -424,7 +425,7 @@ void SNVS_LP_SRTC_GetDatetime(SNVS_Type *base, snvs_lp_srtc_datetime_t *datetime
  */
 status_t SNVS_LP_SRTC_SetAlarm(SNVS_Type *base, const snvs_lp_srtc_datetime_t *alarmTime)
 {
-    assert(alarmTime);
+    assert(alarmTime != NULL);
 
     uint32_t alarmSeconds = 0U;
     uint32_t currSeconds  = 0U;
@@ -447,7 +448,7 @@ status_t SNVS_LP_SRTC_SetAlarm(SNVS_Type *base, const snvs_lp_srtc_datetime_t *a
 
     /* disable SRTC alarm interrupt */
     base->LPCR &= ~SNVS_LPCR_LPTA_EN_MASK;
-    while (base->LPCR & SNVS_LPCR_LPTA_EN_MASK)
+    while ((base->LPCR & SNVS_LPCR_LPTA_EN_MASK) != 0U)
     {
     }
 
@@ -468,7 +469,7 @@ status_t SNVS_LP_SRTC_SetAlarm(SNVS_Type *base, const snvs_lp_srtc_datetime_t *a
  */
 void SNVS_LP_SRTC_GetAlarm(SNVS_Type *base, snvs_lp_srtc_datetime_t *datetime)
 {
-    assert(datetime);
+    assert(datetime != NULL);
 
     uint32_t alarmSeconds = 0U;
 
@@ -490,9 +491,9 @@ uint32_t SNVS_LP_SRTC_GetStatusFlags(SNVS_Type *base)
 {
     uint32_t flags = 0U;
 
-    if (base->LPSR & SNVS_LPSR_LPTA_MASK)
+    if ((base->LPSR & SNVS_LPSR_LPTA_MASK) != 0U)
     {
-        flags |= kSNVS_SRTC_AlarmInterruptFlag;
+        flags |= (uint32_t)kSNVS_SRTC_AlarmInterruptFlag;
     }
 
     return flags;
@@ -510,12 +511,81 @@ uint32_t SNVS_LP_SRTC_GetEnabledInterrupts(SNVS_Type *base)
 {
     uint32_t val = 0U;
 
-    if (base->LPCR & SNVS_LPCR_LPTA_EN_MASK)
+    if ((base->LPCR & SNVS_LPCR_LPTA_EN_MASK) != 0U)
     {
-        val |= kSNVS_SRTC_AlarmInterrupt;
+        val |= (uint32_t)kSNVS_SRTC_AlarmInterrupt;
     }
 
     return val;
+}
+
+/*!
+ * brief Fills in the SNVS tamper pin config struct with the default settings.
+ *
+ * The default values are as follows.
+ * code
+ *  config->polarity        = 0U;
+ *  config->filterenable    = 0U;
+ *  config->filter          = 0U;
+ * endcode
+ * param config Pointer to the user's SNVS configuration structure.
+ */
+void SNVS_LP_TamperPin_GetDefaultConfig(snvs_lp_passive_tamper_t *config)
+{
+    assert(config != NULL);
+
+    /* Initializes the configure structure to zero. */
+    (void)memset(config, 0, sizeof(*config));
+
+    config->polarity     = 0U;
+    config->filterenable = 0U;
+    config->filter       = 0U;
+}
+
+/*!
+ * brief Fills in the SNVS tamper pin config struct with the default settings.
+ *
+ * The default values are as follows.
+ * code
+ *  config->clock       = kSNVS_ActiveTamper16HZ;
+ *  config->seed        = 0U;
+ *  config->polynomial  = 0U;
+ * endcode
+ * param config Pointer to the user's SNVS configuration structure.
+ */
+void SNVS_LP_TamperPinTx_GetDefaultConfig(tamper_active_tx_config_t *config)
+{
+    assert(config != NULL);
+
+    /* Initializes the configure structure to zero. */
+    (void)memset(config, 0, sizeof(*config));
+
+    config->clock      = kSNVS_ActiveTamper16HZ;
+    config->seed       = 0U;
+    config->polynomial = 0U;
+}
+
+/*!
+ * brief Fills in the SNVS tamper pin config struct with the default settings.
+ *
+ * The default values are as follows.
+ * code
+ *  config->filterenable    = 0U;
+ *  config->filter          = 0U;
+ *  config->tx              = kSNVS_activeTamper1;
+ * endcode
+ * param config Pointer to the user's SNVS configuration structure.
+ */
+void SNVS_LP_TamperPinRx_GetDefaultConfig(tamper_active_rx_config_t *config)
+{
+    assert(config != NULL);
+
+    /* Initializes the configure structure to zero. */
+    (void)memset(config, 0, sizeof(*config));
+
+    config->filterenable = 0U;
+    config->filter       = 0U;
+    config->activeTamper = kSNVS_activeTamper1;
 }
 
 /*!
@@ -523,58 +593,166 @@ uint32_t SNVS_LP_SRTC_GetEnabledInterrupts(SNVS_Type *base)
  *
  * param base SNVS peripheral base address
  * param pin SNVS external tamper pin
- * param polarity Polarity of external tamper
+ * param config Configuration structure of external passive tamper
  */
-void SNVS_LP_EnableExternalTamper(SNVS_Type *base,
-                                  snvs_lp_external_tamper_t pin,
-                                  snvs_lp_external_tamper_polarity_t polarity)
+void SNVS_LP_EnablePassiveTamper(SNVS_Type *base, snvs_lp_external_tamper_t pin, snvs_lp_passive_tamper_t config)
 {
     switch (pin)
     {
         case (kSNVS_ExternalTamper1):
-            base->LPTDCR = (base->LPTDCR & ~(1U << SNVS_LPTDCR_ET1P_SHIFT)) | (polarity << SNVS_LPTDCR_ET1P_SHIFT);
+            /* Set polarity */
+            base->LPTDCR =
+                (base->LPTDCR & ~(SNVS_LPTDCR_ET1P_MASK)) | ((uint32_t)config.polarity << SNVS_LPTDCR_ET1P_SHIFT);
+            /* Enable filter and set it's value, dissable otherwise */
+            if (config.filterenable)
+            {
+                SNVS->LPTGFCR |= SNVS_LPTGFCR_ETGF1_EN_MASK;
+                SNVS->LPTGFCR |= SNVS_LPTGFCR_ETGF1(config.filter);
+            }
+            else
+            {
+                SNVS->LPTGFCR &= ~SNVS_LPTGFCR_ETGF1_EN_MASK;
+            }
+
+            /* enable tamper pin */
             base->LPTDCR |= SNVS_LPTDCR_ET1_EN_MASK;
             break;
 #if defined(FSL_FEATURE_SNVS_HAS_MULTIPLE_TAMPER) && (FSL_FEATURE_SNVS_HAS_MULTIPLE_TAMPER > 1)
         case (kSNVS_ExternalTamper2):
-            base->LPTDCR = (base->LPTDCR & ~(1U << SNVS_LPTDCR_ET2P_SHIFT)) | (polarity << SNVS_LPTDCR_ET2P_SHIFT);
-            base->LPTDCR |= SNVS_LPTDCR_ET2_EN_MASK;
+            /* Set polarity */
+            base->LPTDCR =
+                (base->LPTDCR & ~(SNVS_LPTDCR_ET2P_MASK)) | ((uint32_t)config.polarity << SNVS_LPTDCR_ET2P_SHIFT);
+            /* Enable filter and set it's value, dissable otherwise */
+            if (config.filterenable)
+            {
+                SNVS->LPTGFCR |= SNVS_LPTGFCR_ETGF2_EN_MASK;
+                SNVS->LPTGFCR |= SNVS_LPTGFCR_ETGF2(config.filter);
+            }
+            else
+            {
+                SNVS->LPTGFCR &= ~SNVS_LPTGFCR_ETGF2_EN_MASK;
+            }
+
+            /* enable tamper pin */
+            SNVS->LPTDCR |= SNVS_LPTDCR_ET2_EN_MASK;
+
             break;
         case (kSNVS_ExternalTamper3):
-            base->LPTDC2R = (base->LPTDC2R & ~(1U << SNVS_LPTDC2R_ET3P_SHIFT)) | (polarity << SNVS_LPTDC2R_ET3P_SHIFT);
+            /* Set polarity */
+            base->LPTDC2R = (base->LPTDC2R & ~(SNVS_LPTDC2R_ET3P_MASK)) | (config.polarity << SNVS_LPTDC2R_ET3P_SHIFT);
+            /* Enable filter and set it's value if set */
+            if (config.filterenable)
+            {
+                /* Set filter value */
+                SNVS->LPTGF1CR |= SNVS_LPTGF1CR_ETGF3(config.filter);
+                /* Enable tamper 3 glitch filter */
+                SNVS->LPTGF1CR |= SNVS_LPTGF1CR_ETGF3_EN(1U);
+            }
+            /* enable tamper pin */
             base->LPTDC2R |= SNVS_LPTDC2R_ET3_EN_MASK;
             break;
         case (kSNVS_ExternalTamper4):
-            base->LPTDC2R = (base->LPTDC2R & ~(1U << SNVS_LPTDC2R_ET4P_SHIFT)) | (polarity << SNVS_LPTDC2R_ET4P_SHIFT);
+            /* Set polarity */
+            base->LPTDC2R = (base->LPTDC2R & ~(SNVS_LPTDC2R_ET4P_MASK)) | (config.polarity << SNVS_LPTDC2R_ET4P_SHIFT);
+            /* Enable filter and set it's value if set */
+            if (config.filterenable)
+            {
+                /* Set filter value */
+                SNVS->LPTGF1CR |= SNVS_LPTGF1CR_ETGF4(config.filter);
+                /* Enable tamper 4 glitch filter */
+                SNVS->LPTGF1CR |= SNVS_LPTGF1CR_ETGF4_EN(1U);
+            }
+            /* enable tamper pin */
             base->LPTDC2R |= SNVS_LPTDC2R_ET4_EN_MASK;
             break;
         case (kSNVS_ExternalTamper5):
-            base->LPTDC2R = (base->LPTDC2R & ~(1U << SNVS_LPTDC2R_ET5P_SHIFT)) | (polarity << SNVS_LPTDC2R_ET5P_SHIFT);
+            /* Set polarity */
+            base->LPTDC2R = (base->LPTDC2R & ~(SNVS_LPTDC2R_ET5P_MASK)) | (config.polarity << SNVS_LPTDC2R_ET5P_SHIFT);
+            /* Enable filter and set it's value if set */
+            if (config.filterenable)
+            {
+                /* Set filter value */
+                SNVS->LPTGF1CR |= SNVS_LPTGF1CR_ETGF5(config.filter);
+                /* Enable tamper 5 glitch filter */
+                SNVS->LPTGF1CR |= SNVS_LPTGF1CR_ETGF5_EN(1U);
+            }
+            /* enable tamper pin */
             base->LPTDC2R |= SNVS_LPTDC2R_ET5_EN_MASK;
             break;
         case (kSNVS_ExternalTamper6):
-            base->LPTDC2R = (base->LPTDC2R & ~(1U << SNVS_LPTDC2R_ET6P_SHIFT)) | (polarity << SNVS_LPTDC2R_ET6P_SHIFT);
+            /* Set polarity */
+            base->LPTDC2R = (base->LPTDC2R & ~(SNVS_LPTDC2R_ET6P_MASK)) | (config.polarity << SNVS_LPTDC2R_ET6P_SHIFT);
+            /* Enable filter and set it's value if set */
+            if (config.filterenable)
+            {
+                /* Set filter value */
+                SNVS->LPTGF1CR |= SNVS_LPTGF1CR_ETGF6(config.filter);
+                /* Enable tamper 6 glitch filter */
+                SNVS->LPTGF1CR |= SNVS_LPTGF1CR_ETGF6_EN(1U);
+            }
+            /* enable tamper pin */
             base->LPTDC2R |= SNVS_LPTDC2R_ET6_EN_MASK;
             break;
         case (kSNVS_ExternalTamper7):
-            base->LPTDC2R = (base->LPTDC2R & ~(1U << SNVS_LPTDC2R_ET7P_SHIFT)) | (polarity << SNVS_LPTDC2R_ET7P_SHIFT);
+            /* Set polarity */
+            base->LPTDC2R = (base->LPTDC2R & ~(SNVS_LPTDC2R_ET7P_MASK)) | (config.polarity << SNVS_LPTDC2R_ET7P_SHIFT);
+            /* Enable filter and set it's value if set */
+            if (config.filterenable)
+            {
+                /* Set filter value */
+                SNVS->LPTGF2CR |= SNVS_LPTGF2CR_ETGF7(config.filter);
+                /* Enable tamper 6 glitch filter */
+                SNVS->LPTGF2CR |= SNVS_LPTGF2CR_ETGF7_EN(1U);
+            }
+            /* enable tamper pin */
             base->LPTDC2R |= SNVS_LPTDC2R_ET7_EN_MASK;
             break;
         case (kSNVS_ExternalTamper8):
-            base->LPTDC2R = (base->LPTDC2R & ~(1U << SNVS_LPTDC2R_ET8P_SHIFT)) | (polarity << SNVS_LPTDC2R_ET8P_SHIFT);
+            /* Set polarity */
+            base->LPTDC2R = (base->LPTDC2R & ~(SNVS_LPTDC2R_ET8P_MASK)) | (config.polarity << SNVS_LPTDC2R_ET8P_SHIFT);
+            /* Enable filter and set it's value if set */
+            if (config.filterenable)
+            {
+                /* Set filter value */
+                SNVS->LPTGF2CR |= SNVS_LPTGF2CR_ETGF8(config.filter);
+                /* Enable tamper 8 glitch filter */
+                SNVS->LPTGF2CR |= SNVS_LPTGF2CR_ETGF8_EN(1U);
+            }
+            /* enable tamper pin */
             base->LPTDC2R |= SNVS_LPTDC2R_ET8_EN_MASK;
             break;
         case (kSNVS_ExternalTamper9):
-            base->LPTDC2R = (base->LPTDC2R & ~(1U << SNVS_LPTDC2R_ET9P_SHIFT)) | (polarity << SNVS_LPTDC2R_ET9P_SHIFT);
+            /* Set polarity */
+            base->LPTDC2R = (base->LPTDC2R & ~(SNVS_LPTDC2R_ET9P_MASK)) | (config.polarity << SNVS_LPTDC2R_ET9P_SHIFT);
+            /* Enable filter and set it's value if set */
+            if (config.filterenable)
+            {
+                /* Set filter value */
+                SNVS->LPTGF2CR |= SNVS_LPTGF2CR_ETGF9(config.filter);
+                /* Enable tamper 9 glitch filter */
+                SNVS->LPTGF2CR |= SNVS_LPTGF2CR_ETGF9_EN(1U);
+            }
+            /* enable tamper pin */
             base->LPTDC2R |= SNVS_LPTDC2R_ET9_EN_MASK;
             break;
         case (kSNVS_ExternalTamper10):
+            /* Set polarity */
             base->LPTDC2R =
-                (base->LPTDC2R & ~(1U << SNVS_LPTDC2R_ET10P_SHIFT)) | (polarity << SNVS_LPTDC2R_ET10P_SHIFT);
+                (base->LPTDC2R & ~(SNVS_LPTDC2R_ET10P_MASK)) | (config.polarity << SNVS_LPTDC2R_ET10P_SHIFT);
+            /* Enable filter and set it's value if set */
+            if (config.filterenable)
+            {
+                /* Set filter value */
+                SNVS->LPTGF2CR |= SNVS_LPTGF2CR_ETGF10(config.filter);
+                /* Enable tamper 10 glitch filter */
+                SNVS->LPTGF2CR |= SNVS_LPTGF2CR_ETGF10_EN(1U);
+            }
+            /* enable tamper pin */
             base->LPTDC2R |= SNVS_LPTDC2R_ET10_EN_MASK;
             break;
 #endif
         default:
+            /* All the cases have been listed above, the default clause should not be reached. */
             break;
     }
 }
@@ -622,7 +800,21 @@ void SNVS_LP_DisableExternalTamper(SNVS_Type *base, snvs_lp_external_tamper_t pi
             break;
 #endif
         default:
+            /* All the cases have been listed above, the default clause should not be reached. */
             break;
+    }
+}
+
+/*!
+ * brief Disable all external tamper.
+ *
+ * param base SNVS peripheral base address
+ */
+void SNVS_LP_DisableAllExternalTamper(SNVS_Type *base)
+{
+    for (int pin = (int8_t)kSNVS_ExternalTamper1; pin <= (int8_t)SNVS_LP_MAX_TAMPER; pin++)
+    {
+        SNVS_LP_DisableExternalTamper(SNVS, (snvs_lp_external_tamper_t)pin);
     }
 }
 
@@ -641,38 +833,39 @@ snvs_lp_external_tamper_status_t SNVS_LP_GetExternalTamperStatus(SNVS_Type *base
     switch (pin)
     {
         case (kSNVS_ExternalTamper1):
-            status = (base->LPSR & SNVS_LPSR_ET1D_MASK) ? kSNVS_TamperDetected : kSNVS_TamperNotDetected;
+            status = (bool)(base->LPSR & SNVS_LPSR_ET1D_MASK) ? kSNVS_TamperDetected : kSNVS_TamperNotDetected;
             break;
 #if defined(FSL_FEATURE_SNVS_HAS_MULTIPLE_TAMPER) && (FSL_FEATURE_SNVS_HAS_MULTIPLE_TAMPER > 1)
         case (kSNVS_ExternalTamper2):
-            status = (base->LPSR & SNVS_LPSR_ET2D_MASK) ? kSNVS_TamperDetected : kSNVS_TamperNotDetected;
+            status = (bool)(base->LPSR & SNVS_LPSR_ET2D_MASK) ? kSNVS_TamperDetected : kSNVS_TamperNotDetected;
             break;
         case (kSNVS_ExternalTamper3):
-            status = (base->LPTDSR & SNVS_LPTDSR_ET3D_MASK) ? kSNVS_TamperDetected : kSNVS_TamperNotDetected;
+            status = (bool)(base->LPTDSR & SNVS_LPTDSR_ET3D_MASK) ? kSNVS_TamperDetected : kSNVS_TamperNotDetected;
             break;
         case (kSNVS_ExternalTamper4):
-            status = (base->LPTDSR & SNVS_LPTDSR_ET4D_MASK) ? kSNVS_TamperDetected : kSNVS_TamperNotDetected;
+            status = (bool)(base->LPTDSR & SNVS_LPTDSR_ET4D_MASK) ? kSNVS_TamperDetected : kSNVS_TamperNotDetected;
             break;
         case (kSNVS_ExternalTamper5):
-            status = (base->LPTDSR & SNVS_LPTDSR_ET5D_MASK) ? kSNVS_TamperDetected : kSNVS_TamperNotDetected;
+            status = (bool)(base->LPTDSR & SNVS_LPTDSR_ET5D_MASK) ? kSNVS_TamperDetected : kSNVS_TamperNotDetected;
             break;
         case (kSNVS_ExternalTamper6):
-            status = (base->LPTDSR & SNVS_LPTDSR_ET6D_MASK) ? kSNVS_TamperDetected : kSNVS_TamperNotDetected;
+            status = (bool)(base->LPTDSR & SNVS_LPTDSR_ET6D_MASK) ? kSNVS_TamperDetected : kSNVS_TamperNotDetected;
             break;
         case (kSNVS_ExternalTamper7):
-            status = (base->LPTDSR & SNVS_LPTDSR_ET7D_MASK) ? kSNVS_TamperDetected : kSNVS_TamperNotDetected;
+            status = (bool)(base->LPTDSR & SNVS_LPTDSR_ET7D_MASK) ? kSNVS_TamperDetected : kSNVS_TamperNotDetected;
             break;
         case (kSNVS_ExternalTamper8):
-            status = (base->LPTDSR & SNVS_LPTDSR_ET8D_MASK) ? kSNVS_TamperDetected : kSNVS_TamperNotDetected;
+            status = (bool)(base->LPTDSR & SNVS_LPTDSR_ET8D_MASK) ? kSNVS_TamperDetected : kSNVS_TamperNotDetected;
             break;
         case (kSNVS_ExternalTamper9):
-            status = (base->LPTDSR & SNVS_LPTDSR_ET9D_MASK) ? kSNVS_TamperDetected : kSNVS_TamperNotDetected;
+            status = (bool)(base->LPTDSR & SNVS_LPTDSR_ET9D_MASK) ? kSNVS_TamperDetected : kSNVS_TamperNotDetected;
             break;
         case (kSNVS_ExternalTamper10):
-            status = (base->LPTDSR & SNVS_LPTDSR_ET10D_MASK) ? kSNVS_TamperDetected : kSNVS_TamperNotDetected;
+            status = (bool)(base->LPTDSR & SNVS_LPTDSR_ET10D_MASK) ? kSNVS_TamperDetected : kSNVS_TamperNotDetected;
             break;
 #endif
         default:
+            /* All the cases have been listed above, the default clause should not be reached. */
             break;
     }
     return status;
@@ -723,8 +916,344 @@ void SNVS_LP_ClearExternalTamperStatus(SNVS_Type *base, snvs_lp_external_tamper_
             break;
 #endif
         default:
+            /* All the cases have been listed above, the default clause should not be reached. */
             break;
     }
+}
+
+/*!
+ * brief Clears status of the all external tamper.
+ *
+ * param base SNVS peripheral base address
+ */
+void SNVS_LP_ClearAllExternalTamperStatus(SNVS_Type *base)
+{
+    for (int pin = (int8_t)kSNVS_ExternalTamper1; pin <= (int8_t)SNVS_LP_MAX_TAMPER; pin++)
+    {
+        SNVS_LP_ClearExternalTamperStatus(SNVS, (snvs_lp_external_tamper_t)pin);
+    }
+}
+
+/*!
+ * brief Enable active tamper tx external pad
+ *
+ * param base SNVS peripheral base address
+ * param pin SNVS external tamper pin
+ */
+status_t SNVS_LP_EnableTxActiveTamper(SNVS_Type *base, snvs_lp_active_tamper_t pin, tamper_active_tx_config_t config)
+{
+    status_t status = kStatus_Success;
+
+    switch (pin)
+    {
+        case (kSNVS_ExternalTamper1):
+        {
+            /* Enable active tamper tx external pad */
+            base->LPATCTLR |= SNVS_LPATCTLR_AT1_PAD_EN_MASK;
+            /* Set seed and polynomial */
+            base->LPATCR[0] |= SNVS_LPATCR_Seed(config.seed) | SNVS_LPATCR_Polynomial(config.polynomial);
+            /* Set clock */
+            base->LPATCLKR |= SNVS_LPATCLKR_AT1_CLK_CTL(config.clock);
+            /* Enable active tamper pin */
+            base->LPATCTLR |= SNVS_LPATCTLR_AT1_EN_MASK;
+            break;
+        }
+        case (kSNVS_ExternalTamper2):
+        {
+            base->LPATCTLR |= SNVS_LPATCTLR_AT2_PAD_EN_MASK;
+            base->LPATCR[1] |= SNVS_LPATCR_Seed(config.seed) | SNVS_LPATCR_Polynomial(config.polynomial);
+            base->LPATCLKR |= SNVS_LPATCLKR_AT2_CLK_CTL(config.clock);
+            base->LPATCTLR |= SNVS_LPATCTLR_AT2_EN_MASK;
+            break;
+        }
+        case (kSNVS_ExternalTamper3):
+        {
+            base->LPATCTLR |= SNVS_LPATCTLR_AT3_PAD_EN_MASK;
+            base->LPATCR[2] |= SNVS_LPATCR_Seed(config.seed) | SNVS_LPATCR_Polynomial(config.polynomial);
+            base->LPATCLKR |= SNVS_LPATCLKR_AT3_CLK_CTL(config.clock);
+            base->LPATCTLR |= SNVS_LPATCTLR_AT3_EN_MASK;
+            break;
+        }
+        case (kSNVS_ExternalTamper4):
+        {
+            base->LPATCTLR |= SNVS_LPATCTLR_AT4_PAD_EN_MASK;
+            base->LPATCR[3] |= SNVS_LPATCR_Seed(config.seed) | SNVS_LPATCR_Polynomial(config.polynomial);
+            base->LPATCLKR |= SNVS_LPATCLKR_AT4_CLK_CTL(config.clock);
+            base->LPATCTLR |= SNVS_LPATCTLR_AT4_EN_MASK;
+            break;
+        }
+        case (kSNVS_ExternalTamper5):
+        {
+            base->LPATCTLR |= SNVS_LPATCTLR_AT5_PAD_EN_MASK;
+            base->LPATCR[4] |= SNVS_LPATCR_Seed(config.seed) | SNVS_LPATCR_Polynomial(config.polynomial);
+            base->LPATCLKR |= SNVS_LPATCLKR_AT5_CLK_CTL(config.clock);
+            base->LPATCTLR |= SNVS_LPATCTLR_AT5_EN_MASK;
+            break;
+        }
+        default:
+            status = kStatus_InvalidArgument;
+            /* All the cases have been listed above, the default clause should not be reached. */
+            break;
+    }
+    return status;
+}
+
+/*!
+ * brief Enable active tamper rx external pad
+ *
+ * param base SNVS peripheral base address
+ * param rx SNVS external RX tamper pin
+ * param config SNVS RX tamper config structure
+ */
+status_t SNVS_LP_EnableRxActiveTamper(SNVS_Type *base, snvs_lp_external_tamper_t rx, tamper_active_rx_config_t config)
+{
+    status_t status = kStatus_Success;
+
+    switch (rx)
+    {
+        case (kSNVS_ExternalTamper1):
+            /* Enable filter and set it's value, dissable otherwise */
+            if (config.filterenable)
+            {
+                SNVS->LPTGFCR |= SNVS_LPTGFCR_ETGF1_EN_MASK;
+                SNVS->LPTGFCR |= SNVS_LPTGFCR_ETGF1(config.filter);
+            }
+            else
+            {
+                SNVS->LPTGFCR &= ~SNVS_LPTGFCR_ETGF1_EN_MASK;
+            }
+
+            /* Route TX to external tamper 1 */
+            base->LPATRC1R = SNVS_LPATRC1R_ET1RCTL(config.activeTamper);
+
+            /* enable tamper pin */
+            base->LPTDCR |= SNVS_LPTDCR_ET1_EN_MASK;
+            break;
+#if defined(FSL_FEATURE_SNVS_HAS_MULTIPLE_TAMPER) && (FSL_FEATURE_SNVS_HAS_MULTIPLE_TAMPER > 1)
+        case (kSNVS_ExternalTamper2):
+            /* Enable filter and set it's value, dissable otherwise */
+            if (config.filterenable)
+            {
+                SNVS->LPTGFCR |= SNVS_LPTGFCR_ETGF2_EN_MASK;
+                SNVS->LPTGFCR |= SNVS_LPTGFCR_ETGF2(config.filter);
+            }
+            else
+            {
+                SNVS->LPTGFCR &= ~SNVS_LPTGFCR_ETGF2_EN_MASK;
+            }
+
+            /* Route TX to external tamper 2 */
+            base->LPATRC1R = SNVS_LPATRC1R_ET2RCTL(config.activeTamper);
+
+            /* enable tamper pin */
+            SNVS->LPTDCR |= SNVS_LPTDCR_ET2_EN_MASK;
+
+            break;
+        case (kSNVS_ExternalTamper3):
+            /* Enable filter and set it's value if set */
+            if (config.filterenable)
+            {
+                /* Set filter value */
+                SNVS->LPTGF1CR |= SNVS_LPTGF1CR_ETGF3(config.filter);
+                /* Enable tamper 3 glitch filter */
+                SNVS->LPTGF1CR |= SNVS_LPTGF1CR_ETGF3_EN(1U);
+            }
+
+            /* Route TX to external tamper 3 */
+            base->LPATRC1R = SNVS_LPATRC1R_ET3RCTL(config.activeTamper);
+
+            /* enable tamper pin */
+            base->LPTDC2R |= SNVS_LPTDC2R_ET3_EN_MASK;
+            break;
+        case (kSNVS_ExternalTamper4):
+            /* Enable filter and set it's value if set */
+            if (config.filterenable)
+            {
+                /* Set filter value */
+                SNVS->LPTGF1CR |= SNVS_LPTGF1CR_ETGF4(config.filter);
+                /* Enable tamper 4 glitch filter */
+                SNVS->LPTGF1CR |= SNVS_LPTGF1CR_ETGF4_EN(1U);
+            }
+
+            /* Route TX to external tamper 4 */
+            base->LPATRC1R = SNVS_LPATRC1R_ET4RCTL(config.activeTamper);
+
+            /* enable tamper pin */
+            base->LPTDC2R |= SNVS_LPTDC2R_ET4_EN_MASK;
+            break;
+        case (kSNVS_ExternalTamper5):
+            /* Enable filter and set it's value if set */
+            if (config.filterenable)
+            {
+                /* Set filter value */
+                SNVS->LPTGF1CR |= SNVS_LPTGF1CR_ETGF5(config.filter);
+                /* Enable tamper 5 glitch filter */
+                SNVS->LPTGF1CR |= SNVS_LPTGF1CR_ETGF5_EN(1U);
+            }
+
+            /* Route TX to external tamper 5 */
+            base->LPATRC1R = SNVS_LPATRC1R_ET5RCTL(config.activeTamper);
+
+            /* enable tamper pin */
+            base->LPTDC2R |= SNVS_LPTDC2R_ET5_EN_MASK;
+            break;
+        case (kSNVS_ExternalTamper6):
+            /* Enable filter and set it's value if set */
+            if (config.filterenable)
+            {
+                /* Set filter value */
+                SNVS->LPTGF1CR |= SNVS_LPTGF1CR_ETGF6(config.filter);
+                /* Enable tamper 6 glitch filter */
+                SNVS->LPTGF1CR |= SNVS_LPTGF1CR_ETGF6_EN(1U);
+            }
+
+            /* Route TX to external tamper 6 */
+            base->LPATRC1R = SNVS_LPATRC1R_ET6RCTL(config.activeTamper);
+
+            /* enable tamper pin */
+            base->LPTDC2R |= SNVS_LPTDC2R_ET6_EN_MASK;
+            break;
+        case (kSNVS_ExternalTamper7):
+            /* Enable filter and set it's value if set */
+            if (config.filterenable)
+            {
+                /* Set filter value */
+                SNVS->LPTGF2CR |= SNVS_LPTGF2CR_ETGF7(config.filter);
+                /* Enable tamper 6 glitch filter */
+                SNVS->LPTGF2CR |= SNVS_LPTGF2CR_ETGF7_EN(1U);
+            }
+
+            /* Route TX to external tamper 7 */
+            base->LPATRC1R = SNVS_LPATRC1R_ET7RCTL(config.activeTamper);
+
+            /* enable tamper pin */
+            base->LPTDC2R |= SNVS_LPTDC2R_ET7_EN_MASK;
+            break;
+        case (kSNVS_ExternalTamper8):
+            /* Enable filter and set it's value if set */
+            if (config.filterenable)
+            {
+                /* Set filter value */
+                SNVS->LPTGF2CR |= SNVS_LPTGF2CR_ETGF8(config.filter);
+                /* Enable tamper 8 glitch filter */
+                SNVS->LPTGF2CR |= SNVS_LPTGF2CR_ETGF8_EN(1U);
+            }
+
+            /* Route TX to external tamper 8 */
+            base->LPATRC1R = SNVS_LPATRC1R_ET8RCTL(config.activeTamper);
+
+            /* enable tamper pin */
+            base->LPTDC2R |= SNVS_LPTDC2R_ET8_EN_MASK;
+            break;
+        case (kSNVS_ExternalTamper9):
+            /* Enable filter and set it's value if set */
+            if (config.filterenable)
+            {
+                /* Set filter value */
+                SNVS->LPTGF2CR |= SNVS_LPTGF2CR_ETGF9(config.filter);
+                /* Enable tamper 9 glitch filter */
+                SNVS->LPTGF2CR |= SNVS_LPTGF2CR_ETGF9_EN(1U);
+            }
+
+            /* Route TX to external tamper 9 */
+            base->LPATRC1R = SNVS_LPATRC2R_ET9RCTL(config.activeTamper);
+
+            /* enable tamper pin */
+            base->LPTDC2R |= SNVS_LPTDC2R_ET9_EN_MASK;
+            break;
+        case (kSNVS_ExternalTamper10):
+            /* Enable filter and set it's value if set */
+            if (config.filterenable)
+            {
+                /* Set filter value */
+                SNVS->LPTGF2CR |= SNVS_LPTGF2CR_ETGF10(config.filter);
+                /* Enable tamper 10 glitch filter */
+                SNVS->LPTGF2CR |= SNVS_LPTGF2CR_ETGF10_EN(1U);
+            }
+
+            /* Route TX to external tamper 10 */
+            base->LPATRC1R = SNVS_LPATRC2R_ET10RCTL(config.activeTamper);
+
+            /* enable tamper pin */
+            base->LPTDC2R |= SNVS_LPTDC2R_ET10_EN_MASK;
+            break;
+#endif
+        default:
+            status = kStatus_InvalidArgument;
+            /* All the cases have been listed above, the default clause should not be reached. */
+            break;
+    }
+
+    return status;
+}
+
+/*!
+ * brief Sets voltage tamper detect
+ *
+ * param base SNVS peripheral base address
+ * param enable True if enable false if disable
+ */
+status_t SNVS_LP_SetVoltageTamper(SNVS_Type *base, bool enable)
+{
+    base->LPTDCR |= SNVS_LPTDCR_VT_EN(enable);
+
+    return kStatus_Success;
+}
+
+/*!
+ * brief Sets temperature tamper detect
+ *
+ * param base SNVS peripheral base address
+ * param enable True if enable false if disable
+ */
+status_t SNVS_LP_SetTemperatureTamper(SNVS_Type *base, bool enable)
+{
+    SNVS->LPTDCR |= SNVS_LPTDCR_TT_EN(enable);
+
+    return kStatus_Success;
+}
+
+/*!
+ * brief Sets clock tamper detect
+ *
+ * param base SNVS peripheral base address
+ * param enable True if enable false if disable
+ */
+status_t SNVS_LP_SetClockTamper(SNVS_Type *base, bool enable)
+{
+    SNVS->LPTDCR |= SNVS_LPTDCR_CT_EN(enable);
+
+    return kStatus_Success;
+}
+
+/*!
+ * brief Check voltage tamper
+ *
+ * param base SNVS peripheral base address
+ */
+snvs_lp_external_tamper_status_t SNVS_LP_CheckVoltageTamper(SNVS_Type *base)
+{
+    return (SNVS->LPSR & SNVS_LPSR_VTD_MASK) ? kSNVS_TamperDetected : kSNVS_TamperNotDetected;
+}
+
+/*!
+ * brief Check temperature tamper
+ *
+ * param base SNVS peripheral base address
+ */
+snvs_lp_external_tamper_status_t SNVS_LP_CheckTemperatureTamper(SNVS_Type *base)
+{
+    return (SNVS->LPSR & SNVS_LPSR_TTD_MASK) ? kSNVS_TamperDetected : kSNVS_TamperNotDetected;
+}
+
+/*!
+ * brief Check clock tamper
+ *
+ * param base SNVS peripheral base address
+ */
+snvs_lp_external_tamper_status_t SNVS_LP_CheckClockTamper(SNVS_Type *base)
+{
+    return (SNVS->LPSR & SNVS_LPSR_CTD_MASK) ? kSNVS_TamperDetected : kSNVS_TamperNotDetected;
 }
 
 /*!
@@ -758,3 +1287,46 @@ void SNVS_LP_WriteZeroizableMasterKey(SNVS_Type *base, uint32_t ZMKey[SNVS_ZMK_R
         base->LPZMKR[i] = ZMKey[i];
     }
 }
+
+#if defined(FSL_FEATURE_SNVS_HAS_STATE_TRANSITION) && (FSL_FEATURE_SNVS_HAS_STATE_TRANSITION > 0)
+/*!
+ * brief Transition SNVS SSM state to Trusted/Non-secure from Check state
+ *
+ * param base SNVS peripheral base address
+ *
+ * return kStatus_Success: Success in transitioning SSM State
+ *        kStatus_Fail: SSM State transition failed
+ */
+status_t SNVS_LP_SSM_State_Transition(SNVS_Type *base)
+{
+    uint32_t curr_ssm_state = ((base->HPSR & SNVS_HPSR_SSM_STATE_MASK) >> SNVS_HPSR_SSM_STATE_SHIFT);
+    uint32_t sec_config     = ((OCOTP_CTRL->HW_OCOTP_OTFAD_CFG3 & OCOTP_CTRL_HW_OCOTP_SEC_CONFIG1_MASK) >>
+                           OCOTP_CTRL_HW_OCOTP_SEC_CONFIG1_SHIFT);
+
+    /* Check if SSM State is Check state */
+    if (curr_ssm_state == SNVS_SSM_STATE_CHECK)
+    {
+        if (sec_config == SEC_CONFIG_OPEN)
+        {
+            /* Transition to Non-secure state */
+            base->HPCOMR |= SNVS_HPCOMR_SW_SV(1);
+        }
+        else
+        {
+            /* Transition to Trusted state */
+            base->HPCOMR |= SNVS_HPCOMR_SSM_ST(1);
+        }
+    }
+
+    uint32_t new_ssm_state = ((base->HPSR & SNVS_HPSR_SSM_STATE_MASK) >> SNVS_HPSR_SSM_STATE_SHIFT);
+
+    if (new_ssm_state != SNVS_SSM_STATE_CHECK)
+    {
+        return kStatus_Success;
+    }
+    else
+    {
+        return kStatus_Fail;
+    }
+}
+#endif /* FSL_FEATURE_SNVS_HAS_STATE_TRANSITION */

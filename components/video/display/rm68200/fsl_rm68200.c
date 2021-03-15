@@ -1,5 +1,5 @@
 /*
- * Copyright  2019 NXP
+ * Copyright 2019-2020 NXP
  * All rights reserved.
  *
  *
@@ -308,9 +308,9 @@ status_t RM68200_Init(display_handle_t *handle, const display_config_t *config)
 {
     uint32_t i;
     uint8_t param[2];
-    status_t status              = kStatus_Success;
-    rm68200_resource_t *resource = (rm68200_resource_t *)(handle->resource);
-    mipi_dsi_device_t *dsiDevice = &(resource->dsiDevice);
+    status_t status                    = kStatus_Success;
+    const rm68200_resource_t *resource = (const rm68200_resource_t *)(handle->resource);
+    mipi_dsi_device_t *dsiDevice       = resource->dsiDevice;
 
     /* Only support 720 * 1280 */
     if (config->resolution != FSL_VIDEO_RESOLUTION(720, 1280))
@@ -343,15 +343,28 @@ status_t RM68200_Init(display_handle_t *handle, const display_config_t *config)
 
     param[0] = 0x29;
     param[1] = 0x00;
-    MIPI_DSI_GenericWrite(dsiDevice, param, 2);
+    status   = MIPI_DSI_GenericWrite(dsiDevice, param, 2);
+    if (kStatus_Success != status)
+    {
+        return status;
+    }
 
     RM68200_DelayMs(100);
 
     param[0] = 0x2c;
-    MIPI_DSI_GenericWrite(dsiDevice, param, 1);
+    status   = MIPI_DSI_GenericWrite(dsiDevice, param, 1);
+    if (kStatus_Success != status)
+    {
+        return status;
+    }
+
     param[0] = 0x35;
     param[1] = 0x00;
-    MIPI_DSI_GenericWrite(dsiDevice, param, 2);
+    status   = MIPI_DSI_GenericWrite(dsiDevice, param, 2);
+    if (kStatus_Success != status)
+    {
+        return status;
+    }
 
     RM68200_DelayMs(200);
 
@@ -360,10 +373,10 @@ status_t RM68200_Init(display_handle_t *handle, const display_config_t *config)
 
 status_t RM68200_Deinit(display_handle_t *handle)
 {
-    rm68200_resource_t *resource = (rm68200_resource_t *)(handle->resource);
-    mipi_dsi_device_t *dsiDevice = &(resource->dsiDevice);
+    const rm68200_resource_t *resource = (const rm68200_resource_t *)(handle->resource);
+    mipi_dsi_device_t *dsiDevice       = resource->dsiDevice;
 
-    MIPI_DSI_DCS_EnterSleepMode(dsiDevice, true);
+    (void)MIPI_DSI_DCS_EnterSleepMode(dsiDevice, true);
 
     resource->pullResetPin(false);
     resource->pullPowerPin(false);
@@ -373,16 +386,16 @@ status_t RM68200_Deinit(display_handle_t *handle)
 
 status_t RM68200_Start(display_handle_t *handle)
 {
-    rm68200_resource_t *resource = (rm68200_resource_t *)(handle->resource);
-    mipi_dsi_device_t *dsiDevice = &(resource->dsiDevice);
+    const rm68200_resource_t *resource = (const rm68200_resource_t *)(handle->resource);
+    mipi_dsi_device_t *dsiDevice       = resource->dsiDevice;
 
     return MIPI_DSI_DCS_SetDisplayOn(dsiDevice, true);
 }
 
 status_t RM68200_Stop(display_handle_t *handle)
 {
-    rm68200_resource_t *resource = (rm68200_resource_t *)(handle->resource);
-    mipi_dsi_device_t *dsiDevice = &(resource->dsiDevice);
+    const rm68200_resource_t *resource = (const rm68200_resource_t *)(handle->resource);
+    mipi_dsi_device_t *dsiDevice       = resource->dsiDevice;
 
     return MIPI_DSI_DCS_SetDisplayOn(dsiDevice, false);
 }

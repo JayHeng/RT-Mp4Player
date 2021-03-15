@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 NXP
+ * Copyright 2019-2020 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -19,7 +19,7 @@
 typedef void (*asrc_isr_t)(ASRC_Type *base, asrc_handle_t *asrcHandle);
 /*! @brief ASRC support maximum channel number */
 #define ASRC_SUPPORT_MAXIMUM_CHANNEL_NUMER (10U)
-#define ASRC_SAMPLE_RATIO_DECIMAL_DEPTH (26U)
+#define ASRC_SAMPLE_RATIO_DECIMAL_DEPTH    (26U)
 /*******************************************************************************
  * Prototypes
  ******************************************************************************/
@@ -143,6 +143,8 @@ static void ASRC_WriteNonBlocking(ASRC_Type *base,
 
 static uint32_t ASRC_CalculateClockDivider(uint32_t sampleRate_Hz, uint32_t sourceClock_Hz)
 {
+    assert(sourceClock_Hz >= sampleRate_Hz);
+
     uint32_t divider   = sourceClock_Hz / sampleRate_Hz;
     uint32_t prescaler = 0U;
 
@@ -151,6 +153,20 @@ static uint32_t ASRC_CalculateClockDivider(uint32_t sampleRate_Hz, uint32_t sour
     {
         divider >>= 1U;
         prescaler++;
+    }
+    /* Hardware limitation:
+     * If the prescaler is set to 1, the clock divider can only be set to 1 and the clock source must have a 50% duty
+     * cycle
+     */
+    if ((prescaler == 1U) && (divider != 1U))
+    {
+        divider >>= 1U;
+        prescaler++;
+    }
+    /* fine tuning */
+    if (sourceClock_Hz / ((1UL << prescaler) * divider) > sampleRate_Hz)
+    {
+        divider++;
     }
 
     return ((divider - 1U) << 3U) | (prescaler & 0x7U);
@@ -161,39 +177,39 @@ static status_t ASRC_ProcessSelection(uint32_t inSampleRate,
                                       uint32_t *preProc,
                                       uint32_t *postProc)
 {
-    bool op2Cond = 0U;
-    bool op0Cond = 0U;
+    bool op2Cond = false;
+    bool op0Cond = false;
 
-    op2Cond = (((inSampleRate * 15 > outSampleRate * 16) & (outSampleRate < 56000)) |
-               ((inSampleRate > 56000) & (outSampleRate < 56000)));
-    op0Cond = (inSampleRate * 23 < outSampleRate * 8);
+    op2Cond = (((inSampleRate * 15U > outSampleRate * 16U) && (outSampleRate < 56000U)) ||
+               ((inSampleRate > 56000U) && (outSampleRate < 56000U)));
+    op0Cond = (inSampleRate * 23U < outSampleRate * 8U);
 
     /* preProc == 4 or preProc == 5 is not support now */
-    if ((inSampleRate * 8 > 129 * outSampleRate) || ((inSampleRate * 8 > 65 * outSampleRate)))
+    if ((inSampleRate * 8U > 129U * outSampleRate) || ((inSampleRate * 8U > 65U * outSampleRate)))
     {
         return kStatus_ASRCNotSupport;
     }
 
-    if (inSampleRate * 8 > 33 * outSampleRate)
+    if (inSampleRate * 8U > 33U * outSampleRate)
     {
-        *preProc = 2;
+        *preProc = 2U;
     }
-    else if (inSampleRate * 8 > 15 * outSampleRate)
+    else if (inSampleRate * 8U > 15U * outSampleRate)
     {
-        if (inSampleRate > 152000)
+        if (inSampleRate > 152000U)
         {
-            *preProc = 2;
+            *preProc = 2U;
         }
         else
         {
-            *preProc = 1;
+            *preProc = 1U;
         }
     }
-    else if (inSampleRate < 76000)
+    else if (inSampleRate < 76000U)
     {
         *preProc = 0;
     }
-    else if (inSampleRate > 152000)
+    else if (inSampleRate > 152000U)
     {
         *preProc = 2;
     }
@@ -218,6 +234,16 @@ static status_t ASRC_ProcessSelection(uint32_t inSampleRate,
     return kStatus_Success;
 }
 
+/*!
+ * brief Map register sample width to real sample width.
+ *
+ * note This API is depends on the ASRC configuration, should be called after the ASRC_SetChannelPairConfig.
+ * param base asrc base pointer.
+ * param channelPair asrc channel pair index.
+ * param inWidth ASRC channel pair number.
+ * param outWidth input sample rate.
+ * retval input sample mask value.
+ */
 uint32_t ASRC_MapSamplesWidth(ASRC_Type *base, asrc_channel_pair_t channelPair, uint32_t *inWidth, uint32_t *outWidth)
 {
     uint32_t sampleMask   = 0U,
@@ -226,21 +252,21 @@ uint32_t ASRC_MapSamplesWidth(ASRC_Type *base, asrc_channel_pair_t channelPair, 
              inDataAlign  = (ASRC_ASRMCR1(base, channelPair) & ASRC_ASRMCR1_IMSB_MASK) >> ASRC_ASRMCR1_IMSB_SHIFT,
              outDataAlign = (ASRC_ASRMCR1(base, channelPair) & ASRC_ASRMCR1_OMSB_MASK) >> ASRC_ASRMCR1_OMSB_SHIFT;
     /* get in sample width */
-    if (inRegWidth == kASRC_DataWidth8Bit)
+    if (inRegWidth == (uint32_t)kASRC_DataWidth8Bit)
     {
         *inWidth   = 1U;
         sampleMask = 0xFFU;
-        if (inDataAlign == kASRC_DataAlignMSB)
+        if (inDataAlign == (uint32_t)kASRC_DataAlignMSB)
         {
             *inWidth   = 2U;
             sampleMask = 0xFF00U;
         }
     }
-    else if (inRegWidth == kASRC_DataWidth16Bit)
+    else if (inRegWidth == (uint32_t)kASRC_DataWidth16Bit)
     {
         *inWidth   = 2U;
         sampleMask = 0xFFFFU;
-        if (inDataAlign == kASRC_DataAlignMSB)
+        if (inDataAlign == (uint32_t)kASRC_DataAlignMSB)
         {
             *inWidth   = 4U;
             sampleMask = 0xFFFF0000U;
@@ -251,17 +277,17 @@ uint32_t ASRC_MapSamplesWidth(ASRC_Type *base, asrc_channel_pair_t channelPair, 
         *inWidth   = 3U;
         sampleMask = 0xFFFFFFU;
 
-        if (inDataAlign == kASRC_DataAlignMSB)
+        if (inDataAlign == (uint32_t)kASRC_DataAlignMSB)
         {
             sampleMask = 0xFFFFFF00U;
             *inWidth   = 4U;
         }
     }
     /* get out sample width */
-    if (outRegWidth == kASRC_DataWidth16Bit)
+    if (outRegWidth == (uint32_t)kASRC_DataWidth16Bit)
     {
         *outWidth = 2U;
-        if (outDataAlign == kASRC_DataAlignMSB)
+        if (outDataAlign == (uint32_t)kASRC_DataAlignMSB)
         {
             *outWidth = 4U;
         }
@@ -285,36 +311,36 @@ uint32_t ASRC_MapSamplesWidth(ASRC_Type *base, asrc_channel_pair_t channelPair, 
  */
 status_t ASRC_SetIdealRatioConfig(ASRC_Type *base,
                                   asrc_channel_pair_t channelPair,
-                                  uint32_t inSampleRate,
-                                  uint32_t outSampleRate)
+                                  uint32_t inputSampleRate,
+                                  uint32_t outputSampleRate)
 {
     uint32_t ratio = 0U, i = 0U;
     uint32_t preProc = 0U, postProc = 0U;
     uint32_t asrcfg = base->ASRCFG;
     /* caculate integer part */
-    ratio = (inSampleRate / outSampleRate) << ASRC_SAMPLE_RATIO_DECIMAL_DEPTH;
+    ratio = (inputSampleRate / outputSampleRate) << ASRC_SAMPLE_RATIO_DECIMAL_DEPTH;
 
-    inSampleRate %= outSampleRate;
+    inputSampleRate %= outputSampleRate;
     /* get decimal part */
-    for (i = 1; i <= ASRC_SAMPLE_RATIO_DECIMAL_DEPTH; i++)
+    for (i = 1U; i <= ASRC_SAMPLE_RATIO_DECIMAL_DEPTH; i++)
     {
-        inSampleRate <<= 1;
+        inputSampleRate <<= 1;
 
-        if (inSampleRate < outSampleRate)
+        if (inputSampleRate < outputSampleRate)
         {
             continue;
         }
 
-        ratio |= 1 << (ASRC_SAMPLE_RATIO_DECIMAL_DEPTH - i);
-        inSampleRate -= outSampleRate;
+        ratio |= 1UL << (ASRC_SAMPLE_RATIO_DECIMAL_DEPTH - i);
+        inputSampleRate -= outputSampleRate;
 
-        if (!inSampleRate)
+        if (0U == inputSampleRate)
         {
             break;
         }
     }
     /* select pre/post precessing option */
-    if (ASRC_ProcessSelection(inSampleRate, outSampleRate, &preProc, &postProc) != kStatus_Success)
+    if (ASRC_ProcessSelection(inputSampleRate, outputSampleRate, &preProc, &postProc) != kStatus_Success)
     {
         return kStatus_ASRCNotSupport;
     }
@@ -350,13 +376,21 @@ void ASRC_Init(ASRC_Type *base, uint32_t asrcPeripheralClock_Hz)
     /* disable all the interrupt */
     base->ASRIER = 0U;
 
+#if (defined FSL_FEATURE_ASRC_PARAMETER_REGISTER_NAME_ASPRM) && FSL_FEATURE_ASRC_PARAMETER_REGISTER_NAME_ASPRM
+    /* set paramter register to default configurations per recommand value in reference manual */
+    base->ASRPM[0] = 0x7fffffU;
+    base->ASRPM[1] = 0x255555U;
+    base->ASRPM[2] = 0xff7280U;
+    base->ASRPM[3] = 0xff7280U;
+    base->ASRPM[4] = 0xff7280U;
+#else
     /* set paramter register to default configurations per recommand value in reference manual */
     base->ASRPMn[0] = 0x7fffffU;
     base->ASRPMn[1] = 0x255555U;
     base->ASRPMn[2] = 0xff7280U;
     base->ASRPMn[3] = 0xff7280U;
     base->ASRPMn[4] = 0xff7280U;
-
+#endif /*FSL_FEATURE_ASRC_PARAMETER_REGISTER_NAME_ASPRM*/
     /* set task queue fifo */
     base->ASRTFR1 = ASRC_ASRTFR1_TF_BASE(0x7C);
     /* 76K/56K divider */
@@ -394,7 +428,7 @@ void ASRC_SoftwareReset(ASRC_Type *base)
 {
     base->ASRCTR |= ASRC_ASRCTR_SRST_MASK;
     /* polling reset clear automatically */
-    while (base->ASRCTR & ASRC_ASRCTR_SRST_MASK)
+    while ((base->ASRCTR & ASRC_ASRCTR_SRST_MASK) != 0U)
     {
     }
 }
@@ -405,14 +439,14 @@ void ASRC_SoftwareReset(ASRC_Type *base)
  * param base ASRC base pointer.
  * param channelPair index of channel pair, reference _asrc_channel_pair.
  * param config ASRC channel pair configuration pointer.
- * param inSampleRate in audio data sample rate.
+ * param inputSampleRate in audio data sample rate.
  * param outSampleRate out audio data sample rate.
  */
 status_t ASRC_SetChannelPairConfig(ASRC_Type *base,
                                    asrc_channel_pair_t channelPair,
                                    asrc_channel_pair_config_t *config,
-                                   uint32_t inSampleRate,
-                                   uint32_t outSampleRate)
+                                   uint32_t inputSampleRate,
+                                   uint32_t outputSampleRate)
 {
     assert(config != NULL);
 
@@ -421,10 +455,13 @@ status_t ASRC_SetChannelPairConfig(ASRC_Type *base,
         return kStatus_InvalidArgument;
     }
 
-    if (((inSampleRate < kASRC_SampleRate_8000HZ) && (inSampleRate > kASRC_SampleRate_192000HZ)) ||
-        ((outSampleRate < kASRC_SampleRate_8000HZ) && (outSampleRate > kASRC_SampleRate_192000HZ)) ||
-        (((outSampleRate > kASRC_SampleRate_8000HZ) && (outSampleRate < kASRC_SampleRate_30000HZ)) &&
-         (inSampleRate / outSampleRate > 8 || outSampleRate / inSampleRate > 24)))
+    if (((inputSampleRate < (uint32_t)kASRC_SampleRate_8000HZ) ||
+         (inputSampleRate > (uint32_t)kASRC_SampleRate_192000HZ)) ||
+        ((outputSampleRate < (uint32_t)kASRC_SampleRate_8000HZ) ||
+         (outputSampleRate > (uint32_t)kASRC_SampleRate_192000HZ)) ||
+        (((outputSampleRate > (uint32_t)kASRC_SampleRate_8000HZ) &&
+          (outputSampleRate < (uint32_t)kASRC_SampleRate_30000HZ)) &&
+         (inputSampleRate / outputSampleRate > 8U || outputSampleRate / inputSampleRate > 24U)))
     {
         return kStatus_InvalidArgument;
     }
@@ -458,10 +495,10 @@ status_t ASRC_SetChannelPairConfig(ASRC_Type *base,
         base->ASRCDR1 &
         (~(ASRC_ASRCDR_INPUT_PRESCALER_MASK(channelPair) | ASRC_ASRCDR_INPUT_DIVIDER_MASK(channelPair) |
            ASRC_ASRCDR_OUTPUT_PRESCALER_MASK(channelPair) | ASRC_ASRCDR_OUTPUT_DIVIDER_MASK(channelPair)));
-    asrcda1 |= ASRC_CalculateClockDivider(outSampleRate, config->outSourceClock_Hz) << ASRC_ASRCDR1_AOCPA_SHIFT;
+    asrcda1 |= ASRC_CalculateClockDivider(outputSampleRate, config->outSourceClock_Hz) << ASRC_ASRCDR1_AOCPA_SHIFT;
     if (config->inClockSource != kASRC_ClockSourceNotAvalible)
     {
-        asrcda1 |= ASRC_CalculateClockDivider(inSampleRate, config->inSourceClock_Hz);
+        asrcda1 |= ASRC_CalculateClockDivider(inputSampleRate, config->inSourceClock_Hz);
     }
     base->ASRCDR1 = asrcda1;
 
@@ -476,13 +513,13 @@ status_t ASRC_SetChannelPairConfig(ASRC_Type *base,
     /* buffer stall */
     asrmcra |= ASRC_ASRMCRA_BUFSTALLA(config->bufStallWhenFifoEmptyFull);
     /* in fifo and out fifo threshold */
-    asrmcra |= ASRC_ASRMCRA_EXTTHRSHA_MASK | ASRC_ASRMCRA_INFIFO_THRESHOLDA(config->inFifoThreshold) |
-               ASRC_ASRMCRA_OUTFIFO_THRESHOLDA(config->outFifoThreshold);
+    asrmcra |= ASRC_ASRMCRA_EXTTHRSHA_MASK | ASRC_ASRMCRA_INFIFO_THRESHOLDA(config->inFifoThreshold - 1UL) |
+               ASRC_ASRMCRA_OUTFIFO_THRESHOLDA(config->outFifoThreshold - 1UL);
     ASRC_ASRMCR(base, channelPair) = asrmcra;
 
     if (config->sampleRateRatio == kASRC_RatioUseIdealRatio)
     {
-        if (ASRC_SetIdealRatioConfig(base, channelPair, inSampleRate, outSampleRate) != kStatus_Success)
+        if (ASRC_SetIdealRatioConfig(base, channelPair, inputSampleRate, outputSampleRate) != kStatus_Success)
         {
             return kStatus_ASRCChannelPairConfigureFailed;
         }
@@ -496,7 +533,7 @@ status_t ASRC_SetChannelPairConfig(ASRC_Type *base,
     {
     }
 
-    for (i = 0U; i < config->audioDataChannels * 4U; i++)
+    for (i = 0U; i < (uint32_t)config->audioDataChannels * 4U; i++)
     {
         ASRC_ChannelPairWriteData(base, channelPair, 0U);
     }
@@ -513,21 +550,51 @@ status_t ASRC_SetChannelPairConfig(ASRC_Type *base,
  * param channelPair ASRC channel pair number.
  * param inSampleRate input sample rate.
  * param outSampleRate output sample rate.
- * param inSamples input sample numbers.
+ * param inSamples input sampleS size.
  * retval output buffer size in byte.
  */
-uint32_t ASRC_GetOutSamplesSize(
-    ASRC_Type *base, asrc_channel_pair_t channelPair, uint32_t inSampleRate, uint32_t outSampleRate, uint32_t inSamples)
+uint32_t ASRC_GetOutSamplesSize(ASRC_Type *base,
+                                asrc_channel_pair_t channelPair,
+                                uint32_t inSampleRate,
+                                uint32_t outSampleRate,
+                                uint32_t inSamplesize)
 {
-    uint32_t outSamples        = (uint64_t)inSamples * outSampleRate / inSampleRate;
-    uint32_t outSamplesBufSize = 0U;
+    uint32_t inSamples         = 0U;
+    uint32_t outSamples        = 0U;
+    uint32_t outSamplesBufSize = 0U, audioChannels = ASRC_GET_CHANNEL_COUNTER(base, channelPair);
+    ;
     asrc_data_width_t outWdith = (base->ASRMCR1[channelPair] & ASRC_ASRMCR1_OW16_MASK) == ASRC_ASRMCR1_OW16_MASK ?
                                      kASRC_DataWidth16Bit :
                                      kASRC_DataWidth24Bit;
     asrc_data_align_t outAlign = (base->ASRMCR1[channelPair] & ASRC_ASRMCR1_OMSB_MASK) == ASRC_ASRMCR1_OMSB_MASK ?
                                      kASRC_DataAlignMSB :
                                      kASRC_DataAlignLSB;
+    uint32_t inWdith          = (base->ASRMCR1[channelPair] & ASRC_ASRMCR1_IWD_MASK) >> ASRC_ASRMCR1_IWD_SHIFT;
+    asrc_data_align_t inAlign = (base->ASRMCR1[channelPair] & ASRC_ASRMCR1_IMSB_MASK) == ASRC_ASRMCR1_IMSB_MASK ?
+                                    kASRC_DataAlignMSB :
+                                    kASRC_DataAlignLSB;
+
     bool signExtend = (base->ASRMCR1[channelPair] & ASRC_ASRMCR1_OSGN_MASK) == ASRC_ASRMCR1_OSGN_MASK ? true : false;
+
+    /* 24bit input data */
+    if (inWdith == 0U)
+    {
+        inSamples = inSamplesize / (inAlign == kASRC_DataAlignMSB ? 4U : 3U);
+    }
+    /* 16bit input data */
+    else if (inWdith == 1U)
+    {
+        inSamples = inSamplesize / (inAlign == kASRC_DataAlignMSB ? 4U : 2U);
+    }
+    /* 8bit input data */
+    else
+    {
+        inSamples = inSamplesize / (inAlign == kASRC_DataAlignMSB ? 2U : 1U);
+    }
+
+    outSamples = (uint32_t)((uint64_t)inSamples * outSampleRate / inSampleRate);
+    /* make sure output samples is in group */
+    outSamples = outSamples - outSamples % audioChannels;
 
     if (outWdith == kASRC_DataWidth16Bit)
     {
@@ -568,7 +635,7 @@ status_t ASRC_TransferBlocking(ASRC_Type *base, asrc_channel_pair_t channelPair,
                             ASRC_ASRMCRA_OUTFIFO_THRESHOLDA_SHIFT,
              audioChannels = ASRC_GET_CHANNEL_COUNTER(base, channelPair);
     uint8_t *inAddr = (uint8_t *)xfer->inData, *outAddr = (uint8_t *)xfer->outData;
-    uint8_t onceWriteSamples = 0U;
+    uint32_t onceWriteSamples = 0U;
     uint32_t status = 0U, inSampleMask = 0U, inSamples = 0U, outSamples = 0U, inWidth = 0U, outWidth = 0U;
 
     inSampleMask = ASRC_MapSamplesWidth(base, channelPair, &inWidth, &outWidth);
@@ -577,31 +644,35 @@ status_t ASRC_TransferBlocking(ASRC_Type *base, asrc_channel_pair_t channelPair,
     inWaterMark *= audioChannels;
     outWaterMark *= audioChannels;
 
-    while (outSamples)
+    while (outSamples != 0U)
     {
         status = ASRC_GetStatus(base);
 
-        if (status & (kASRC_StatusPairCInputReady | kASRC_StatusPairBInputReady | kASRC_StatusPairAInputReady))
+        if ((status & ((uint32_t)kASRC_StatusPairCInputReady | (uint32_t)kASRC_StatusPairBInputReady |
+                       (uint32_t)kASRC_StatusPairAInputReady)) != 0U)
         {
             onceWriteSamples =
                 MIN(inSamples, (size_t)((FSL_ASRC_CHANNEL_PAIR_FIFO_DEPTH * audioChannels - inWaterMark)));
-            ASRC_WriteNonBlocking(base, channelPair, (uint32_t *)inAddr, onceWriteSamples, inSampleMask, inWidth);
-            inAddr += onceWriteSamples * inWidth;
+            ASRC_WriteNonBlocking(base, channelPair, (uint32_t *)(uint32_t)inAddr, onceWriteSamples, inSampleMask,
+                                  inWidth);
+            inAddr = (uint8_t *)((uint32_t)inAddr + onceWriteSamples * inWidth);
             inSamples -= onceWriteSamples;
         }
 
         if (outSamples > outWaterMark)
         {
-            if (status & (kASRC_StatusPairCOutputReady | kASRC_StatusPairAOutputReady | kASRC_StatusPairBOutputReady))
+            if ((status & ((uint32_t)kASRC_StatusPairCOutputReady | (uint32_t)kASRC_StatusPairAOutputReady |
+                           (uint32_t)kASRC_StatusPairBOutputReady)) != 0U)
             {
-                ASRC_ReadNonBlocking(base, channelPair, (uint32_t *)outAddr, outWaterMark, outWidth);
-                outAddr += outWaterMark * outWidth;
+                ASRC_ReadNonBlocking(base, channelPair, (uint32_t *)(uint32_t)outAddr, outWaterMark, outWidth);
+                outAddr = (uint8_t *)((uint32_t)outAddr + outWaterMark * outWidth);
                 outSamples -= outWaterMark;
             }
         }
         else
         {
-            outSamples -= ASRC_GetRemainFifoSamples(base, channelPair, (uint32_t *)outAddr, outWidth, outSamples);
+            outSamples -=
+                ASRC_GetRemainFifoSamples(base, channelPair, (uint32_t *)(uint32_t)outAddr, outWidth, outSamples);
             continue;
         }
     }
@@ -615,21 +686,23 @@ status_t ASRC_TransferBlocking(ASRC_Type *base, asrc_channel_pair_t channelPair,
  * param base ASRC base pointer.
  * param handle ASRC transactional handle pointer.
  * param config ASRC channel pair configuration pointer.
- * param inSampleRate in audio data sample rate.
- * param outSampleRate out audio data sample rate.
+ * param inputSampleRate in audio data sample rate.
+ * param outputSampleRate out audio data sample rate.
  */
 status_t ASRC_TransferSetChannelPairConfig(ASRC_Type *base,
                                            asrc_handle_t *handle,
                                            asrc_channel_pair_config_t *config,
-                                           uint32_t inSampleRate,
-                                           uint32_t outSampleRate)
+                                           uint32_t inputSampleRate,
+                                           uint32_t outputSampleRate)
 {
     assert(handle != NULL);
 
-    handle->in.fifoThreshold  = config->inFifoThreshold * config->audioDataChannels;
-    handle->out.fifoThreshold = config->outFifoThreshold * config->audioDataChannels;
+    handle->in.fifoThreshold  = config->inFifoThreshold * (uint32_t)config->audioDataChannels;
+    handle->out.fifoThreshold = config->outFifoThreshold * (uint32_t)config->audioDataChannels;
+    handle->audioDataChannels = config->audioDataChannels;
 
-    if (ASRC_SetChannelPairConfig(base, handle->channelPair, config, inSampleRate, outSampleRate) != kStatus_Success)
+    if (ASRC_SetChannelPairConfig(base, handle->channelPair, config, inputSampleRate, outputSampleRate) !=
+        kStatus_Success)
     {
         return kStatus_ASRCChannelPairConfigureFailed;
     }
@@ -692,7 +765,7 @@ void ASRC_TransferCreateHandle(ASRC_Type *base,
 
     uint32_t instance = ASRC_GetInstance(base);
 
-    memset(handle, 0, sizeof(*handle));
+    (void)memset(handle, 0, sizeof(*handle));
 
     s_asrcHandle[instance][channelPair] = handle;
 
@@ -703,7 +776,7 @@ void ASRC_TransferCreateHandle(ASRC_Type *base,
     /* Set the isr pointer */
     s_asrcIsr = ASRC_TransferHandleIRQ;
 
-    EnableIRQ(s_asrcIRQ[instance]);
+    (void)EnableIRQ(s_asrcIRQ[instance]);
 }
 
 /*!
@@ -720,11 +793,11 @@ void ASRC_TransferCreateHandle(ASRC_Type *base,
  */
 status_t ASRC_TransferNonBlocking(ASRC_Type *base, asrc_handle_t *handle, asrc_transfer_t *xfer)
 {
-    assert(handle);
+    assert(handle != NULL);
     assert(xfer != NULL);
 
     /* Check if the queue is full */
-    if ((handle->in.asrcQueue[handle->in.queueUser]) || (handle->out.asrcQueue[handle->out.queueUser]))
+    if ((handle->in.asrcQueue[handle->in.queueUser] != NULL) || (handle->out.asrcQueue[handle->out.queueUser] != NULL))
     {
         return kStatus_ASRCBusy;
     }
@@ -732,16 +805,17 @@ status_t ASRC_TransferNonBlocking(ASRC_Type *base, asrc_handle_t *handle, asrc_t
     /* Add into queue */
     handle->in.transferSamples[handle->in.queueUser] = xfer->inDataSize / handle->in.sampleWidth;
     handle->in.asrcQueue[handle->in.queueUser]       = xfer->inData;
-    handle->in.queueUser                             = (handle->in.queueUser + 1) % ASRC_XFER_QUEUE_SIZE;
+    handle->in.queueUser                             = (handle->in.queueUser + 1U) % ASRC_XFER_QUEUE_SIZE;
 
     handle->out.asrcQueue[handle->out.queueUser]       = xfer->outData;
     handle->out.transferSamples[handle->out.queueUser] = xfer->outDataSize / handle->out.sampleWidth;
-    handle->out.queueUser                              = (handle->out.queueUser + 1) % ASRC_XFER_QUEUE_SIZE;
+    handle->out.queueUser                              = (handle->out.queueUser + 1U) % ASRC_XFER_QUEUE_SIZE;
 
-    if (handle->state != kStatus_ASRCBusy)
+    if (handle->state != (uint32_t)kStatus_ASRCBusy)
     {
         /* enable channel pair interrupt */
-        ASRC_EnableInterrupt(base, ASRC_ASRIER_INPUT_INTERRUPT_MASK(handle->channelPair) | kASRC_OverLoadInterruptMask |
+        ASRC_EnableInterrupt(base, ASRC_ASRIER_INPUT_INTERRUPT_MASK(handle->channelPair) |
+                                       (uint32_t)kASRC_OverLoadInterruptMask |
                                        ASRC_ASRIER_OUTPUTPUT_INTERRUPT_MASK(handle->channelPair));
     }
 
@@ -762,11 +836,11 @@ status_t ASRC_TransferNonBlocking(ASRC_Type *base, asrc_handle_t *handle, asrc_t
  */
 status_t ASRC_TransferGetConvertedCount(ASRC_Type *base, asrc_handle_t *handle, size_t *count)
 {
-    assert(handle);
+    assert(handle != NULL);
 
     status_t status = kStatus_Success;
 
-    if (handle->state != kStatus_ASRCBusy)
+    if (handle->state != (uint32_t)kStatus_ASRCBusy)
     {
         status = kStatus_ASRCIdle;
     }
@@ -789,7 +863,7 @@ status_t ASRC_TransferGetConvertedCount(ASRC_Type *base, asrc_handle_t *handle, 
  */
 void ASRC_TransferAbortConvert(ASRC_Type *base, asrc_handle_t *handle)
 {
-    assert(handle);
+    assert(handle != NULL);
 
     /* enable ASRC module */
     ASRC_ModuleEnable(base, false);
@@ -813,16 +887,16 @@ void ASRC_TransferAbortConvert(ASRC_Type *base, asrc_handle_t *handle)
  */
 void ASRC_TransferTerminateConvert(ASRC_Type *base, asrc_handle_t *handle)
 {
-    assert(handle);
+    assert(handle != NULL);
 
     /* Abort the current transfer */
     ASRC_TransferAbortConvert(base, handle);
 
     /* Clear all the internal information */
-    memset(handle->in.asrcQueue, 0U, sizeof(handle->in.asrcQueue));
-    memset(handle->in.transferSamples, 0U, sizeof(handle->in.transferSamples));
-    memset(handle->out.asrcQueue, 0U, sizeof(handle->out.asrcQueue));
-    memset(handle->out.transferSamples, 0U, sizeof(handle->out.transferSamples));
+    (void)memset(handle->in.asrcQueue, 0, sizeof(handle->in.asrcQueue));
+    (void)memset(handle->in.transferSamples, 0, sizeof(handle->in.transferSamples));
+    (void)memset(handle->out.asrcQueue, 0, sizeof(handle->out.asrcQueue));
+    (void)memset(handle->out.transferSamples, 0, sizeof(handle->out.transferSamples));
 }
 
 /*!
@@ -833,76 +907,83 @@ void ASRC_TransferTerminateConvert(ASRC_Type *base, asrc_handle_t *handle)
  */
 void ASRC_TransferHandleIRQ(ASRC_Type *base, asrc_handle_t *handle)
 {
-    assert(handle);
+    assert(handle != NULL);
 
     uint32_t status = base->ASRSTR;
 
     /* Handle Error */
-    if (status & kASRC_StatusInputError)
+    if ((status & (uint32_t)kASRC_StatusInputError) != 0U)
     {
         /* Call the callback */
-        if (handle->in.callback)
+        if (handle->in.callback != NULL)
         {
             (handle->in.callback)(base, handle, kStatus_ASRCConvertError, handle->userData);
         }
     }
 
-    if (status & kASRC_StatusOutputError)
+    if ((status & (uint32_t)kASRC_StatusOutputError) != 0U)
     {
         /* Call the callback */
-        if (handle->out.callback)
+        if (handle->out.callback != NULL)
         {
             (handle->out.callback)(base, handle, kStatus_ASRCConvertError, handle->userData);
         }
     }
 
     /* Handle transfer */
-    if (status & (kASRC_StatusPairCOutputReady | kASRC_StatusPairAOutputReady | kASRC_StatusPairBOutputReady))
+    if ((status & ((uint32_t)kASRC_StatusPairCOutputReady | (uint32_t)kASRC_StatusPairAOutputReady |
+                   (uint32_t)kASRC_StatusPairBOutputReady)) != 0U)
     {
-        if (handle->out.transferSamples[handle->out.queueDriver])
+        if (handle->out.transferSamples[handle->out.queueDriver] != 0U)
         {
-            ASRC_ReadNonBlocking(base, handle->channelPair, (uint32_t *)handle->out.asrcQueue[handle->out.queueDriver],
+            ASRC_ReadNonBlocking(base, handle->channelPair,
+                                 (uint32_t *)(uint32_t)handle->out.asrcQueue[handle->out.queueDriver],
                                  handle->out.fifoThreshold, handle->out.sampleWidth);
             handle->out.transferSamples[handle->out.queueDriver] -= handle->out.fifoThreshold;
-            handle->out.asrcQueue[handle->out.queueDriver] += handle->out.fifoThreshold * handle->out.sampleWidth;
+            handle->out.asrcQueue[handle->out.queueDriver] =
+                (uint8_t *)((uint32_t)handle->out.asrcQueue[handle->out.queueDriver] +
+                            handle->out.fifoThreshold * handle->out.sampleWidth);
         }
     }
 
-    if (status & (kASRC_StatusPairCInputReady | kASRC_StatusPairBInputReady | kASRC_StatusPairAInputReady))
+    if ((status & ((uint32_t)kASRC_StatusPairCInputReady | (uint32_t)kASRC_StatusPairBInputReady |
+                   (uint32_t)kASRC_StatusPairAInputReady)) != 0U)
     {
         /* Judge if the data need to transmit is less than space */
-        uint8_t size =
-            MIN((handle->in.transferSamples[handle->in.queueDriver]),
-                (size_t)((FSL_ASRC_CHANNEL_PAIR_FIFO_DEPTH * handle->audioDataChannels - handle->in.fifoThreshold)));
-        ASRC_WriteNonBlocking(base, handle->channelPair, (uint32_t *)handle->in.asrcQueue[handle->in.queueDriver], size,
+        uint32_t size = MIN((handle->in.transferSamples[handle->in.queueDriver]),
+                            (size_t)((FSL_ASRC_CHANNEL_PAIR_FIFO_DEPTH * (uint32_t)handle->audioDataChannels -
+                                      handle->in.fifoThreshold)));
+        ASRC_WriteNonBlocking(base, handle->channelPair,
+                              (uint32_t *)(uint32_t)handle->in.asrcQueue[handle->in.queueDriver], size,
                               handle->in.sampleMask, handle->in.sampleWidth);
         handle->in.transferSamples[handle->in.queueDriver] -= size;
-        handle->in.asrcQueue[handle->in.queueDriver] += size * handle->in.sampleWidth;
+        handle->in.asrcQueue[handle->in.queueDriver] =
+            (uint8_t *)((uint32_t)handle->in.asrcQueue[handle->in.queueDriver] + size * handle->in.sampleWidth);
     }
 
     /* If finished a block, call the callback function */
     if (handle->in.transferSamples[handle->in.queueDriver] == 0U)
     {
         handle->in.asrcQueue[handle->in.queueDriver] = NULL;
-        handle->in.queueDriver                       = (handle->in.queueDriver + 1) % ASRC_XFER_QUEUE_SIZE;
-        if (handle->in.callback)
+        handle->in.queueDriver                       = (handle->in.queueDriver + 1U) % ASRC_XFER_QUEUE_SIZE;
+        if (handle->in.callback != NULL)
         {
             (handle->in.callback)(base, handle, kStatus_ASRCIdle, handle->userData);
         }
     }
 
-    if (handle->out.transferSamples[handle->out.queueDriver] < (handle->out.fifoThreshold + 1))
+    if (handle->out.transferSamples[handle->out.queueDriver] < (handle->out.fifoThreshold + 1U))
     {
         handle->out.transferSamples[handle->out.queueDriver] -= ASRC_GetRemainFifoSamples(
-            base, handle->channelPair, (uint32_t *)handle->out.asrcQueue[handle->out.queueDriver],
+            base, handle->channelPair, (uint32_t *)(uint32_t)handle->out.asrcQueue[handle->out.queueDriver],
             handle->out.sampleWidth, handle->out.transferSamples[handle->out.queueDriver]);
     }
 
     if (handle->out.transferSamples[handle->out.queueDriver] == 0U)
     {
         handle->out.asrcQueue[handle->out.queueDriver] = NULL;
-        handle->out.queueDriver                        = (handle->out.queueDriver + 1) % ASRC_XFER_QUEUE_SIZE;
-        if (handle->out.callback)
+        handle->out.queueDriver                        = (handle->out.queueDriver + 1U) % ASRC_XFER_QUEUE_SIZE;
+        if (handle->out.callback != NULL)
         {
             (handle->out.callback)(base, handle, kStatus_ASRCIdle, handle->userData);
         }
@@ -916,27 +997,24 @@ void ASRC_TransferHandleIRQ(ASRC_Type *base, asrc_handle_t *handle)
 }
 
 #if defined ASRC
+void ASRC_DriverIRQHandler(void);
 void ASRC_DriverIRQHandler(void)
 {
     /* channel PAIR A interrupt handling*/
-    if (ASRC->ASRSTR & kASRC_StatusPairAInterrupt)
+    if ((ASRC->ASRSTR & (uint32_t)kASRC_StatusPairAInterrupt) != 0U)
     {
         s_asrcIsr(ASRC, s_asrcHandle[0][0U]);
     }
     /* channel PAIR B interrupt handling*/
-    if (ASRC->ASRSTR & kASRC_StatusPairBInterrupt)
+    if ((ASRC->ASRSTR & (uint32_t)kASRC_StatusPairBInterrupt) != 0U)
     {
         s_asrcIsr(ASRC, s_asrcHandle[0][1U]);
     }
     /* channel PAIR C interrupt handling*/
-    if (ASRC->ASRSTR & kASRC_StatusPairCInterrupt)
+    if ((ASRC->ASRSTR & (uint32_t)kASRC_StatusPairCInterrupt) != 0U)
     {
         s_asrcIsr(ASRC, s_asrcHandle[0][2U]);
     }
-/* Add for ARM errata 838869, affects Cortex-M4, Cortex-M4F Store immediate overlapping
-  exception return operation might vector to incorrect interrupt */
-#if defined __CORTEX_M && (__CORTEX_M == 4U)
-    __DSB();
-#endif
+    SDK_ISR_EXIT_BARRIER;
 }
 #endif /* ASRC */

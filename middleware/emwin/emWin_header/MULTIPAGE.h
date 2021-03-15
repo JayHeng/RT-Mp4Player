@@ -3,13 +3,13 @@
 *        Solutions for real time microcontroller applications        *
 **********************************************************************
 *                                                                    *
-*        (c) 1996 - 2018  SEGGER Microcontroller GmbH                *
+*        (c) 1996 - 2020  SEGGER Microcontroller GmbH                *
 *                                                                    *
 *        Internet: www.segger.com    Support:  support@segger.com    *
 *                                                                    *
 **********************************************************************
 
-** emWin V5.48 - Graphical user interface for embedded applications **
+** emWin V6.14 - Graphical user interface for embedded applications **
 All  Intellectual Property rights  in the Software belongs to  SEGGER.
 emWin is protected by  international copyright laws.  Knowledge of the
 source code may not be used to write a similar product.  This file may
@@ -34,7 +34,7 @@ License model:            emWin License Agreement, dated August 20th 2011 and Am
 Licensed platform:        NXP's ARM 7/9, Cortex-M0, M3, M4, M7, A7, M33
 ----------------------------------------------------------------------
 Support and Update Agreement (SUA)
-SUA period:               2011-08-19 - 2019-09-02
+SUA period:               2011-08-19 - 2020-09-02
 Contact to extend SUA:    sales@segger.com
 ----------------------------------------------------------------------
 File        : MULTIPAGE.h
@@ -62,17 +62,32 @@ Purpose     : MULTIPAGE include
 */
 /*********************************************************************
 *
+*       MULTIPAGE alignment flags
+*
+*  Description
+*    These flags are used by MULTIPAGE_SetAlign() and define the tab alignment
+*    of a MULTIPAGE widget. Horizontal and vertical flags are OR-combinable.
+*/
+#define MULTIPAGE_ALIGN_LEFT           (0 << 0)    // Aligns the tabs at the left side.
+#define MULTIPAGE_ALIGN_RIGHT          (1 << 0)    // Aligns the tabs at the right side.
+#define MULTIPAGE_ALIGN_TOP            (0 << 2)    // Aligns the tabs at the top of the widget.
+#define MULTIPAGE_ALIGN_BOTTOM         (1 << 2)    // Aligns the tabs at the bottom of the widget.
+
+/*********************************************************************
+*
+*       MULTIPAGE color indexes
+*
+*  Description
+*    Color indexes used by the MULTIPAGE widget.
+*/
+#define MULTIPAGE_CI_DISABLED           0          // Color for disabled pages.
+#define MULTIPAGE_CI_ENABLED            1          // Color for enabled pages.
+
+/*********************************************************************
+*
 *       Create / Status flags
 */
-#define MULTIPAGE_ALIGN_LEFT           (0 << 0)
-#define MULTIPAGE_ALIGN_RIGHT          (1 << 0)
-#define MULTIPAGE_ALIGN_TOP            (0 << 2)
-#define MULTIPAGE_ALIGN_BOTTOM         (1 << 2)
-
 #define MULTIPAGE_CF_ROTATE_CW          WIDGET_CF_VERTICAL
-
-#define MULTIPAGE_CI_DISABLED           0
-#define MULTIPAGE_CI_ENABLED            1
 
 #define MULTIPAGE_SKIN_FRAME_LEFT      (1 << 0)
 #define MULTIPAGE_SKIN_FRAME_RIGHT     (1 << 1)
@@ -86,10 +101,14 @@ Purpose     : MULTIPAGE include
 
 #define SCROLLBAR_SIZE                 32 // Defines the space for the scrollbar arrows
 
-#define MULTIPAGE_BI_SELECTED           0
-#define MULTIPAGE_BI_UNSELECTED         1
-#define MULTIPAGE_BI_DISABLED           2
-#define MULTIPAGE_BI_MAX                3  // The defines above are used as array indices.
+/*********************************************************************
+*
+*       MULTIPAGE bitmap indexes
+*/
+#define MULTIPAGE_BI_SELECTED           0          // Selected state.
+#define MULTIPAGE_BI_UNSELECTED         1          // Unselected state.
+#define MULTIPAGE_BI_DISABLED           2          // Disabled state.
+#define MULTIPAGE_BI_MAX                3          // The defines above are used as array indices.
 
 /*********************************************************************
 *
@@ -159,8 +178,11 @@ void             MULTIPAGE_EnablePage     (MULTIPAGE_Handle hObj, unsigned Index
 void             MULTIPAGE_EnableScrollbar(MULTIPAGE_Handle hObj, unsigned OnOff);
 GUI_COLOR        MULTIPAGE_GetBkColor     (MULTIPAGE_Handle hObj, unsigned Index);
 const GUI_FONT * MULTIPAGE_GetFont        (MULTIPAGE_Handle hObj);
+int              MULTIPAGE_GetNumTabs     (MULTIPAGE_Handle hObj);
 int              MULTIPAGE_GetSelection   (MULTIPAGE_Handle hObj);
 int              MULTIPAGE_GetPageText    (MULTIPAGE_Handle hObj, unsigned Index, char * pBuffer, int MaxLen);
+int              MULTIPAGE_GetTabHeight   (MULTIPAGE_Handle hObj);
+int              MULTIPAGE_GetTabWidth    (MULTIPAGE_Handle hObj, int Index);
 GUI_COLOR        MULTIPAGE_GetTextColor   (MULTIPAGE_Handle hObj, unsigned Index);
 int              MULTIPAGE_GetUserData    (MULTIPAGE_Handle hObj, void * pDest, int NumBytes);
 WM_HWIN          MULTIPAGE_GetWindow      (MULTIPAGE_Handle hObj, unsigned Index);

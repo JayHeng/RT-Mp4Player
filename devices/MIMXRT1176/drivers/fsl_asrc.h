@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 NXP
+ * Copyright 2019-2020 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -21,77 +21,85 @@
 
 /*! @name Driver version */
 /*@{*/
-#define FSL_ASRC_DRIVER_VERSION (MAKE_VERSION(2, 0, 0)) /*!< Version 2.0.0 */
+#define FSL_ASRC_DRIVER_VERSION (MAKE_VERSION(2, 1, 0)) /*!< Version 2.1.0 */
 /*@}*/
 
 #ifndef ASRC_XFER_QUEUE_SIZE
 /*!@brief ASRC transfer queue size, user can refine it according to use case. */
-#define ASRC_XFER_QUEUE_SIZE (4)
+#define ASRC_XFER_QUEUE_SIZE (4U)
 #endif
 /*!@brief ASRC channel pair count */
-#define FSL_ASRC_CHANNEL_PAIR_COUNT (4)
+#define FSL_ASRC_CHANNEL_PAIR_COUNT (4U)
 /*! @brief ASRC FIFO depth */
 #define FSL_ASRC_CHANNEL_PAIR_FIFO_DEPTH (64U)
 
 /*! @brief ASRC register access macro */
-#define ASRC_ASRCTR_AT_MASK(index) ((uint32_t)1U << (ASRC_ASRCTR_ATSA_SHIFT + index))
-#define ASRC_ASRCTR_RATIO_MASK(index) ((uint32_t)3U << (ASRC_ASRCTR_IDRA_SHIFT + index * 2U))
+#define ASRC_ASRCTR_AT_MASK(index)    ((uint32_t)1U << (ASRC_ASRCTR_ATSA_SHIFT + (uint32_t)(index)))
+#define ASRC_ASRCTR_RATIO_MASK(index) ((uint32_t)3U << (ASRC_ASRCTR_IDRA_SHIFT + (uint32_t)(index)*2U))
 #define ASRC_ASRCTR_RATIO(ratio, index) \
-    (((uint32_t)((uint32_t)ratio << (ASRC_ASRCTR_IDRA_SHIFT + index * 2U))) & ASRC_ASRCTR_RATIO_MASK(index))
-#define ASRC_ASRIER_INPUT_INTERRUPT_MASK(index) ((uint32_t)1U << (ASRC_ASRIER_ADIEA_SHIFT + index))
-#define ASRC_ASRIER_OUTPUTPUT_INTERRUPT_MASK(index) ((uint32_t)1U << (ASRC_ASRIER_ADOEA_SHIFT + index))
-#define ASRC_ASRCNCR_CHANNEL_COUNTER_MASK(index) ((uint32_t)0xFU << (ASRC_ASRCNCR_ANCA_SHIFT + index * 4U))
-#define ASRC_ASRCNCR_CHANNEL_COUNTER(counter, index) \
-    ((uint32_t)((uint32_t)counter << (ASRC_ASRCNCR_ANCA_SHIFT + index * 4U)) & ASRC_ASRCNCR_CHANNEL_COUNTER_MASK(index))
-#define ASRC_ASRCFG_PRE_MODE_MASK(index) ((uint32_t)3U << (ASRC_ASRCFG_PREMODA_SHIFT + index * 4U))
-#define ASRC_ASRCFG_PRE_MODE(mode, index) \
-    ((uint32_t)((uint32_t)mode << (ASRC_ASRCFG_PREMODA_SHIFT + index * 4U)) & ASRC_ASRCFG_PRE_MODE_MASK(index))
-#define ASRC_ASRCFG_POST_MODE_MASK(index) ((uint32_t)3U << (ASRC_ASRCFG_POSTMODA_SHIFT + index * 4U))
-#define ASRC_ASRCFG_POST_MODE(mode, index) \
-    ((uint32_t)((uint32_t)mode << (ASRC_ASRCFG_POSTMODA_SHIFT + index * 4U)) & ASRC_ASRCFG_POST_MODE_MASK(index))
-#define ASRC_ASRCFG_INIT_DONE_MASK(index) ((uint32_t)1U << (ASRC_ASRCFG_INIRQA_SHIFT + index))
-#define ASRC_ASRCSR_INPUT_CLOCK_SOURCE_MASK(index) ((uint32_t)0xFU << (ASRC_ASRCSR_AICSA_SHIFT + index * 4U))
-#define ASRC_ASRCSR_INPUT_CLOCK_SOURCE(source, index)                         \
-    ((uint32_t)((uint32_t)source << (ASRC_ASRCSR_AICSA_SHIFT + index * 4U)) & \
+    (((uint32_t)((uint32_t)(ratio) << (ASRC_ASRCTR_IDRA_SHIFT + (uint32_t)(index)*2U))) & ASRC_ASRCTR_RATIO_MASK(index))
+#define ASRC_ASRIER_INPUT_INTERRUPT_MASK(index)     ((uint32_t)1U << (ASRC_ASRIER_ADIEA_SHIFT + (uint32_t)(index)))
+#define ASRC_ASRIER_OUTPUTPUT_INTERRUPT_MASK(index) ((uint32_t)1U << (ASRC_ASRIER_ADOEA_SHIFT + (uint32_t)(index)))
+#define ASRC_ASRCNCR_CHANNEL_COUNTER_MASK(index)    ((uint32_t)0xFU << (ASRC_ASRCNCR_ANCA_SHIFT + (uint32_t)(index)*4U))
+#define ASRC_ASRCNCR_CHANNEL_COUNTER(counter, index)                                       \
+    ((uint32_t)((uint32_t)(counter) << (ASRC_ASRCNCR_ANCA_SHIFT + (uint32_t)(index)*4U)) & \
+     ASRC_ASRCNCR_CHANNEL_COUNTER_MASK(index))
+#define ASRC_ASRCFG_PRE_MODE_MASK(index) ((uint32_t)3U << (ASRC_ASRCFG_PREMODA_SHIFT + (uint32_t)(index)*4U))
+#define ASRC_ASRCFG_PRE_MODE(mode, index)                                                 \
+    ((uint32_t)((uint32_t)(mode) << (ASRC_ASRCFG_PREMODA_SHIFT + (uint32_t)(index)*4U)) & \
+     ASRC_ASRCFG_PRE_MODE_MASK(index))
+#define ASRC_ASRCFG_POST_MODE_MASK(index) ((uint32_t)3U << (ASRC_ASRCFG_POSTMODA_SHIFT + (uint32_t)(index)*4U))
+#define ASRC_ASRCFG_POST_MODE(mode, index)                                                 \
+    ((uint32_t)((uint32_t)(mode) << (ASRC_ASRCFG_POSTMODA_SHIFT + (uint32_t)(index)*4U)) & \
+     ASRC_ASRCFG_POST_MODE_MASK(index))
+#define ASRC_ASRCFG_INIT_DONE_MASK(index)          ((uint32_t)1U << (ASRC_ASRCFG_INIRQA_SHIFT + (uint32_t)(index)))
+#define ASRC_ASRCSR_INPUT_CLOCK_SOURCE_MASK(index) ((uint32_t)0xFU << (ASRC_ASRCSR_AICSA_SHIFT + (uint32_t)(index)*4U))
+#define ASRC_ASRCSR_INPUT_CLOCK_SOURCE(source, index)                                     \
+    ((uint32_t)((uint32_t)(source) << (ASRC_ASRCSR_AICSA_SHIFT + (uint32_t)(index)*4U)) & \
      ASRC_ASRCSR_INPUT_CLOCK_SOURCE_MASK(index))
-#define ASRC_ASRCSR_OUTPUT_CLOCK_SOURCE_MASK(index) ((uint32_t)0xFU << (ASRC_ASRCSR_AOCSA_SHIFT + index * 4U))
-#define ASRC_ASRCSR_OUTPUT_CLOCK_SOURCE(source, index)                        \
-    ((uint32_t)((uint32_t)source << (ASRC_ASRCSR_AOCSA_SHIFT + index * 4U)) & \
+#define ASRC_ASRCSR_OUTPUT_CLOCK_SOURCE_MASK(index) ((uint32_t)0xFU << (ASRC_ASRCSR_AOCSA_SHIFT + (uint32_t)(index)*4U))
+#define ASRC_ASRCSR_OUTPUT_CLOCK_SOURCE(source, index)                                    \
+    ((uint32_t)((uint32_t)(source) << (ASRC_ASRCSR_AOCSA_SHIFT + (uint32_t)(index)*4U)) & \
      ASRC_ASRCSR_OUTPUT_CLOCK_SOURCE_MASK(index))
 #define ASRC_ASRCDR_INPUT_PRESCALER_MASK(index) \
-    (index < 2U ? ((uint32_t)7U << (ASRC_ASRCDR1_AICPA_SHIFT + index * 6U)) : 7U)
-#define ASRC_ASRCDR_INPUT_PRESCALER(prescaler, index)                                              \
-    ((index < 2U ? ((uint32_t)prescaler << (ASRC_ASRCDR1_AICPA_SHIFT + index * 6U)) : prescaler) & \
+    ((uint32_t)(index) < 2U ? ((uint32_t)7U << (ASRC_ASRCDR1_AICPA_SHIFT + (uint32_t)(index)*6U)) : 7U)
+#define ASRC_ASRCDR_INPUT_PRESCALER(prescaler, index)                                                              \
+    (((index) < 2U ? ((uint32_t)(prescaler) << (ASRC_ASRCDR1_AICPA_SHIFT + (uint32_t)(index)*6U)) : (prescaler)) & \
      ASRC_ASRCDR1_INPUT_PRESCALER_MASK(index))
-#define ASRC_ASRCDR_INPUT_DIVIDER_MASK(index) \
-    (index < 2U ? ((uint32_t)7U << (ASRC_ASRCDR1_AICDA_SHIFT + index * 6U)) : (7U << ASRC_ASRCDR1_AICDA_SHIFT))
-#define ASRC_ASRCDR_INPUT_DIVIDER(divider, index)                                   \
-    ((index < 2U ? ((uint32_t)divider << (ASRC_ASRCDR1_AICDA_SHIFT + index * 6U)) : \
-                   (divider << ASRC_ASRCDR1_AICDA_SHIFT)) &                         \
+#define ASRC_ASRCDR_INPUT_DIVIDER_MASK(index)                                                       \
+    ((uint32_t)(index) < 2U ? ((uint32_t)7U << (ASRC_ASRCDR1_AICDA_SHIFT + (uint32_t)(index)*6U)) : \
+                              (7U << ASRC_ASRCDR1_AICDA_SHIFT))
+#define ASRC_ASRCDR_INPUT_DIVIDER(divider, index)                                                           \
+    (((uint32_t)(index) < 2U ? ((uint32_t)(divider) << (ASRC_ASRCDR1_AICDA_SHIFT + (uint32_t)(index)*6U)) : \
+                               ((uint32_t)(divider) << ASRC_ASRCDR1_AICDA_SHIFT)) &                         \
      ASRC_ASRCDR_INPUT_DIVIDER_MASK(index))
 #define ASRC_ASRCDR_OUTPUT_PRESCALER_MASK(index) \
-    (index < 2U ? ((uint32_t)7U << (ASRC_ASRCDR1_AOCPA_SHIFT + index * 6U)) : (7U << 6U))
-#define ASRC_ASRCDR_OUTPUT_PRESCALER(prescaler, index)                                                     \
-    ((index < 2U ? ((uint32_t)prescaler << (ASRC_ASRCDR1_AOCPA_SHIFT + index * 6U)) : (prescaler << 6U)) & \
+    ((uint32_t)(index) < 2U ? ((uint32_t)7U << (ASRC_ASRCDR1_AOCPA_SHIFT + (uint32_t)(index)*6U)) : (7U << 6U))
+#define ASRC_ASRCDR_OUTPUT_PRESCALER(prescaler, index)                                                        \
+    (((uint32_t)(index) < 2U ? ((uint32_t)(prescaler) << (ASRC_ASRCDR1_AOCPA_SHIFT + (uint32_t)(index)*6U)) : \
+                               ((uint32_t)(prescaler) << 6U)) &                                               \
      ASRC_ASRCDR_OUTPUT_PRESCALER_MASK(index))
 #define ASRC_ASRCDR_OUTPUT_DIVIDER_MASK(index) \
-    (index < 2U ? ((uint32_t)7U << (ASRC_ASRCDR1_AOCDA_SHIFT + index * 6U)) : (7U << 9U))
-#define ASRC_ASRCDR_OUTPUT_DIVIDER(divider, index)                                                     \
-    ((index < 2U ? ((uint32_t)divider << (ASRC_ASRCDR1_AOCDA_SHIFT + index * 6U)) : (divider << 9U)) & \
+    ((uint32_t)(index) < 2U ? ((uint32_t)7U << (ASRC_ASRCDR1_AOCDA_SHIFT + (uint32_t)(index)*6U)) : (7U << 9U))
+#define ASRC_ASRCDR_OUTPUT_DIVIDER(divider, index)                                                          \
+    (((uint32_t)(index) < 2U ? ((uint32_t)(divider) << (ASRC_ASRCDR1_AOCDA_SHIFT + (uint32_t)(index)*6U)) : \
+                               ((uint32_t)(divider) << 9U)) &                                               \
      ASRC_ASRCDR_OUTPUT_DIVIDER_MASK(index))
-#define ASRC_IDEAL_RATIO_HIGH(base, index) *(volatile uint32_t *)((uint32_t)(&base->ASRIDRHA) + index * 8U)
-#define ASRC_IDEAL_RATIO_LOW(base, index) *(volatile uint32_t *)((uint32_t)(&base->ASRIDRLA) + index * 8U)
-#define ASRC_ASRMCR(base, index) *(volatile uint32_t *)((uint32_t)(&base->ASRMCRA) + index * 8U)
-#define ASRC_ASRMCR1(base, index) *(volatile uint32_t *)((uint32_t)(&(base->ASRMCR1[index])))
-#define ASRC_ASRDI(base, index) *(volatile uint32_t *)((uint32_t)(&base->ASRDIA) + index * 8U)
-#define ASRC_ASRDO(base, index) *(volatile uint32_t *)((uint32_t)(&base->ASRDOA) + index * 8U)
-#define ASRC_ASRDI_ADDR(base, index) (volatile uint32_t *)((uint32_t)(&base->ASRDIA) + index * 8U)
-#define ASRC_ASRDO_ADDR(base, index) (volatile uint32_t *)((uint32_t)(&base->ASRDOA) + index * 8U)
-#define ASRC_ASRFST_ADDR(base, index) (*(volatile uint32_t *)((uint32_t)(&base->ASRFSTA) + index * 8U))
-#define ASRC_GET_CHANNEL_COUNTER(base, index) ((base->ASRCNCR >> (index * 4)) & 0xFU)
+#define ASRC_IDEAL_RATIO_HIGH(base, index)    *(volatile uint32_t *)((uint32_t)(&(base)->ASRIDRHA) + (uint32_t)(index)*8U)
+#define ASRC_IDEAL_RATIO_LOW(base, index)     *(volatile uint32_t *)((uint32_t)(&(base)->ASRIDRLA) + (uint32_t)(index)*8U)
+#define ASRC_ASRMCR(base, index)              *(volatile uint32_t *)((uint32_t)(&(base)->ASRMCRA) + (uint32_t)(index)*8U)
+#define ASRC_ASRMCR1(base, index)             *(volatile uint32_t *)((uint32_t)(&((base)->ASRMCR1[(index)])))
+#define ASRC_ASRDI(base, index)               *(volatile uint32_t *)((uint32_t)(&(base)->ASRDIA) + (uint32_t)(index)*8U)
+#define ASRC_ASRDO(base, index)               *(volatile uint32_t *)((uint32_t)(&(base)->ASRDOA) + (uint32_t)(index)*8U)
+#define ASRC_ASRDI_ADDR(base, index)          (volatile uint32_t *)((uint32_t)(&(base)->ASRDIA) + (uint32_t)(index)*8U)
+#define ASRC_ASRDO_ADDR(base, index)          (volatile uint32_t *)((uint32_t)(&(base)->ASRDOA) + (uint32_t)(index)*8U)
+#define ASRC_ASRFST_ADDR(base, index)         (*(volatile uint32_t *)((uint32_t)(&(base)->ASRFSTA) + (uint32_t)(index)*8U))
+#define ASRC_GET_CHANNEL_COUNTER(base, index) (((base)->ASRCNCR >> ((uint32_t)(index)*4U)) & 0xFU)
 
-/*! @brief ASRC return status*/
-enum _asrc_status_t
+/*! @brief ASRC return status
+ * @anchor _asrc_status_t
+ */
+enum
 {
     kStatus_ASRCIdle                       = MAKE_STATUS(kStatusGroup_ASRC, 0),  /*!< ASRC is idle. */
     kStatus_ASRCInIdle                     = MAKE_STATUS(kStatusGroup_ASRC, 1),  /*!< ASRC in is idle. */
@@ -115,8 +123,10 @@ typedef enum _asrc_channel_pair
     kASRC_ChannelPairC = 2, /*!< channel pair C value */
 } asrc_channel_pair_t;
 
-/*! @brief ASRC support sample rate */
-enum _asrc_sample_rate
+/*! @brief ASRC support sample rate
+ * @anchor _asrc_sample_rate
+ */
+enum
 {
     kASRC_SampleRate_8000HZ   = 8000U,   /*!< asrc sample rate 8KHZ */
     kASRC_SampleRate_11025HZ  = 11025U,  /*!< asrc sample rate 11.025KHZ */
@@ -136,8 +146,10 @@ enum _asrc_sample_rate
     kASRC_SampleRate_192000HZ = 192000U, /*!< asrc sample rate 192KHZ */
 };
 
-/*! @brief The ASRC interrupt enable flag */
-enum _asrc_interrupt_mask
+/*! @brief The ASRC interrupt enable flag
+ * @anchor _asrc_interrupt_mask
+ */
+enum
 {
     kASRC_FPInWaitStateInterruptEnable = ASRC_ASRIER_AFPWE_MASK, /*!< FP in wait state mask */
     kASRC_OverLoadInterruptMask        = ASRC_ASRIER_AOLIE_MASK, /*!< overload interrupt mask */
@@ -149,8 +161,10 @@ enum _asrc_interrupt_mask
     kASRC_DataInputAInterruptMask      = ASRC_ASRIER_ADIEA_MASK, /*!< data input a interrupt mask */
 };
 
-/*! @brief The ASRC interrupt status */
-enum _asrc_interrupt_status
+/*! @brief The ASRC interrupt status
+ * @anchor _asrc_interrupt_status
+ */
+enum
 {
     kASRC_StatusDSLCounterReady     = ASRC_ASRSTR_DSLCNT_MASK, /*!< DSL counter   */
     kASRC_StatusTaskQueueOverLoad   = ASRC_ASRSTR_ATQOL_MASK,  /*!< task queue overload */
@@ -191,8 +205,10 @@ enum _asrc_interrupt_status
 
 };
 
-/*! @brief ASRC channel pair status */
-enum _asrc_channel_pair_status
+/*! @brief ASRC channel pair status
+ * @anchor _asrc_channel_pair_status
+ */
+enum
 {
     kASRC_OutputFifoNearFull = ASRC_ASRFSTA_OAFA_MASK, /*!< channel pair output fifo near full */
     kASRC_InputFifoNearEmpty = ASRC_ASRFSTA_IAEA_MASK, /*!< channel pair input fifo near empty */
@@ -286,8 +302,8 @@ typedef struct _asrc_channel_pair_config
     asrc_data_align_t outDataAlign;         /*!< output data alignment */
     asrc_sign_extension_t outSignExtension; /*!< output extension */
 
-    uint32_t outFifoThreshold; /*!< output fifo threshold */
-    uint32_t inFifoThreshold;  /*!< input fifo threshold */
+    uint8_t outFifoThreshold; /*!< output fifo threshold */
+    uint8_t inFifoThreshold;  /*!< input fifo threshold */
 
     bool bufStallWhenFifoEmptyFull; /*!< stall Pair A conversion in case of Buffer near empty full condition */
 
@@ -415,20 +431,20 @@ status_t ASRC_SetChannelPairConfig(ASRC_Type *base,
 /*!
  * @brief Get output sample buffer size.
  *
- * @note This API is depends on the ASRC configuration, should be called after the ASRC_SetChannelPairConfig.
+ * @note This API is depends on the ASRC output configuration, should be called after the ASRC_SetChannelPairConfig.
  *
  * @param base asrc base pointer.
  * @param channelPair ASRC channel pair number.
  * @param inSampleRate input sample rate.
  * @param outSampleRate output sample rate.
- * @param inSamples input sample numbers.
+ * @param inSamples input sampleS size.
  * @retval output buffer size in byte.
  */
 uint32_t ASRC_GetOutSamplesSize(ASRC_Type *base,
                                 asrc_channel_pair_t channelPair,
                                 uint32_t inSampleRate,
                                 uint32_t outSampleRate,
-                                uint32_t inSamples);
+                                uint32_t inSamplesize);
 
 /*!
  * @brief Map register sample width to real sample width.
@@ -733,7 +749,7 @@ void ASRC_TransferAbortConvert(ASRC_Type *base, asrc_handle_t *handle);
  * @param base ASRC base pointer.
  * @param handle ASRC eDMA handle pointer.
  */
-void ASRC_TransferTerminateSend(ASRC_Type *base, asrc_handle_t *handle);
+void ASRC_TransferTerminateConvert(ASRC_Type *base, asrc_handle_t *handle);
 
 /*!
  * @brief ASRC convert interrupt handler.
