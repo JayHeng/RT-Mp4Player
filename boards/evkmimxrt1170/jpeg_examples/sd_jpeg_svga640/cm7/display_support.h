@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 NXP
+ * Copyright 2019-2020 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -16,8 +16,16 @@
 #define DEMO_PANEL_RK055AHD091 0
 #define DEMO_PANEL_RK055IQH091 1
 
+#define DEMO_DISPLAY_CONTROLLER_ELCDIF  0
+#define DEMO_DISPLAY_CONTROLLER_LCDIFV2 1
+
 #ifndef DEMO_PANEL
 #define DEMO_PANEL DEMO_PANEL_RK055IQH091
+#endif
+
+#ifndef DEMO_DISPLAY_CONTROLLER
+/* Use LCDIFV2 by default, could use ELCDIF by changing this macro. */
+#define DEMO_DISPLAY_CONTROLLER DEMO_DISPLAY_CONTROLLER_LCDIFV2
 #endif
 
 #define DEMO_BUFFER_FIXED_ADDRESS 0
@@ -34,23 +42,27 @@
 /* Definitions for the frame buffer. */
 #define DEMO_BUFFER_COUNT 2 /* 2 is enough for DPI interface display. */
 
-#define DEMO_BUFFER_PIXEL_FORMAT kVIDEO_PixelFormatRGB565
+#define DEMO_BUFFER_PIXEL_FORMAT   kVIDEO_PixelFormatRGB565
 #define DEMO_BUFFER_BYTE_PER_PIXEL 2
 
 #if (DEMO_PANEL_RK055AHD091 == DEMO_PANEL)
 
-#define DEMO_PANEL_WIDTH (720)
+#define DEMO_PANEL_WIDTH  (720)
 #define DEMO_PANEL_HEIGHT (1280)
 
 #elif (DEMO_PANEL_RK055IQH091 == DEMO_PANEL)
 
-#define DEMO_PANEL_WIDTH (540)
+#define DEMO_PANEL_WIDTH  (540)
 #define DEMO_PANEL_HEIGHT (960)
 
 #endif
 
-#define DEMO_BUFFER_WIDTH DEMO_PANEL_WIDTH
+#define DEMO_BUFFER_WIDTH  DEMO_PANEL_WIDTH
 #define DEMO_BUFFER_HEIGHT DEMO_PANEL_HEIGHT
+
+/* Where the frame buffer is shown in the screen. */
+#define DEMO_BUFFER_START_X 0U
+#define DEMO_BUFFER_START_Y 0U
 
 #define DEMO_BUFFER_STRIDE_BYTE (DEMO_BUFFER_WIDTH * DEMO_BUFFER_BYTE_PER_PIXEL)
 /* There is not frame buffer aligned requirement, consider the 64-bit AXI data

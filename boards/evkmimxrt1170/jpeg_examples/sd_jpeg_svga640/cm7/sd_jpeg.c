@@ -9,7 +9,6 @@
 #include <stdio.h>
 #include <string.h>
 #include "fsl_common.h"
-#include "app.h"
 #include "fsl_debug_console.h"
 #include "fsl_cache.h"
 #include "ff.h"
@@ -17,13 +16,19 @@
 #include "fsl_sd_disk.h"
 #include "jpeglib.h"
 #include "display_support.h"
+#include "pin_mux.h"
+#include "clock_config.h"
 #include "board.h"
-
+#include "sdmmc_config.h"
+#include "fsl_soc_src.h"
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
-#define APP_FB_HEIGHT DEMO_PANEL_HEIGHT
-#define APP_FB_WIDTH DEMO_PANEL_WIDTH
+
+#define APP_FB_HEIGHT  DEMO_BUFFER_HEIGHT
+#define APP_FB_WIDTH   DEMO_BUFFER_WIDTH
+#define APP_FB_START_X DEMO_BUFFER_START_X
+#define APP_FB_START_Y DEMO_BUFFER_START_Y
 
 /*
  * For better performance, by default, three frame buffers are used in this demo.
@@ -42,10 +47,10 @@
 #endif
 
 #if APP_USE_XRGB8888
-#define APP_FB_BPP 4 /* LCD frame buffer byte per pixel, XRGB888 format, 32-bit. */
+#define APP_FB_BPP    4 /* LCD frame buffer byte per pixel, XRGB888 format, 32-bit. */
 #define APP_FB_FORMAT kVIDEO_PixelFormatXRGB8888
 #else
-#define APP_FB_BPP 3 /* LCD frame buffer byte per pixel, RGB888 format, 24-bit. */
+#define APP_FB_BPP    3 /* LCD frame buffer byte per pixel, RGB888 format, 24-bit. */
 #define APP_FB_FORMAT kVIDEO_PixelFormatRGB888
 #endif
 
@@ -128,28 +133,22 @@ SDK_ALIGN(static uint8_t g_frameBuffer[APP_FB_NUM][APP_FB_SIZE_BYTE], APP_FB_ALI
 
 AT_NONCACHEABLE_SECTION(static FATFS g_fileSystem); /* File system object */
 AT_NONCACHEABLE_SECTION(static FIL jpgFil);
-
-static const sdmmchost_detect_card_t s_sdCardDetect = {
-#ifndef BOARD_SD_DETECT_TYPE
-    .cdType = kSDMMCHOST_DetectCardByGpioCD,
-#else
-    .cdType = BOARD_SD_DETECT_TYPE,
-#endif
-    .cdTimeOut_ms = (~0U),
-};
-/*! @brief SDMMC card power control configuration */
-#if defined DEMO_SDCARD_POWER_CTRL_FUNCTION_EXIST
-static const sdmmchost_pwr_card_t s_sdCardPwrCtrl = {
-    .powerOn          = BOARD_PowerOnSDCARD,
-    .powerOnDelay_ms  = 500U,
-    .powerOff         = BOARD_PowerOffSDCARD,
-    .powerOffDelay_ms = 0U,
-};
-#endif
-
 /*******************************************************************************
  * Code
  ******************************************************************************/
+static void BOARD_ResetDisplayMix(void)
+{
+    /*
+     * Reset the displaymix, otherwise during debugging, the
+     * debugger may not reset the display, then the behavior
+     * is not right.
+     */
+    SRC_AssertSliceSoftwareReset(SRC, kSRC_DisplaySlice);
+    while (kSRC_SliceResetInProcess == SRC_GetSliceResetState(SRC, kSRC_DisplaySlice))
+    {
+    }
+}
+
 
 /* Get the empty frame buffer from the s_fbList. */
 static void *APP_GetFrameBuffer(void)
@@ -307,7 +306,7 @@ static int MOUNT_SDCard(void)
 #endif
 
     // Open file to check
-    error = f_open(&jpgFil, _T("/001.jpg"), FA_OPEN_EXISTING);
+    error = f_open(&jpgFil, _T("/000.jpg"), FA_OPEN_EXISTING);
     if (error != FR_OK)
     {
         PRINTF("No demo jpeg file!\r\n");
@@ -345,6 +344,8 @@ void APP_InitDisplay(void)
     fbInfo.pixelFormat = APP_FB_FORMAT;
     fbInfo.width       = APP_FB_WIDTH;
     fbInfo.height      = APP_FB_HEIGHT;
+    fbInfo.startX      = APP_FB_START_X;
+    fbInfo.startY      = APP_FB_START_Y;
     fbInfo.strideBytes = APP_FB_STRIDE_BYTE;
     if (kStatus_Success != g_dc.ops->setLayerConfig(&g_dc, 0, &fbInfo))
     {
@@ -383,84 +384,36 @@ void APP_InitDisplay(void)
     g_dc.ops->enableLayer(&g_dc, 0);
 }
 
-extern void config_gpt(void);
-extern void time_measure_start(void);
-extern uint64_t time_measure_done(void);
-
-typedef struct _jpeg_measure_context
-{
-    uint64_t decode_ns;
-    uint64_t show_ns;
-} jpeg_measure_context_t;
-
-AT_NONCACHEABLE_SECTION(static FIL toutputFil);
-static jpeg_measure_context_t s_jpegMeasureContext;
-static uint8_t s_hexStrBuffer[40] = "0x0000000000000000,0x0000000000000000,\r\n";
-static void byte_to_hex_str(uint8_t *hexBuf, uint64_t data)
-{
-    for (uint32_t i = 0; i < 16; i++)
-    {
-        uint8_t loc = (15 - i) * 4;
-        uint8_t hex = (data & ((uint64_t)0xf << loc)) >> loc;
-        if (hex < 0xa)
-        {
-            hexBuf[i] = hex + '0';
-        }
-        else
-        {
-            hexBuf[i] = hex - 0xa + 'a';
-        }
-    }
-}
-
-typedef enum _jpeg_time_type
-{
-    kJpegTimeType_Start  = 0U,
-    kJpegTimeType_Decode = 1U,
-    kJpegTimeType_Show   = 2U,
-} jpeg_time_type_t;
-
-static void jpeg_time_measure_utility(jpeg_time_type_t type)
-{
-    if (type == kJpegTimeType_Start)
-    {
-        time_measure_start();
-    }
-    else if (type == kJpegTimeType_Decode)
-    {
-        s_jpegMeasureContext.decode_ns = time_measure_done();
-    }
-    else if (type == kJpegTimeType_Show)
-    {
-        s_jpegMeasureContext.show_ns = time_measure_done();
-    }
-}
-
-static uint32_t g_RootClockSemc = 0;
-static uint32_t g_RootClockBus = 0;
-
 /*!
  * @brief Main function
  */
 int main(void)
 {
-    int i = 1;
+    int i = 0;
     FRESULT error;
-    char jpgFileName[20];
+    char jpgFileName[10];
     void *freeFb;
     uint32_t oldIntStat;
 
-    BOARD_InitHardware();
+    BOARD_ConfigMPU();
+    BOARD_InitBootPins();
+    BOARD_BootClockRUN();
+    BOARD_ResetDisplayMix();
+    BOARD_InitDebugConsole();
+
+    /* ERR050396
+     * Errata description:
+     * AXI to AHB conversion for CM7 AHBS port (port to access CM7 to TCM) is by a NIC301 block, instead of XHB400
+     * block. NIC301 doesn't support sparse write conversion. Any AXI to AHB conversion need XHB400, not by NIC. This
+     * will result in data corruption in case of AXI sparse write reaches the NIC301 ahead of AHBS. Errata workaround:
+     * For uSDHC, don't set the bit#1 of IOMUXC_GPR28 (AXI transaction is cacheable), if write data to TCM aligned in 4
+     * bytes; No such write access limitation for OCRAM or external RAM
+     */
+    IOMUXC_GPR->GPR28 &= (~IOMUXC_GPR_GPR28_AWCACHE_USDHC_MASK);
 
     PRINTF("SD JPEG demo start:\r\n");
 
     APP_InitDisplay();
-
-    PRINTF("\n\n\rM7 clock = %d MHz", SystemCoreClock);
-    g_RootClockSemc = CLOCK_GetRootClockFreq(kCLOCK_Root_Semc);
-    PRINTF("\n\n\rSEMC clock = %d MHz", g_RootClockSemc);
-    g_RootClockBus = CLOCK_GetRootClockFreq(kCLOCK_Root_Bus);
-    PRINTF("\n\n\rBUS clock = %d MHz", g_RootClockBus);
 
     // Init the SD card
     if (0 != MOUNT_SDCard())
@@ -468,15 +421,6 @@ int main(void)
         PRINTF("SD card mount error. Demo stopped!");
         return -1;
     }
-
-    UINT bw_wh;
-    char *toutfilename="/time1.txt";
-    FRESULT c = f_open(&toutputFil, toutfilename, FA_CREATE_ALWAYS | FA_WRITE);
-    if (c != FR_OK)
-    {
-        return;
-    }
-    config_gpt();
 
     while (1)
     {
@@ -486,10 +430,8 @@ int main(void)
         error = f_open(&jpgFil, jpgFileName, FA_READ);
         if (error != FR_OK)
         {
-            i = 1;
-            f_close(&toutputFil);
-            //continue;
-            while (1);
+            i = 0;
+            continue;
         }
 
         /* Get free frame buffer and convert the jpeg output to it. */
@@ -500,11 +442,9 @@ int main(void)
             EnableGlobalIRQ(oldIntStat);
         } while (NULL == freeFb);
 
-        //PRINTF("Decoding %s...", jpgFileName);
-        jpeg_time_measure_utility(kJpegTimeType_Start);
+        PRINTF("Decoding %s...", jpgFileName);
         jpeg_decode(&jpgFil, freeFb);
-        jpeg_time_measure_utility(kJpegTimeType_Decode);
-        //PRINTF("done!\r\n", jpgFileName);
+        PRINTF("done!\r\n", jpgFileName);
         f_close(&jpgFil);
 
         DCACHE_CleanInvalidateByRange((uint32_t)freeFb, APP_FB_SIZE_BYTE);
@@ -512,32 +452,20 @@ int main(void)
         /*
          * Wait for the previous set frame buffer active.
          */
-        jpeg_time_measure_utility(kJpegTimeType_Start);
         while (s_newFrameShown == false)
         {
         }
-        jpeg_time_measure_utility(kJpegTimeType_Show);
 
         /* Now new frame is ready, pass it to LCDIF. */
         s_newFrameShown = false;
         g_dc.ops->setFrameBuffer(&g_dc, 0, freeFb);
-
-        byte_to_hex_str(&s_hexStrBuffer[2], s_jpegMeasureContext.decode_ns);
-        byte_to_hex_str(&s_hexStrBuffer[21], s_jpegMeasureContext.show_ns);
-        f_write(&toutputFil, s_hexStrBuffer, sizeof(s_hexStrBuffer), &bw_wh);
     }
 }
 
 static status_t sdcardWaitCardInsert(void)
 {
-    /* Save host information. */
-    g_sd.host.base           = SD_HOST_BASEADDR;
-    g_sd.host.sourceClock_Hz = SD_HOST_CLK_FREQ;
-    /* card detect type */
-    g_sd.usrParam.cd = &s_sdCardDetect;
-#if defined DEMO_SDCARD_POWER_CTRL_FUNCTION_EXIST
-    g_sd.usrParam.pwr = &s_sdCardPwrCtrl;
-#endif
+    BOARD_SD_Config(&g_sd, NULL, BOARD_SDMMC_SD_HOST_IRQ_PRIORITY, NULL);
+
     /* SD host init function */
     if (SD_HostInit(&g_sd) != kStatus_Success)
     {
@@ -545,13 +473,13 @@ static status_t sdcardWaitCardInsert(void)
         return kStatus_Fail;
     }
     /* power off card */
-    SD_PowerOffCard(g_sd.host.base, g_sd.usrParam.pwr);
+    SD_SetCardPower(&g_sd, false);
     /* wait card insert */
-    if (SD_WaitCardDetectStatus(SD_HOST_BASEADDR, &s_sdCardDetect, true) == kStatus_Success)
+    if (SD_PollingCardInsert(&g_sd, kSD_Inserted) == kStatus_Success)
     {
         PRINTF("\r\nCard inserted.\r\n");
         /* power on the card */
-        SD_PowerOnCard(g_sd.host.base, g_sd.usrParam.pwr);
+        SD_SetCardPower(&g_sd, true);
     }
     else
     {
