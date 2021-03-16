@@ -306,7 +306,7 @@ static int MOUNT_SDCard(void)
 #endif
 
     // Open file to check
-    error = f_open(&jpgFil, _T("/000.jpg"), FA_OPEN_EXISTING);
+    error = f_open(&jpgFil, _T("/001.jpg"), FA_OPEN_EXISTING);
     if (error != FR_OK)
     {
         PRINTF("No demo jpeg file!\r\n");
@@ -384,12 +384,65 @@ void APP_InitDisplay(void)
     g_dc.ops->enableLayer(&g_dc, 0);
 }
 
+extern void config_gpt(void);
+extern void time_measure_start(void);
+extern uint64_t time_measure_done(void);
+
+typedef struct _jpeg_measure_context
+{
+    uint64_t decode_ns;
+    uint64_t show_ns;
+} jpeg_measure_context_t;
+
+AT_NONCACHEABLE_SECTION(static FIL toutputFil);
+static jpeg_measure_context_t s_jpegMeasureContext;
+static uint8_t s_hexStrBuffer[40] = "0x0000000000000000,0x0000000000000000,\r\n";
+static void byte_to_hex_str(uint8_t *hexBuf, uint64_t data)
+{
+    for (uint32_t i = 0; i < 16; i++)
+    {
+        uint8_t loc = (15 - i) * 4;
+        uint8_t hex = (data & ((uint64_t)0xf << loc)) >> loc;
+        if (hex < 0xa)
+        {
+            hexBuf[i] = hex + '0';
+        }
+        else
+        {
+            hexBuf[i] = hex - 0xa + 'a';
+        }
+    }
+}
+
+typedef enum _jpeg_time_type
+{
+    kJpegTimeType_Start  = 0U,
+    kJpegTimeType_Decode = 1U,
+    kJpegTimeType_Show   = 2U,
+} jpeg_time_type_t;
+
+static void jpeg_time_measure_utility(jpeg_time_type_t type)
+{
+    if (type == kJpegTimeType_Start)
+    {
+        time_measure_start();
+    }
+    else if (type == kJpegTimeType_Decode)
+    {
+        s_jpegMeasureContext.decode_ns = time_measure_done();
+    }
+    else if (type == kJpegTimeType_Show)
+    {
+        s_jpegMeasureContext.show_ns = time_measure_done();
+    }
+}
+
 /*!
  * @brief Main function
  */
 int main(void)
 {
-    int i = 0;
+    int i = 1;
     FRESULT error;
     char jpgFileName[10];
     void *freeFb;
@@ -422,6 +475,15 @@ int main(void)
         return -1;
     }
 
+    UINT bw_wh;
+    char *toutfilename="/time1.txt";
+    FRESULT c = f_open(&toutputFil, toutfilename, FA_CREATE_ALWAYS | FA_WRITE);
+    if (c != FR_OK)
+    {
+        return -1;
+    }
+    config_gpt();
+
     while (1)
     {
         // format the filename
@@ -430,8 +492,10 @@ int main(void)
         error = f_open(&jpgFil, jpgFileName, FA_READ);
         if (error != FR_OK)
         {
-            i = 0;
-            continue;
+            i = 1;
+            f_close(&toutputFil);
+            //continue;
+            while (1);
         }
 
         /* Get free frame buffer and convert the jpeg output to it. */
@@ -442,9 +506,11 @@ int main(void)
             EnableGlobalIRQ(oldIntStat);
         } while (NULL == freeFb);
 
-        PRINTF("Decoding %s...", jpgFileName);
+        //PRINTF("Decoding %s...", jpgFileName);
+        jpeg_time_measure_utility(kJpegTimeType_Start);
         jpeg_decode(&jpgFil, freeFb);
-        PRINTF("done!\r\n", jpgFileName);
+        jpeg_time_measure_utility(kJpegTimeType_Decode);
+        //PRINTF("done!\r\n", jpgFileName);
         f_close(&jpgFil);
 
         DCACHE_CleanInvalidateByRange((uint32_t)freeFb, APP_FB_SIZE_BYTE);
@@ -452,13 +518,19 @@ int main(void)
         /*
          * Wait for the previous set frame buffer active.
          */
+        jpeg_time_measure_utility(kJpegTimeType_Start);
         while (s_newFrameShown == false)
         {
         }
+        jpeg_time_measure_utility(kJpegTimeType_Show);
 
         /* Now new frame is ready, pass it to LCDIF. */
         s_newFrameShown = false;
         g_dc.ops->setFrameBuffer(&g_dc, 0, freeFb);
+
+        byte_to_hex_str(&s_hexStrBuffer[2], s_jpegMeasureContext.decode_ns);
+        byte_to_hex_str(&s_hexStrBuffer[21], s_jpegMeasureContext.show_ns);
+        f_write(&toutputFil, s_hexStrBuffer, sizeof(s_hexStrBuffer), &bw_wh);
     }
 }
 
