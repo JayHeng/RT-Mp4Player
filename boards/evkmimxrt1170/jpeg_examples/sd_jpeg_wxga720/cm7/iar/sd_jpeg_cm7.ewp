@@ -772,8 +772,8 @@
                 </option>
                 <option>
                     <name>IlinkConfigDefines</name>
-                    <state>__stack_size__=0x1000</state>
-                    <state>__heap_size__=0x20000</state>
+                    <state>__stack_size__=0x2000</state>
+                    <state>__heap_size__=0x100000</state>
                 </option>
                 <option>
                     <name>IlinkMapFile</name>
@@ -1038,7 +1038,7 @@
                 </option>
                 <option>
                     <name>IlinkTrustzoneImportLibraryOut</name>
-                    <state>###Unitialized###</state>
+                    <state>sd_jpeg_cm7_import_lib.o</state>
                 </option>
                 <option>
                     <name>OILinkExtraOption</name>
