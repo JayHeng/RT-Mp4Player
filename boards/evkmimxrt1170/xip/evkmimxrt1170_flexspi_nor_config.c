@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 NXP
+ * Copyright 2018-2020 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -17,7 +17,7 @@
  ******************************************************************************/
 #if defined(XIP_BOOT_HEADER_ENABLE) && (XIP_BOOT_HEADER_ENABLE == 1)
 #if defined(__CC_ARM) || defined(__ARMCC_VERSION) || defined(__GNUC__)
-__attribute__((section(".boot_hdr.conf")))
+__attribute__((section(".boot_hdr.conf"), used))
 #elif defined(__ICCARM__)
 #pragma location = ".boot_hdr.conf"
 #endif
@@ -32,10 +32,10 @@ const flexspi_nor_config_t qspiflash_config = {
             .csSetupTime      = 3u,
             // Enable DDR mode, Wordaddassable, Safe configuration, Differential clock
             .controllerMiscOption = 0x10,
-            .deviceType = kFlexSpiDeviceType_SerialNOR,
-            .sflashPadType = kSerialFlash_4Pads,
-            .serialClkFreq = kFlexSpiSerialClk_133MHz,
-            .sflashA1Size  = 16u * 1024u * 1024u,
+            .deviceType           = kFlexSpiDeviceType_SerialNOR,
+            .sflashPadType        = kSerialFlash_4Pads,
+            .serialClkFreq        = kFlexSpiSerialClk_133MHz,
+            .sflashA1Size         = 16u * 1024u * 1024u,
             .lookupTable =
                 {
                     // Read LUTs

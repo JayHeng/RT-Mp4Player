@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 NXP Semiconductors, Inc.
+ * Copyright 2019 NXP
  * All rights reserved.
  *
  *
@@ -10,6 +10,7 @@
 #include "lcdifv2_support.h"
 #include "fsl_debug_console.h"
 
+#include "fsl_soc_src.h"
 #include "pin_mux.h"
 #include "board.h"
 /*******************************************************************************
@@ -19,8 +20,8 @@
 
 #define DEMO_BYTE_PER_PIXEL 2U
 
-#define DEMO_IMG_HEIGHT DEMO_PANEL_HEIGHT
-#define DEMO_IMG_WIDTH DEMO_PANEL_WIDTH
+#define DEMO_IMG_HEIGHT         DEMO_PANEL_HEIGHT
+#define DEMO_IMG_WIDTH          DEMO_PANEL_WIDTH
 #define DEMO_IMG_BYTES_PER_LINE (DEMO_PANEL_WIDTH * DEMO_BYTE_PER_PIXEL)
 
 /* Use layer 0 in this example. */
@@ -42,6 +43,19 @@ static uint32_t s_frameBufferAddr = DEMO_FB0_ADDR;
 /*******************************************************************************
  * Code
  ******************************************************************************/
+static void BOARD_ResetDisplayMix(void)
+{
+    /*
+     * Reset the displaymix, otherwise during debugging, the
+     * debugger may not reset the display, then the behavior
+     * is not right.
+     */
+    SRC_AssertSliceSoftwareReset(SRC, kSRC_DisplaySlice);
+    while (kSRC_SliceResetInProcess == SRC_GetSliceResetState(SRC, kSRC_DisplaySlice))
+    {
+    }
+}
+
 
 void DEMO_FillFrameBuffer(uint32_t frameBufferAddr)
 {
@@ -148,6 +162,7 @@ int main(void)
 {
     BOARD_ConfigMPU();
     BOARD_BootClockRUN();
+    BOARD_ResetDisplayMix();
     BOARD_InitLpuartPins();
     BOARD_InitMipiPanelPins();
     BOARD_InitDebugConsole();

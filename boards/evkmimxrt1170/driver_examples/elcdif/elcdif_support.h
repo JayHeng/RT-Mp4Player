@@ -7,13 +7,15 @@
 #ifndef _ELCDIF_SUPPORT_H_
 #define _ELCDIF_SUPPORT_H_
 
+#include "fsl_mipi_dsi.h"
+
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
 
 #define APP_ELCDIF LCDIF
-#define APP_ELCDIF_IRQn LCDIF1_IRQn
-#define APP_ELCDIF_IRQHandler LCDIF1_IRQHandler
+#define APP_ELCDIF_IRQn eLCDIF_IRQn
+#define APP_ELCDIF_IRQHandler eLCDIF_IRQHandler
 
 #define MIPI_PANEL_RK055AHD091 0 /* 720 * 1280 */
 #define MIPI_PANEL_RK055IQH091 1 /* 540 * 960 */
@@ -42,14 +44,15 @@
 #define APP_VBP 14
 #endif
 #define APP_POL_FLAGS \
-    (kELCDIF_DataEnableActiveHigh | kELCDIF_VsyncActiveLow | kELCDIF_HsyncActiveLow | kELCDIF_DriveDataOnRisingClkEdge)
+    (kELCDIF_DataEnableActiveHigh | kELCDIF_VsyncActiveLow | kELCDIF_HsyncActiveLow | kELCDIF_DriveDataOnFallingClkEdge)
 
 /* Frame buffer data alignment, for better performance, the LCDIF frame buffer should be 64B align. */
 #define FRAME_BUFFER_ALIGN 64
 #define APP_IMG_HEIGHT APP_PANEL_HEIGHT
 #define APP_IMG_WIDTH APP_PANEL_WIDTH
 
-#define APP_MIPI_DSI MIPI_DSI_HOST
+extern MIPI_DSI_Type g_mipiDsi;
+#define APP_MIPI_DSI (&g_mipiDsi)
 #define APP_MIPI_DSI_LANE_NUM 2
 
 /*

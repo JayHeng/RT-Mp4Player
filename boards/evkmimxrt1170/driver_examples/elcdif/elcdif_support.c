@@ -18,6 +18,14 @@ uint32_t mipiDsiDphyRefClkFreq_Hz;
 uint32_t mipiDsiDpiClkFreq_Hz;
 extern void APP_LCDIF_IRQHandler(void);
 
+MIPI_DSI_Type g_mipiDsi =
+{
+    .host = MIPI_DSI__DSI_HOST,
+    .apb = MIPI_DSI__DSI_HOST_APB_PKT_IF,
+    .dpi = MIPI_DSI__DSI_HOST_DPI_INTFC,
+    .dphy = MIPI_DSI__DSI_HOST_DPHY_INTFC,
+};
+
 static void PANEL_PullResetPin(bool pullUp)
 {
     if (pullUp)
@@ -50,12 +58,13 @@ status_t PANEL_DSI_Transfer(dsi_transfer_t *xfer)
 
 #if (USE_MIPI_PANEL == MIPI_PANEL_RK055AHD091)
 
+static mipi_dsi_device_t dsiDevice = {
+    .virtualChannel = 0,
+    .xferFunc       = PANEL_DSI_Transfer,
+};
+
 static const rm68200_resource_t rm68200Resource = {
-    .dsiDevice =
-        {
-            .virtualChannel = 0,
-            .xferFunc       = PANEL_DSI_Transfer,
-        },
+    .dsiDevice    = &dsiDevice,
     .pullResetPin = PANEL_PullResetPin,
     .pullPowerPin = PANEL_PullPowerPin,
 };
@@ -67,12 +76,13 @@ static display_handle_t rm68200Handle = {
 
 #else
 
+static mipi_dsi_device_t dsiDevice = {
+    .virtualChannel = 0,
+    .xferFunc       = PANEL_DSI_Transfer,
+};
+
 static const rm68191_resource_t rm68191Resource = {
-    .dsiDevice =
-        {
-            .virtualChannel = 0,
-            .xferFunc       = PANEL_DSI_Transfer,
-        },
+    .dsiDevice    = &dsiDevice,
     .pullResetPin = PANEL_PullResetPin,
     .pullPowerPin = PANEL_PullPowerPin,
 };
@@ -95,13 +105,11 @@ void BOARD_InitLcdifClock(void)
      */
     const clock_root_config_t lcdifClockConfig = {
         .clockOff = false,
-        .mfn      = 0,
-        .mfd      = 0,
         .mux      = 4, /*!< PLL_528. */
 #if (USE_MIPI_PANEL == MIPI_PANEL_RK055AHD091)
-        .div = 8,
+        .div = 9,
 #else
-        .div = 14,
+        .div = 15,
 #endif
     };
 
@@ -151,14 +159,12 @@ static void BOARD_InitMipiDsiClock(void)
     uint32_t mipiDsiEscClkFreq_Hz;
 
     /* RxClkEsc max 60MHz, TxClkEsc 12 to 20MHz. */
-    /* RxClkEsc = 528MHz / 11 = 48MHz. */
-    /* TxClkEsc = 528MHz / 11 / 4 = 16MHz. */
+    /* RxClkEsc = 24MHz / 1 = 24MHz. */
+    /* TxClkEsc = 24MHz / 1 / 2 = 12MHz. */
     const clock_root_config_t mipiEscClockConfig = {
         .clockOff = false,
-        .mfn      = 0,
-        .mfd      = 0,
-        .mux      = 1, /*!< PLL_528. */
-        .div      = 0,
+        .mux      = 1, /*!< OSC_24M. */
+        .div      = 1,
     };
 
     CLOCK_SetRootClock(kCLOCK_Root_Mipi_Esc, &mipiEscClockConfig);
@@ -169,7 +175,6 @@ static void BOARD_InitMipiDsiClock(void)
         .clockOff = false,
         .resetDiv = 1,
         .div0     = 1, /* TX esc clock. */
-        .div1     = 0, /* RX esc clock. */
     };
 
     CLOCK_SetGroupConfig(kCLOCK_Group_MipiDsi, &mipiEscClockGroupConfig);
@@ -179,15 +184,13 @@ static void BOARD_InitMipiDsiClock(void)
     /* DPHY reference clock, use OSC 24MHz clock. */
     const clock_root_config_t mipiDphyRefClockConfig = {
         .clockOff = false,
-        .mfn      = 0,
-        .mfd      = 0,
         .mux      = 1, /*!< OSC_24M. */
-        .div      = 0,
+        .div      = 1,
     };
 
     CLOCK_SetRootClock(kCLOCK_Root_Mipi_Ref, &mipiDphyRefClockConfig);
 
-    mipiDsiDphyRefClkFreq_Hz = CLOCK_GetRootClockFreq(kCLOCK_Root_Mipi_Ref);
+    mipiDsiDphyRefClkFreq_Hz = BOARD_XTAL0_CLK_HZ;
 }
 
 static void BOARD_SetMipiDsiConfig(void)
@@ -253,7 +256,7 @@ status_t BOARD_InitDisplayInterface(void)
 {
     /* LCDIF v2 output to MIPI DSI. */
     CLOCK_EnableClock(kCLOCK_Video_Mux);
-    VIDEO_MUX->VID_MUX_CTRL &= ~VIDEO_MUX_VID_MUX_CTRL_MIPI_DSI_SEL_MASK;
+    VIDEO_MUX->VID_MUX_CTRL.CLR = VIDEO_MUX_VID_MUX_CTRL_MIPI_DSI_SEL_MASK;
 
     /* 1. Power on and isolation off. */
     PGMC_BPC4->BPC_POWER_CTRL |= (PGMC_BPC_BPC_POWER_CTRL_PSW_ON_SOFT_MASK | PGMC_BPC_BPC_POWER_CTRL_ISO_OFF_SOFT_MASK);
