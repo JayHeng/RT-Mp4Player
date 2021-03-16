@@ -255,10 +255,19 @@ settings:
 
 const clock_arm_pll_config_t armPllConfig_BOARD_BootClockRUN =
     {
+    // From RM: ARM_PLL_CTRL register defn
+    // arm_pll_out = (24MHz * loopDivider) / 2.0 / postDivier
+    // 104 <= loopDivider <= 208
+
+        /* ARM PLL 996 MHz. */
         .postDivider = kCLOCK_PllPostDiv2,        /* Post divider, 0 - DIV by 2, 1 - DIV by 4, 2 - DIV by 8, 3 - DIV by 1 */
         .loopDivider = 166,                       /* PLL Loop divider, Fout = Fin * 41.5 */
+        /* ARM PLL 600 MHz. */
+        //.postDivider = kCLOCK_PllPostDiv4,
+        //.loopDivider = 200,
     };
 
+// sysPll2 = 528MHz
 const clock_sys_pll2_config_t sysPll2Config_BOARD_BootClockRUN =
     {
         .mfd = 268435455,                         /* Denominator of spread spectrum */
@@ -377,7 +386,10 @@ void BOARD_BootClockRUN(void)
     CLOCK_InitPfd(kCLOCK_PllSys2, kCLOCK_Pfd0, 27);
 
     /* Init System Pll2 pfd1. */
+    // SysPll2Pfd1 = SysPll2 * 18 / PFD1_FRAC (13 - 35)
     CLOCK_InitPfd(kCLOCK_PllSys2, kCLOCK_Pfd1, 16);
+    //CLOCK_InitPfd(kCLOCK_PllSys2, kCLOCK_Pfd1, 24);
+    //CLOCK_InitPfd(kCLOCK_PllSys2, kCLOCK_Pfd1, 29);
 
     /* Init System Pll2 pfd2. */
     CLOCK_InitPfd(kCLOCK_PllSys2, kCLOCK_Pfd2, 24);
@@ -441,7 +453,7 @@ void BOARD_BootClockRUN(void)
     /* Configure SEMC using SYS_PLL2_PFD1_CLK */
 #ifndef SKIP_SEMC_INIT
     rootCfg.mux = kCLOCK_SEMC_ClockRoot_MuxSysPll2Pfd1;
-    rootCfg.div = 3;
+    rootCfg.div = 1;
     CLOCK_SetRootClock(kCLOCK_Root_Semc, &rootCfg);
 #endif
 
