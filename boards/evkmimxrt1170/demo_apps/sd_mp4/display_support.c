@@ -1,5 +1,5 @@
 /*
- * Copyright 2019 NXP Semiconductors, Inc.
+ * Copyright 2019-2020 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -7,13 +7,18 @@
 
 #include "display_support.h"
 #include "fsl_gpio.h"
-#include "board.h"
-#include "fsl_dc_fb_lcdifv2.h"
 #include "fsl_mipi_dsi.h"
 #include "fsl_rm68200.h"
 #include "fsl_rm68191.h"
 #include "pin_mux.h"
+#include "board.h"
 #include "fsl_debug_console.h"
+
+#if (DEMO_DISPLAY_CONTROLLER == DEMO_DISPLAY_CONTROLLER_LCDIFV2)
+#include "fsl_dc_fb_lcdifv2.h"
+#else
+#include "fsl_dc_fb_elcdif.h"
+#endif
 #include "mp4.h"
 
 /*******************************************************************************
@@ -43,14 +48,25 @@
 
 #endif
 
+#if (DEMO_DISPLAY_CONTROLLER == DEMO_DISPLAY_CONTROLLER_LCDIFV2)
+
 #define DEMO_LCDIF_POL_FLAGS                                                             \
     (kLCDIFV2_DataEnableActiveHigh | kLCDIFV2_VsyncActiveLow | kLCDIFV2_HsyncActiveLow | \
      kLCDIFV2_DriveDataOnRisingClkEdge)
 
 #define DEMO_LCDIF LCDIFV2
 
+#else
+
+#define DEMO_LCDIF_POL_FLAGS \
+    (kELCDIF_DataEnableActiveHigh | kELCDIF_VsyncActiveLow | kELCDIF_HsyncActiveLow | kELCDIF_DriveDataOnRisingClkEdge)
+
+#define DEMO_LCDIF LCDIF
+
+#endif
+
 /* Definitions for MIPI. */
-#define DEMO_MIPI_DSI MIPI_DSI_HOST
+#define DEMO_MIPI_DSI          (&g_mipiDsi)
 #define DEMO_MIPI_DSI_LANE_NUM 2
 
 /*
@@ -83,14 +99,23 @@ static uint32_t mipiDsiDphyBitClkFreq_Hz;
 static uint32_t mipiDsiDphyRefClkFreq_Hz;
 static uint32_t mipiDsiDpiClkFreq_Hz;
 
+MIPI_DSI_Type g_mipiDsi =
+{
+    .host = MIPI_DSI__DSI_HOST,
+    .apb = MIPI_DSI__DSI_HOST_APB_PKT_IF,
+    .dpi = MIPI_DSI__DSI_HOST_DPI_INTFC,
+    .dphy = MIPI_DSI__DSI_HOST_DPHY_INTFC,
+};
+
 #if (DEMO_PANEL == DEMO_PANEL_RK055AHD091)
 
+static mipi_dsi_device_t dsiDevice = {
+    .virtualChannel = 0,
+    .xferFunc       = BOARD_DSI_Transfer,
+};
+
 static const rm68200_resource_t rm68200Resource = {
-    .dsiDevice =
-        {
-            .virtualChannel = 0,
-            .xferFunc       = BOARD_DSI_Transfer,
-        },
+    .dsiDevice    = &dsiDevice,
     .pullResetPin = BOARD_PullPanelResetPin,
     .pullPowerPin = BOARD_PullPanelPowerPin,
 };
@@ -102,12 +127,13 @@ static display_handle_t rm68200Handle = {
 
 #else
 
+static mipi_dsi_device_t dsiDevice = {
+    .virtualChannel = 0,
+    .xferFunc       = BOARD_DSI_Transfer,
+};
+
 static const rm68191_resource_t rm68191Resource = {
-    .dsiDevice =
-        {
-            .virtualChannel = 0,
-            .xferFunc       = BOARD_DSI_Transfer,
-        },
+    .dsiDevice    = &dsiDevice,
     .pullResetPin = BOARD_PullPanelResetPin,
     .pullPowerPin = BOARD_PullPanelPowerPin,
 };
@@ -118,6 +144,8 @@ static display_handle_t rm68191Handle = {
 };
 
 #endif
+
+#if (DEMO_DISPLAY_CONTROLLER == DEMO_DISPLAY_CONTROLLER_LCDIFV2)
 
 static dc_fb_lcdifv2_handle_t s_dcFbLcdifv2Handle = {0};
 
@@ -146,6 +174,31 @@ const dc_fb_t g_dc = {
     .prvData = &s_dcFbLcdifv2Handle,
     .config  = &s_dcFbLcdifv2Config,
 };
+
+#else
+
+dc_fb_elcdif_handle_t s_dcFbElcdifHandle = {0}; /* The handle must be initialized to 0. */
+
+const dc_fb_elcdif_config_t s_dcFbElcdifConfig = {
+    .elcdif        = DEMO_LCDIF,
+    .width         = DEMO_PANEL_WIDTH,
+    .height        = DEMO_PANEL_HEIGHT,
+    .hsw           = DEMO_HSW,
+    .hfp           = DEMO_HFP,
+    .hbp           = DEMO_HBP,
+    .vsw           = DEMO_VSW,
+    .vfp           = DEMO_VFP,
+    .vbp           = DEMO_VBP,
+    .polarityFlags = DEMO_LCDIF_POL_FLAGS,
+    .dataBus       = kELCDIF_DataBus24Bit,
+};
+
+const dc_fb_t g_dc = {
+    .ops     = &g_dcFbOpsElcdif,
+    .prvData = &s_dcFbElcdifHandle,
+    .config  = &s_dcFbElcdifConfig,
+};
+#endif
 
 /*******************************************************************************
  * Code
@@ -188,10 +241,8 @@ void BOARD_InitLcdifClock(void)
      * For 60Hz frame rate, the RK055IQH091 pixel clock should be 36MHz.
      * the RK055AHD091 pixel clock should be 62MHz.
      */
-    const clock_root_config_t lcdifv2ClockConfig = {
+    const clock_root_config_t lcdifClockConfig = {
         .clockOff = false,
-        .mfn      = 0,
-        .mfd      = 0,
         .mux      = 4, /*!< PLL_528. */
 #if (DEMO_PANEL == DEMO_PANEL_RK055AHD091)
 #if VIDEO_LCD_REFRESH_FREG_60Hz == 1
@@ -212,9 +263,17 @@ void BOARD_InitLcdifClock(void)
 #endif
     };
 
-    CLOCK_SetRootClock(kCLOCK_Root_Lcdifv2, &lcdifv2ClockConfig);
+#if (DEMO_DISPLAY_CONTROLLER == DEMO_DISPLAY_CONTROLLER_LCDIFV2)
+    CLOCK_SetRootClock(kCLOCK_Root_Lcdifv2, &lcdifClockConfig);
 
     mipiDsiDpiClkFreq_Hz = CLOCK_GetRootClockFreq(kCLOCK_Root_Lcdifv2);
+
+#else
+
+    CLOCK_SetRootClock(kCLOCK_Root_Lcdif, &lcdifClockConfig);
+
+    mipiDsiDpiClkFreq_Hz = CLOCK_GetRootClockFreq(kCLOCK_Root_Lcdif);
+#endif
 }
 
 static void BOARD_InitMipiDsiClock(void)
@@ -226,10 +285,8 @@ static void BOARD_InitMipiDsiClock(void)
     /* TxClkEsc = 528MHz / 11 / 4 = 16MHz. */
     const clock_root_config_t mipiEscClockConfig = {
         .clockOff = false,
-        .mfn      = 0,
-        .mfd      = 0,
         .mux      = 4, /*!< PLL_528. */
-        .div      = 10,
+        .div      = 11,
     };
 
     CLOCK_SetRootClock(kCLOCK_Root_Mipi_Esc, &mipiEscClockConfig);
@@ -240,7 +297,6 @@ static void BOARD_InitMipiDsiClock(void)
         .clockOff = false,
         .resetDiv = 2,
         .div0     = 2, /* TX esc clock. */
-        .div1     = 0, /* RX esc clock. */
     };
 
     CLOCK_SetGroupConfig(kCLOCK_Group_MipiDsi, &mipiEscClockGroupConfig);
@@ -250,15 +306,13 @@ static void BOARD_InitMipiDsiClock(void)
     /* DPHY reference clock, use OSC 24MHz clock. */
     const clock_root_config_t mipiDphyRefClockConfig = {
         .clockOff = false,
-        .mfn      = 0,
-        .mfd      = 0,
         .mux      = 1, /*!< OSC_24M. */
-        .div      = 0,
+        .div      = 1,
     };
 
     CLOCK_SetRootClock(kCLOCK_Root_Mipi_Ref, &mipiDphyRefClockConfig);
 
-    mipiDsiDphyRefClkFreq_Hz = CLOCK_GetRootClockFreq(kCLOCK_Root_Mipi_Ref);
+    mipiDsiDphyRefClkFreq_Hz = BOARD_XTAL0_CLK_HZ;
 }
 
 static status_t BOARD_InitLcdPanel(void)
@@ -285,7 +339,9 @@ static status_t BOARD_InitLcdPanel(void)
 
 #if (DEMO_PANEL == DEMO_PANEL_RK055AHD091)
     status = RM68200_Init(&rm68200Handle, &displayConfig);
+
 #else
+
     status = RM68191_Init(&rm68191Handle, &displayConfig);
 #endif
 
@@ -358,9 +414,15 @@ static void BOARD_SetMipiDsiConfig(void)
 
 status_t BOARD_InitDisplayInterface(void)
 {
-    /* LCDIF v2 output to MIPI DSI. */
     CLOCK_EnableClock(kCLOCK_Video_Mux);
-    VIDEO_MUX->VID_MUX_CTRL |= VIDEO_MUX_VID_MUX_CTRL_MIPI_DSI_SEL_MASK;
+
+#if (DEMO_DISPLAY_CONTROLLER == DEMO_DISPLAY_CONTROLLER_LCDIFV2)
+    /* LCDIF v2 output to MIPI DSI. */
+    VIDEO_MUX->VID_MUX_CTRL.SET = VIDEO_MUX_VID_MUX_CTRL_MIPI_DSI_SEL_MASK;
+#else
+    /* ELCDIF output to MIPI DSI. */
+    VIDEO_MUX->VID_MUX_CTRL.CLR = VIDEO_MUX_VID_MUX_CTRL_MIPI_DSI_SEL_MASK;
+#endif
 
     /* 1. Power on and isolation off. */
     PGMC_BPC4->BPC_POWER_CTRL |= (PGMC_BPC_BPC_POWER_CTRL_PSW_ON_SOFT_MASK | PGMC_BPC_BPC_POWER_CTRL_ISO_OFF_SOFT_MASK);
@@ -388,6 +450,18 @@ status_t BOARD_InitDisplayInterface(void)
     return BOARD_InitLcdPanel();
 }
 
+#if (DEMO_DISPLAY_CONTROLLER == DEMO_DISPLAY_CONTROLLER_LCDIFV2)
+void LCDIFv2_IRQHandler(void)
+{
+    DC_FB_LCDIFV2_IRQHandler(&g_dc);
+}
+#else
+void eLCDIF_IRQHandler(void)
+{
+    DC_FB_ELCDIF_IRQHandler(&g_dc);
+}
+#endif
+
 status_t BOARD_VerifyDisplayClockSource(void)
 {
     status_t status;
@@ -399,7 +473,7 @@ status_t BOARD_VerifyDisplayClockSource(void)
      * as the MIPI DSI DPHY PLL reference clock. This function checks the clock
      * source are valid. OSC24M is always valid, so only verify the SYSPLL2.
      */
-    srcClkFreq = CLOCK_GetPllFreq(kCLOCK_Pll_SysPll2);
+    srcClkFreq = CLOCK_GetPllFreq(kCLOCK_PllSys2);
     if (528 != (srcClkFreq / 1000000))
     {
         status = kStatus_Fail;
@@ -430,8 +504,15 @@ status_t BOARD_PrepareDisplayController(void)
 
     if (kStatus_Success == status)
     {
-        NVIC_SetPriority(LCDIF2_IRQn, 3);
-        EnableIRQ(LCDIF2_IRQn);
+#if (DEMO_DISPLAY_CONTROLLER == DEMO_DISPLAY_CONTROLLER_LCDIFV2)
+        NVIC_ClearPendingIRQ(LCDIFv2_IRQn);
+        NVIC_SetPriority(LCDIFv2_IRQn, 3);
+        EnableIRQ(LCDIFv2_IRQn);
+#else
+        NVIC_ClearPendingIRQ(eLCDIF_IRQn);
+        NVIC_SetPriority(eLCDIF_IRQn, 3);
+        EnableIRQ(eLCDIF_IRQn);
+#endif
     }
 
     return kStatus_Success;

@@ -229,6 +229,7 @@
                     <state>SDK_I2C_BASED_COMPONENT_USED=1</state>
                     <state>FSL_SDK_ENABLE_DRIVER_CACHE_CONTROL=1</state>
                     <state>BOARD_USE_CODEC=1</state>
+                    <state>SD_ENABLED</state>
                 </option>
                 <option>
                     <name>CCPreprocFile</name>
@@ -358,16 +359,17 @@
                     <state>$PROJ_DIR$/..</state>
                     <state>$PROJ_DIR$/../../..</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/drivers</state>
+                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/drivers/cm7</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/utilities/str</state>
-                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/utilities/debug_console</state>
+                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/utilities/debug_console_lite</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/utilities</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/xip</state>
                     <state>$PROJ_DIR$/../../../../../middleware/libjpeg/inc</state>
-                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/src</state>
-                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/inc</state>
-                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/port</state>
-                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/port/interrupt</state>
+                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/sd</state>
+                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/common</state>
+                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/host/usdhc</state>
+                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/osa</state>
                     <state>$PROJ_DIR$/../../../../../middleware/fatfs/source/fsl_sd_disk</state>
                     <state>$PROJ_DIR$/../../../../../middleware/fatfs/source</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/compat</state>
@@ -375,6 +377,8 @@
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/libavutil</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/libavformat</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg</state>
+                    <state>$PROJ_DIR$/../../../../../components/osa</state>
+                    <state>$PROJ_DIR$/../../../../../components/lists</state>
                     <state>$PROJ_DIR$/../../../../../components/codec</state>
                     <state>$PROJ_DIR$/../../../../../components/codec/i2c</state>
                     <state>$PROJ_DIR$/../../../../../components/codec/port</state>
@@ -1133,11 +1137,11 @@
                 </option>
                 <option>
                     <name>Input description</name>
-                    <state>Automatic choice of formatter.</state>
+                    <state>No specifier n, no float nor long long, no scan set, no assignment suppressing, without multibyte support.</state>
                 </option>
                 <option>
                     <name>Output description</name>
-                    <state>Automatic choice of formatter.</state>
+                    <state>No specifier a, A, no specifier n, no float nor long long, without multibyte support.</state>
                 </option>
                 <option>
                     <name>GOutputBinary</name>
@@ -1145,7 +1149,7 @@
                 </option>
                 <option>
                     <name>OGCoreOrChip</name>
-                    <state>1</state>
+                    <state>0</state>
                 </option>
                 <option>
                     <name>GRuntimeLibSelect</name>
@@ -1159,7 +1163,7 @@
                 </option>
                 <option>
                     <name>RTDescription</name>
-                    <state>0</state>
+                    <state>Use the normal configuration of the C/C++ runtime library. No locale interface, C locale, no file descriptor support, no multibytes in printf and scanf, and no hex floats in strtod.</state>
                 </option>
                 <option>
                     <name>OGProductVersion</name>
@@ -1167,7 +1171,7 @@
                 </option>
                 <option>
                     <name>OGLastSavedByProductVersion</name>
-                    <state>8.32.2.19370</state>
+                    <state>8.50.6.28950</state>
                 </option>
                 <option>
                     <name>GeneralEnableMisra</name>
@@ -1322,7 +1326,7 @@
                 <option>
                     <name>CCDefines</name>
                     <state>RELEASE</state>
-                    <state>CPU_MIMXRT1062DVL6A</state>
+                    <state>CPU_MIMXRT1176DVMAA_cm7</state>
                     <state>SKIP_SYSCLK_INIT</state>
                     <state>XIP_EXTERNAL_FLASH=1</state>
                     <state>XIP_BOOT_HEADER_ENABLE=1</state>
@@ -1330,6 +1334,7 @@
                     <state>SDK_I2C_BASED_COMPONENT_USED=1</state>
                     <state>FSL_SDK_ENABLE_DRIVER_CACHE_CONTROL=1</state>
                     <state>BOARD_USE_CODEC=1</state>
+                    <state>SD_ENABLED</state>
                 </option>
                 <option>
                     <name>CCPreprocFile</name>
@@ -1458,17 +1463,18 @@
                     <state>$PROJ_DIR$/../../../../../devices</state>
                     <state>$PROJ_DIR$/..</state>
                     <state>$PROJ_DIR$/../../..</state>
-                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062/drivers</state>
-                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062</state>
-                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062/utilities/str</state>
-                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062/utilities/debug_console</state>
-                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062/utilities</state>
-                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062/xip</state>
+                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/drivers</state>
+                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/drivers/cm7</state>
+                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176</state>
+                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/utilities/str</state>
+                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/utilities/debug_console_lite</state>
+                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/utilities</state>
+                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/xip</state>
                     <state>$PROJ_DIR$/../../../../../middleware/libjpeg/inc</state>
-                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/src</state>
-                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/inc</state>
-                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/port</state>
-                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/port/interrupt</state>
+                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/sd</state>
+                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/common</state>
+                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/host/usdhc</state>
+                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/osa</state>
                     <state>$PROJ_DIR$/../../../../../middleware/fatfs/source/fsl_sd_disk</state>
                     <state>$PROJ_DIR$/../../../../../middleware/fatfs/source</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/compat</state>
@@ -1476,6 +1482,8 @@
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/libavutil</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/libavformat</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg</state>
+                    <state>$PROJ_DIR$/../../../../../components/osa</state>
+                    <state>$PROJ_DIR$/../../../../../components/lists</state>
                     <state>$PROJ_DIR$/../../../../../components/codec</state>
                     <state>$PROJ_DIR$/../../../../../components/codec/i2c</state>
                     <state>$PROJ_DIR$/../../../../../components/codec/port</state>
@@ -1483,6 +1491,14 @@
                     <state>$PROJ_DIR$/../../../../../components/serial_manager</state>
                     <state>$PROJ_DIR$/../../../../../components/uart</state>
                     <state>$PROJ_DIR$/../../../../../components/i2c</state>
+                    <state>$PROJ_DIR$/../../../../../components/video</state>
+                    <state>$PROJ_DIR$/../../../../../components/video/display</state>
+                    <state>$PROJ_DIR$/../../../../../components/video/display/dc</state>
+                    <state>$PROJ_DIR$/../../../../../components/video/display/dc/elcdif</state>
+                    <state>$PROJ_DIR$/../../../../../components/video/display/dc/lcdifv2</state>
+                    <state>$PROJ_DIR$/../../../../../components/video/display/rm68191</state>
+                    <state>$PROJ_DIR$/../../../../../components/video/display/rm68200</state>
+                    <state>$PROJ_DIR$/../../../../../components/video/display/mipi_dsi_cmd</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -1877,7 +1893,8 @@
                 </option>
                 <option>
                     <name>IlinkConfigDefines</name>
-                    <state></state>
+                    <state>__stack_size__=0x8000</state>
+                    <state>__heap_size__=0x1000000</state>
                 </option>
                 <option>
                     <name>IlinkMapFile</name>
@@ -1909,7 +1926,7 @@
                 </option>
                 <option>
                     <name>IlinkIcfFile</name>
-                    <state>$PROJ_DIR$/MIMXRT1062xxxxx_sdram.icf</state>
+                    <state>$PROJ_DIR$/MIMXRT1176xxxxx_cm7_sdram.icf</state>
                 </option>
                 <option>
                     <name>IlinkIcfFileSlave</name>
@@ -2258,7 +2275,7 @@
                 </option>
                 <option>
                     <name>OGLastSavedByProductVersion</name>
-                    <state>8.32.2.19370</state>
+                    <state>8.50.6.28950</state>
                 </option>
                 <option>
                     <name>GeneralEnableMisra</name>
@@ -2421,6 +2438,7 @@
                     <state>SDK_I2C_BASED_COMPONENT_USED=1</state>
                     <state>FSL_SDK_ENABLE_DRIVER_CACHE_CONTROL=1</state>
                     <state>BOARD_USE_CODEC=1</state>
+                    <state>SD_ENABLED</state>
                 </option>
                 <option>
                     <name>CCPreprocFile</name>
@@ -2550,16 +2568,17 @@
                     <state>$PROJ_DIR$/..</state>
                     <state>$PROJ_DIR$/../../..</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/drivers</state>
+                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/drivers/cm7</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/utilities/str</state>
-                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/utilities/debug_console</state>
+                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/utilities/debug_console_lite</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/utilities</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/xip</state>
                     <state>$PROJ_DIR$/../../../../../middleware/libjpeg/inc</state>
-                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/src</state>
-                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/inc</state>
-                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/port</state>
-                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/port/interrupt</state>
+                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/sd</state>
+                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/common</state>
+                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/host/usdhc</state>
+                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/osa</state>
                     <state>$PROJ_DIR$/../../../../../middleware/fatfs/source/fsl_sd_disk</state>
                     <state>$PROJ_DIR$/../../../../../middleware/fatfs/source</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/compat</state>
@@ -2567,6 +2586,8 @@
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/libavutil</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/libavformat</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg</state>
+                    <state>$PROJ_DIR$/../../../../../components/osa</state>
+                    <state>$PROJ_DIR$/../../../../../components/lists</state>
                     <state>$PROJ_DIR$/../../../../../components/codec</state>
                     <state>$PROJ_DIR$/../../../../../components/codec/i2c</state>
                     <state>$PROJ_DIR$/../../../../../components/codec/port</state>
@@ -3324,11 +3345,11 @@
                 </option>
                 <option>
                     <name>Input description</name>
-                    <state>Automatic choice of formatter.</state>
+                    <state>No specifier n, no float nor long long, no scan set, no assignment suppressing, without multibyte support.</state>
                 </option>
                 <option>
                     <name>Output description</name>
-                    <state>Automatic choice of formatter.</state>
+                    <state>No specifier a, A, no specifier n, no float nor long long, without multibyte support.</state>
                 </option>
                 <option>
                     <name>GOutputBinary</name>
@@ -3350,7 +3371,7 @@
                 </option>
                 <option>
                     <name>RTDescription</name>
-                    <state>0</state>
+                    <state>Use the normal configuration of the C/C++ runtime library. No locale interface, C locale, no file descriptor support, no multibytes in printf and scanf, and no hex floats in strtod.</state>
                 </option>
                 <option>
                     <name>OGProductVersion</name>
@@ -3358,7 +3379,7 @@
                 </option>
                 <option>
                     <name>OGLastSavedByProductVersion</name>
-                    <state>8.32.2.19370</state>
+                    <state>8.50.6.28950</state>
                 </option>
                 <option>
                     <name>GeneralEnableMisra</name>
@@ -4449,7 +4470,7 @@
                 </option>
                 <option>
                     <name>OGLastSavedByProductVersion</name>
-                    <state>8.32.2.19370</state>
+                    <state>8.50.6.28950</state>
                 </option>
                 <option>
                     <name>GeneralEnableMisra</name>
@@ -4612,6 +4633,7 @@
                     <state>SDK_I2C_BASED_COMPONENT_USED=1</state>
                     <state>FSL_SDK_ENABLE_DRIVER_CACHE_CONTROL=1</state>
                     <state>BOARD_USE_CODEC=1</state>
+                    <state>SD_ENABLED</state>
                 </option>
                 <option>
                     <name>CCPreprocFile</name>
@@ -4741,16 +4763,17 @@
                     <state>$PROJ_DIR$/..</state>
                     <state>$PROJ_DIR$/../../..</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/drivers</state>
+                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/drivers/cm7</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/utilities/str</state>
-                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/utilities/debug_console</state>
+                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/utilities/debug_console_lite</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/utilities</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/xip</state>
                     <state>$PROJ_DIR$/../../../../../middleware/libjpeg/inc</state>
-                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/src</state>
-                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/inc</state>
-                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/port</state>
-                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/port/interrupt</state>
+                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/sd</state>
+                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/common</state>
+                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/host/usdhc</state>
+                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/osa</state>
                     <state>$PROJ_DIR$/../../../../../middleware/fatfs/source/fsl_sd_disk</state>
                     <state>$PROJ_DIR$/../../../../../middleware/fatfs/source</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/compat</state>
@@ -4758,6 +4781,8 @@
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/libavutil</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/libavformat</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg</state>
+                    <state>$PROJ_DIR$/../../../../../components/osa</state>
+                    <state>$PROJ_DIR$/../../../../../components/lists</state>
                     <state>$PROJ_DIR$/../../../../../components/codec</state>
                     <state>$PROJ_DIR$/../../../../../components/codec/i2c</state>
                     <state>$PROJ_DIR$/../../../../../components/codec/port</state>
@@ -6642,7 +6667,7 @@
                 </option>
                 <option>
                     <name>OGLastSavedByProductVersion</name>
-                    <state>8.32.2.19370</state>
+                    <state>8.50.6.28950</state>
                 </option>
                 <option>
                     <name>GeneralEnableMisra</name>
@@ -6807,6 +6832,7 @@
                     <state>BOARD_USE_CODEC=1</state>
                     <state>RECONFIG_FLEXRAM_512KB_ITCM=1</state>
                     <state>FLASH_TYPE_HYPER=1</state>
+                    <state>SD_ENABLED</state>
                 </option>
                 <option>
                     <name>CCPreprocFile</name>
@@ -6935,17 +6961,18 @@
                     <state>$PROJ_DIR$/../../../../../devices</state>
                     <state>$PROJ_DIR$/..</state>
                     <state>$PROJ_DIR$/../../..</state>
-                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062/drivers</state>
-                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062</state>
-                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062/utilities/str</state>
-                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062/utilities/debug_console</state>
-                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062/utilities</state>
-                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1062/xip</state>
+                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/drivers</state>
+                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/drivers/cm7</state>
+                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176</state>
+                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/utilities/str</state>
+                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/utilities/debug_console_lite</state>
+                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/utilities</state>
+                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/xip</state>
                     <state>$PROJ_DIR$/../../../../../middleware/libjpeg/inc</state>
-                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/src</state>
-                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/inc</state>
-                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/port</state>
-                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/port/interrupt</state>
+                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/sd</state>
+                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/common</state>
+                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/host/usdhc</state>
+                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/osa</state>
                     <state>$PROJ_DIR$/../../../../../middleware/fatfs/source/fsl_sd_disk</state>
                     <state>$PROJ_DIR$/../../../../../middleware/fatfs/source</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/compat</state>
@@ -6953,6 +6980,8 @@
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/libavutil</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/libavformat</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg</state>
+                    <state>$PROJ_DIR$/../../../../../components/osa</state>
+                    <state>$PROJ_DIR$/../../../../../components/lists</state>
                     <state>$PROJ_DIR$/../../../../../components/codec</state>
                     <state>$PROJ_DIR$/../../../../../components/codec/i2c</state>
                     <state>$PROJ_DIR$/../../../../../components/codec/port</state>
@@ -6960,6 +6989,14 @@
                     <state>$PROJ_DIR$/../../../../../components/serial_manager</state>
                     <state>$PROJ_DIR$/../../../../../components/uart</state>
                     <state>$PROJ_DIR$/../../../../../components/i2c</state>
+                    <state>$PROJ_DIR$/../../../../../components/video</state>
+                    <state>$PROJ_DIR$/../../../../../components/video/display</state>
+                    <state>$PROJ_DIR$/../../../../../components/video/display/dc</state>
+                    <state>$PROJ_DIR$/../../../../../components/video/display/dc/elcdif</state>
+                    <state>$PROJ_DIR$/../../../../../components/video/display/dc/lcdifv2</state>
+                    <state>$PROJ_DIR$/../../../../../components/video/display/rm68191</state>
+                    <state>$PROJ_DIR$/../../../../../components/video/display/rm68200</state>
+                    <state>$PROJ_DIR$/../../../../../components/video/display/mipi_dsi_cmd</state>
                 </option>
                 <option>
                     <name>CCStdIncCheck</name>
@@ -8829,7 +8866,7 @@
                 </option>
                 <option>
                     <name>OGLastSavedByProductVersion</name>
-                    <state>8.32.2.19370</state>
+                    <state>8.50.6.28950</state>
                 </option>
                 <option>
                     <name>GeneralEnableMisra</name>
@@ -8993,6 +9030,7 @@
                     <state>FSL_SDK_ENABLE_DRIVER_CACHE_CONTROL=1</state>
                     <state>BOARD_USE_CODEC=1</state>
                     <state>MP4_LCD_BUFFER_OCRAM=1</state>
+                    <state>SD_ENABLED</state>
                 </option>
                 <option>
                     <name>CCPreprocFile</name>
@@ -9122,16 +9160,17 @@
                     <state>$PROJ_DIR$/..</state>
                     <state>$PROJ_DIR$/../../..</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/drivers</state>
+                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/drivers/cm7</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/utilities/str</state>
-                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/utilities/debug_console</state>
+                    <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/utilities/debug_console_lite</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/utilities</state>
                     <state>$PROJ_DIR$/../../../../../devices/MIMXRT1176/xip</state>
                     <state>$PROJ_DIR$/../../../../../middleware/libjpeg/inc</state>
-                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/src</state>
-                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/inc</state>
-                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/port</state>
-                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/port/interrupt</state>
+                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/sd</state>
+                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/common</state>
+                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/host/usdhc</state>
+                    <state>$PROJ_DIR$/../../../../../middleware/sdmmc/osa</state>
                     <state>$PROJ_DIR$/../../../../../middleware/fatfs/source/fsl_sd_disk</state>
                     <state>$PROJ_DIR$/../../../../../middleware/fatfs/source</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/compat</state>
@@ -9139,6 +9178,8 @@
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/libavutil</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg/libavformat</state>
                     <state>$PROJ_DIR$/../../../../../middleware/ffmpeg</state>
+                    <state>$PROJ_DIR$/../../../../../components/osa</state>
+                    <state>$PROJ_DIR$/../../../../../components/lists</state>
                     <state>$PROJ_DIR$/../../../../../components/codec</state>
                     <state>$PROJ_DIR$/../../../../../components/codec/i2c</state>
                     <state>$PROJ_DIR$/../../../../../components/codec/port</state>
@@ -10982,6 +11023,12 @@
         <file>
             <name>$PROJ_DIR$\..\pin_mux.h</name>
         </file>
+        <file>
+            <name>$PROJ_DIR$\..\sdmmc_config.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\sdmmc_config.h</name>
+        </file>
     </group>
     <group>
         <name>component</name>
@@ -11024,34 +11071,34 @@
         <group>
             <name>i2c</name>
             <file>
-                <name>$PROJ_DIR$\..\..\..\..\..\components\i2c\i2c.h</name>
+                <name>$PROJ_DIR$\..\..\..\..\..\components\i2c\fsl_adapter_i2c.h</name>
             </file>
             <file>
-                <name>$PROJ_DIR$\..\..\..\..\..\components\i2c\lpi2c_adapter.c</name>
+                <name>$PROJ_DIR$\..\..\..\..\..\components\i2c\fsl_adapter_lpi2c.c</name>
             </file>
         </group>
         <group>
-            <name>serial_manager</name>
+            <name>osa</name>
             <file>
-                <name>$PROJ_DIR$\..\..\..\..\..\components\serial_manager\serial_manager.c</name>
+                <name>$PROJ_DIR$\..\..\..\..\..\components\osa\fsl_os_abstraction.h</name>
             </file>
             <file>
-                <name>$PROJ_DIR$\..\..\..\..\..\components\serial_manager\serial_manager.h</name>
+                <name>$PROJ_DIR$\..\..\..\..\..\components\osa\fsl_os_abstraction_bm.c</name>
             </file>
             <file>
-                <name>$PROJ_DIR$\..\..\..\..\..\components\serial_manager\serial_port_uart.c</name>
+                <name>$PROJ_DIR$\..\..\..\..\..\components\osa\fsl_os_abstraction_bm.h</name>
             </file>
             <file>
-                <name>$PROJ_DIR$\..\..\..\..\..\components\serial_manager\serial_port_uart.h</name>
+                <name>$PROJ_DIR$\..\..\..\..\..\components\osa\fsl_os_abstraction_config.h</name>
             </file>
         </group>
         <group>
             <name>uart</name>
             <file>
-                <name>$PROJ_DIR$\..\..\..\..\..\components\uart\lpuart_adapter.c</name>
+                <name>$PROJ_DIR$\..\..\..\..\..\components\uart\fsl_adapter_lpuart.c</name>
             </file>
             <file>
-                <name>$PROJ_DIR$\..\..\..\..\..\components\uart\uart.h</name>
+                <name>$PROJ_DIR$\..\..\..\..\..\components\uart\fsl_adapter_uart.h</name>
             </file>
         </group>
         <group>
@@ -11109,22 +11156,16 @@
     <group>
         <name>drivers</name>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_anatop.c</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_anatop.h</name>
-        </file>
-        <file>
             <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_anatop_ai.c</name>
         </file>
         <file>
             <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_anatop_ai.h</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_cache.c</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\drivers\cm7\fsl_cache.c</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_cache.h</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\drivers\cm7\fsl_cache.h</name>
         </file>
         <file>
             <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_clock.c</name>
@@ -11194,6 +11235,12 @@
         </file>
         <file>
             <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_mipi_dsi.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_pmu.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_pmu.h</name>
         </file>
         <file>
             <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_pxp.c</name>
@@ -12386,42 +12433,42 @@
         <group>
             <name>sdmmc</name>
             <group>
-                <name>inc</name>
+                <name>host</name>
                 <file>
-                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\inc\fsl_sd.h</name>
+                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\host\usdhc\non_blocking\fsl_sdmmc_host.c</name>
                 </file>
                 <file>
-                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\inc\fsl_sdmmc_common.h</name>
-                </file>
-                <file>
-                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\inc\fsl_sdmmc_host.h</name>
-                </file>
-                <file>
-                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\inc\fsl_sdmmc_spec.h</name>
+                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\host\usdhc\fsl_sdmmc_host.h</name>
                 </file>
             </group>
             <group>
-                <name>port</name>
-                <group>
-                    <name>interrupt</name>
-                    <file>
-                        <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\port\usdhc\interrupt\fsl_sdmmc_event.c</name>
-                    </file>
-                    <file>
-                        <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\port\usdhc\interrupt\fsl_sdmmc_host.c</name>
-                    </file>
-                </group>
+                <name>inc</name>
                 <file>
-                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\port\fsl_sdmmc_event.h</name>
+                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\sd\fsl_sd.h</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\common\fsl_sdmmc_common.h</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\common\fsl_sdmmc_spec.h</name>
+                </file>
+            </group>
+            <group>
+                <name>osa</name>
+                <file>
+                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\osa\fsl_sdmmc_osa.c</name>
+                </file>
+                <file>
+                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\osa\fsl_sdmmc_osa.h</name>
                 </file>
             </group>
             <group>
                 <name>src</name>
                 <file>
-                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\src\fsl_sd.c</name>
+                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\sd\fsl_sd.c</name>
                 </file>
                 <file>
-                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\src\fsl_sdmmc_common.c</name>
+                    <name>$PROJ_DIR$\..\..\..\..\..\middleware\sdmmc\common\fsl_sdmmc_common.c</name>
                 </file>
             </group>
         </group>
@@ -12430,9 +12477,6 @@
         <name>source</name>
         <file>
             <name>$PROJ_DIR$\..\ffconf.h</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\jconfig.h</name>
         </file>
         <file>
             <name>$PROJ_DIR$\..\mp4.h</name>
@@ -12474,19 +12518,10 @@
             <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\utilities\fsl_assert.c</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\utilities\debug_console\fsl_debug_console.c</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\utilities\debug_console_lite\fsl_debug_console.c</name>
         </file>
         <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\utilities\debug_console\fsl_debug_console.h</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\utilities\debug_console\fsl_debug_console_conf.h</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\utilities\str\fsl_str.c</name>
-        </file>
-        <file>
-            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\utilities\str\fsl_str.h</name>
+            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\utilities\debug_console_lite\fsl_debug_console.h</name>
         </file>
     </group>
     <group>

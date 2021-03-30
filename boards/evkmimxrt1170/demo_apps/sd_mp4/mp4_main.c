@@ -19,6 +19,7 @@
 #include "diskio.h"
 #include "fsl_sd_disk.h"
 #include "fsl_sai.h"
+#include "sdmmc_config.h"
 #include "mp4.h"
 /*******************************************************************************
  * Definitions
@@ -55,14 +56,6 @@ AT_NONCACHEABLE_SECTION(static FATFS g_fileSystem); /* File system object */
 extern sd_card_t g_sd; /* sd card descriptor */
 volatile bool sdcard = false;
 
-static const sdmmchost_detect_card_t s_sdCardDetect = {
-#ifndef BOARD_SD_DETECT_TYPE
-    .cdType = kSDMMCHOST_DetectCardByGpioCD,
-#else
-    .cdType = BOARD_SD_DETECT_TYPE,
-#endif
-    .cdTimeOut_ms = (~0U),
-};
 /*! @brief SDMMC card power control configuration */
 #if defined DEMO_SDCARD_POWER_CTRL_FUNCTION_EXIST
 static const sdmmchost_pwr_card_t s_sdCardPwrCtrl = {
@@ -88,14 +81,8 @@ static uint32_t s_cachedAudioFrames = 0;
 //--------------------- SD/eMMC ------------------------
 static status_t sdcard_wait_insert(void)
 {
-    /* Save host information. */
-    g_sd.host.base = SD_HOST_BASEADDR;
-    g_sd.host.sourceClock_Hz = SD_HOST_CLK_FREQ;
-    /* card detect type */
-    g_sd.usrParam.cd = &s_sdCardDetect;
-#if defined DEMO_SDCARD_POWER_CTRL_FUNCTION_EXIST
-    g_sd.usrParam.pwr = &s_sdCardPwrCtrl;
-#endif
+    BOARD_SD_Config(&g_sd, NULL, BOARD_SDMMC_SD_HOST_IRQ_PRIORITY, NULL);
+
     /* SD host init function */
     if (SD_HostInit(&g_sd) != kStatus_Success)
     {
@@ -103,13 +90,13 @@ static status_t sdcard_wait_insert(void)
         return kStatus_Fail;
     }
     /* power off card */
-    SD_PowerOffCard(g_sd.host.base, g_sd.usrParam.pwr);
+    SD_SetCardPower(&g_sd, false);
     /* wait card insert */
-    if (SD_WaitCardDetectStatus(SD_HOST_BASEADDR, &s_sdCardDetect, true) == kStatus_Success)
+    if (SD_PollingCardInsert(&g_sd, kSD_Inserted) == kStatus_Success)
     {
         PRINTF("\r\nCard inserted.\r\n");
         /* power on the card */
-        SD_PowerOnCard(g_sd.host.base, g_sd.usrParam.pwr);
+        SD_SetCardPower(&g_sd, true);
     }
     else
     {
@@ -625,14 +612,6 @@ int main(void)
     BOARD_InitDebugConsole();
 
     PRINTF("MP4 decode demo start:\r\n");
-
-    clock_root_config_t rootCfg = {0};
-
-    CLOCK_EnableOscRc400M();
-    /* Configure USDHC1 using RC400M divided by 1 */
-    rootCfg.mux = 2;
-    rootCfg.div = 0;
-    CLOCK_SetRootClock(kCLOCK_Root_Usdhc1, &rootCfg);
 
     // Init the SD card
     if (0 != sdcard_mount())
