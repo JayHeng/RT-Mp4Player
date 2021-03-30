@@ -629,9 +629,9 @@ int main(void)
     g_audioSaiCfg.sampleWidth_bit = AUDIO_CONV_WIDTH;
     g_videoLcdCfg.isLcdConfigured = false;
 
-    char *filepath_in="/G_640x640_faststart.mp4";
-    char *filepath_aout="/G_640x640_faststart.pcm";
-    char *filepath_vout="/G_640x640_faststart.yuv";
+    char *filepath_in="/bigBuckBunny_480x272_faststart.mp4";
+    char *filepath_aout="/bigBuckBunny_480x272_faststart.pcm";
+    char *filepath_vout="/bigBuckBunny_480x272_faststart.yuv";
 
     while(1)
     {

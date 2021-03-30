@@ -203,7 +203,7 @@ void set_sai_clock_dividers(uint32_t bitWidth, uint32_t sampleRate_Hz, sai_mono_
         uint32_t masterClockHz = get_sai_clock_freq();
         for (uint32_t bitDiv = 0; bitDiv <= MAX_SAI_BIT_CLK_DIV; bitDiv++)
         {
-            uint32_t srcBitClockHz = masterClockHz / 2 / bitDiv;
+            uint32_t srcBitClockHz = masterClockHz / 2 / (bitDiv + 1);
             if (destBitClockHz == srcBitClockHz)
             {
                 bestDivider = s_clockSourceDivider;
