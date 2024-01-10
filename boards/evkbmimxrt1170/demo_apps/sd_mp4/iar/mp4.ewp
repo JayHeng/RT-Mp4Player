@@ -2329,7 +2329,7 @@
                 </option>
                 <option>
                     <name>RTDescription</name>
-                    <state>Use the normal configuration of the C/C++ runtime library. No locale interface, C locale, no file descriptor support, no multibytes in printf and scanf, and no hex floats in strtod.</state>
+                    <state>A compact configuration of the C/C++14 runtime library. No locale interface, C locale, no file descriptor support, no multibytes in printf and scanf, and no hex floats in strtod.</state>
                 </option>
                 <option>
                     <name>OGProductVersion</name>
@@ -2624,7 +2624,7 @@
                 </option>
                 <option>
                     <name>CCIncludePath2</name>
-                    <state>$PROJ_DIR$/../../../../../CMSIS/Include</state>
+                    <state>$PROJ_DIR$/../../../../../CMSIS/Core/Include</state>
                     <state>$PROJ_DIR$/../../../../../devices</state>
                     <state>$PROJ_DIR$/..</state>
                     <state>$PROJ_DIR$/../../..</state>
@@ -2656,6 +2656,7 @@
                     <state>$PROJ_DIR$/../../../../../components/serial_manager</state>
                     <state>$PROJ_DIR$/../../../../../components/uart</state>
                     <state>$PROJ_DIR$/../../../../../components/i2c</state>
+                    <state>$PROJ_DIR$/../../../../../components/gpio</state>
                     <state>$PROJ_DIR$/../../../../../components/video</state>
                     <state>$PROJ_DIR$/../../../../../components/video/display</state>
                     <state>$PROJ_DIR$/../../../../../components/video/display/dc</state>
@@ -2663,6 +2664,7 @@
                     <state>$PROJ_DIR$/../../../../../components/video/display/dc/lcdifv2</state>
                     <state>$PROJ_DIR$/../../../../../components/video/display/rm68191</state>
                     <state>$PROJ_DIR$/../../../../../components/video/display/rm68200</state>
+                    <state>$PROJ_DIR$/../../../../../components/video/display/hx8394</state>
                     <state>$PROJ_DIR$/../../../../../components/video/display/mipi_dsi_cmd</state>
                 </option>
                 <option>
@@ -11336,7 +11338,7 @@
             <group>
                 <name>port</name>
                 <file>
-                    <name>$PROJ_DIR$\..\..\..\..\..\components\codec\port\wm8960\fsl_codec_adapter.c</name>
+                    <name>$PROJ_DIR$\..\..\..\..\..\components\codec\port\fsl_codec_adapter.c</name>
                 </file>
                 <file>
                     <name>$PROJ_DIR$\..\..\..\..\..\components\codec\port\fsl_codec_adapter.h</name>
@@ -11356,6 +11358,15 @@
             </file>
             <file>
                 <name>$PROJ_DIR$\..\..\..\..\..\components\codec\fsl_codec_common.h</name>
+            </file>
+        </group>
+        <group>
+            <name>gpio</name>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\components\gpio\fsl_adapter_gpio.h</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\components\gpio\fsl_adapter_igpio.c</name>
             </file>
         </group>
         <group>
@@ -11410,6 +11421,12 @@
             </file>
             <file>
                 <name>$PROJ_DIR$\..\..\..\..\..\components\video\display\fsl_display.h</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\components\video\display\hx8394\fsl_hx8394.c</name>
+            </file>
+            <file>
+                <name>$PROJ_DIR$\..\..\..\..\..\components\video\display\hx8394\fsl_hx8394.h</name>
             </file>
             <file>
                 <name>$PROJ_DIR$\..\..\..\..\..\components\video\display\mipi_dsi_cmd\fsl_mipi_dsi_cmd.c</name>
@@ -11468,6 +11485,18 @@
         </file>
         <file>
             <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_common.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_common_arm.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_common_arm.h</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_dcdc.c</name>
+        </file>
+        <file>
+            <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_dcdc.h</name>
         </file>
         <file>
             <name>$PROJ_DIR$\..\..\..\..\..\devices\MIMXRT1176\drivers\fsl_dmamux.c</name>

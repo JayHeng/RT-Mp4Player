@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 NXP
+ * Copyright 2019-2021, 2023 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -9,23 +9,22 @@
 #define _DISPLAY_SUPPORT_H_
 
 #include "fsl_dc_fb.h"
-#include "mp4.h"
 
 /*******************************************************************************
  * Definitions
  ******************************************************************************/
-#define DEMO_PANEL_RK055AHD091 0
-#define DEMO_PANEL_RK055IQH091 1
+
+/* @TEST_ANCHOR */
+
+#define DEMO_PANEL_RK055AHD091 0 /* 720 * 1280, RK055AHD091-CTG(RK055HDMIPI4M) */
+#define DEMO_PANEL_RK055IQH091 1 /* 540 * 960,  RK055IQH091-CTG */
+#define DEMO_PANEL_RK055MHD091 2 /* 720 * 1280, RK055MHD091A0-CTG(RK055HDMIPI4MA0) */
 
 #define DEMO_DISPLAY_CONTROLLER_ELCDIF  0
 #define DEMO_DISPLAY_CONTROLLER_LCDIFV2 1
 
 #ifndef DEMO_PANEL
-#if VIDEO_LCD_RESOLUTION_SVGA540 == 1
-#define DEMO_PANEL DEMO_PANEL_RK055IQH091
-#elif VIDEO_LCD_RESOLUTION_WXGA720 == 1
-#define DEMO_PANEL DEMO_PANEL_RK055AHD091
-#endif
+#define DEMO_PANEL DEMO_PANEL_RK055MHD091
 #endif
 
 #ifndef DEMO_DISPLAY_CONTROLLER
@@ -47,10 +46,27 @@
 /* Definitions for the frame buffer. */
 #define DEMO_BUFFER_COUNT 2 /* 2 is enough for DPI interface display. */
 
+#ifndef DEMO_USE_XRGB8888
+#define DEMO_USE_XRGB8888 0
+#endif
+
+/* Use LCDIF LUT (or named color palette) which is 8-bit per-pixel */
+#ifndef DEMO_USE_LUT8
+#define DEMO_USE_LUT8 0
+#endif
+
+#if DEMO_USE_XRGB8888
+#define DEMO_BUFFER_PIXEL_FORMAT   kVIDEO_PixelFormatXRGB8888
+#define DEMO_BUFFER_BYTE_PER_PIXEL 4
+#elif DEMO_USE_LUT8
+#define DEMO_BUFFER_PIXEL_FORMAT   kVIDEO_PixelFormatLUT8
+#define DEMO_BUFFER_BYTE_PER_PIXEL 1
+#else
 #define DEMO_BUFFER_PIXEL_FORMAT   kVIDEO_PixelFormatRGB565
 #define DEMO_BUFFER_BYTE_PER_PIXEL 2
+#endif
 
-#if (DEMO_PANEL_RK055AHD091 == DEMO_PANEL)
+#if ((DEMO_PANEL_RK055AHD091 == DEMO_PANEL) || (DEMO_PANEL_RK055MHD091 == DEMO_PANEL))
 
 #define DEMO_PANEL_WIDTH  (720)
 #define DEMO_PANEL_HEIGHT (1280)

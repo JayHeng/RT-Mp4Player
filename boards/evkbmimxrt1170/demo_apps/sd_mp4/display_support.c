@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 NXP
+ * Copyright 2019-2021, 2023 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -8,8 +8,13 @@
 #include "display_support.h"
 #include "fsl_gpio.h"
 #include "fsl_mipi_dsi.h"
+#if (DEMO_PANEL_RK055AHD091 == DEMO_PANEL)
 #include "fsl_rm68200.h"
+#elif (DEMO_PANEL_RK055IQH091 == DEMO_PANEL)
 #include "fsl_rm68191.h"
+#elif (DEMO_PANEL_RK055MHD091 == DEMO_PANEL)
+#include "fsl_hx8394.h"
+#endif
 #include "pin_mux.h"
 #include "board.h"
 #include "fsl_debug_console.h"
@@ -19,7 +24,6 @@
 #else
 #include "fsl_dc_fb_elcdif.h"
 #endif
-#include "mp4.h"
 
 /*******************************************************************************
  * Definitions
@@ -46,20 +50,29 @@
 #define DEMO_VFP 16
 #define DEMO_VBP 14
 
+#elif (DEMO_PANEL_RK055MHD091 == DEMO_PANEL)
+
+#define DEMO_HSW 6
+#define DEMO_HFP 12
+#define DEMO_HBP 24
+#define DEMO_VSW 2
+#define DEMO_VFP 16
+#define DEMO_VBP 14
+
 #endif
 
 #if (DEMO_DISPLAY_CONTROLLER == DEMO_DISPLAY_CONTROLLER_LCDIFV2)
 
 #define DEMO_LCDIF_POL_FLAGS                                                             \
     (kLCDIFV2_DataEnableActiveHigh | kLCDIFV2_VsyncActiveLow | kLCDIFV2_HsyncActiveLow | \
-     kLCDIFV2_DriveDataOnRisingClkEdge)
+     kLCDIFV2_DriveDataOnFallingClkEdge)
 
 #define DEMO_LCDIF LCDIFV2
 
 #else
 
 #define DEMO_LCDIF_POL_FLAGS \
-    (kELCDIF_DataEnableActiveHigh | kELCDIF_VsyncActiveLow | kELCDIF_HsyncActiveLow | kELCDIF_DriveDataOnRisingClkEdge)
+    (kELCDIF_DataEnableActiveHigh | kELCDIF_VsyncActiveLow | kELCDIF_HsyncActiveLow | kELCDIF_DriveDataOnFallingClkEdge)
 
 #define DEMO_LCDIF LCDIF
 
@@ -86,7 +99,7 @@
 
 static void BOARD_PullPanelResetPin(bool pullUp);
 static void BOARD_PullPanelPowerPin(bool pullUp);
-void BOARD_InitLcdifClock(void);
+static void BOARD_InitLcdifClock(void);
 static void BOARD_InitMipiDsiClock(void);
 static status_t BOARD_DSI_Transfer(dsi_transfer_t *xfer);
 
@@ -99,12 +112,11 @@ static uint32_t mipiDsiDphyBitClkFreq_Hz;
 static uint32_t mipiDsiDphyRefClkFreq_Hz;
 static uint32_t mipiDsiDpiClkFreq_Hz;
 
-MIPI_DSI_Type g_mipiDsi =
-{
-    .host = MIPI_DSI__DSI_HOST,
-    .apb = MIPI_DSI__DSI_HOST_APB_PKT_IF,
-    .dpi = MIPI_DSI__DSI_HOST_DPI_INTFC,
-    .dphy = MIPI_DSI__DSI_HOST_DPHY_INTFC,
+const MIPI_DSI_Type g_mipiDsi = {
+    .host = DSI_HOST,
+    .apb  = DSI_HOST_APB_PKT_IF,
+    .dpi  = DSI_HOST_DPI_INTFC,
+    .dphy = DSI_HOST_DPHY_INTFC,
 };
 
 #if (DEMO_PANEL == DEMO_PANEL_RK055AHD091)
@@ -123,6 +135,24 @@ static const rm68200_resource_t rm68200Resource = {
 static display_handle_t rm68200Handle = {
     .resource = &rm68200Resource,
     .ops      = &rm68200_ops,
+};
+
+#elif (DEMO_PANEL == DEMO_PANEL_RK055MHD091)
+
+static mipi_dsi_device_t dsiDevice = {
+    .virtualChannel = 0,
+    .xferFunc       = BOARD_DSI_Transfer,
+};
+
+static const hx8394_resource_t hx8394Resource = {
+    .dsiDevice    = &dsiDevice,
+    .pullResetPin = BOARD_PullPanelResetPin,
+    .pullPowerPin = BOARD_PullPanelPowerPin,
+};
+
+static display_handle_t hx8394Handle = {
+    .resource = &hx8394Resource,
+    .ops      = &hx8394_ops,
 };
 
 #else
@@ -190,7 +220,11 @@ const dc_fb_elcdif_config_t s_dcFbElcdifConfig = {
     .vfp           = DEMO_VFP,
     .vbp           = DEMO_VBP,
     .polarityFlags = DEMO_LCDIF_POL_FLAGS,
+#if (!DEMO_USE_XRGB8888) && (DEMO_USE_LUT8)
+    .dataBus       = kELCDIF_DataBus8Bit,
+#else
     .dataBus       = kELCDIF_DataBus24Bit,
+#endif
 };
 
 const dc_fb_t g_dc = {
@@ -233,7 +267,7 @@ static status_t BOARD_DSI_Transfer(dsi_transfer_t *xfer)
     return DSI_TransferBlocking(DEMO_MIPI_DSI, xfer);
 }
 
-void BOARD_InitLcdifClock(void)
+static void BOARD_InitLcdifClock(void)
 {
     /*
      * The pixel clock is (height + VSW + VFP + VBP) * (width + HSW + HFP + HBP) * frame rate.
@@ -244,22 +278,10 @@ void BOARD_InitLcdifClock(void)
     const clock_root_config_t lcdifClockConfig = {
         .clockOff = false,
         .mux      = 4, /*!< PLL_528. */
-#if (DEMO_PANEL == DEMO_PANEL_RK055AHD091)
-#if VIDEO_LCD_REFRESH_FREG_60Hz == 1
-        .div = 8,
-#elif VIDEO_LCD_REFRESH_FREG_30Hz == 1
-        .div = 17,
-#elif VIDEO_LCD_REFRESH_FREG_25Hz == 1
-        .div = 20,
-#endif
+#if ((DEMO_PANEL == DEMO_PANEL_RK055AHD091) || (DEMO_PANEL_RK055MHD091 == DEMO_PANEL))
+        .div = 9,
 #else
-#if VIDEO_LCD_REFRESH_FREG_60Hz == 1
-        .div = 14,
-#elif VIDEO_LCD_REFRESH_FREG_30Hz == 1
-        .div = 29,
-#elif VIDEO_LCD_REFRESH_FREG_25Hz == 1
-        .div = 35,
-#endif
+        .div = 15,
 #endif
     };
 
@@ -294,9 +316,7 @@ static void BOARD_InitMipiDsiClock(void)
     mipiDsiEscClkFreq_Hz = CLOCK_GetRootClockFreq(kCLOCK_Root_Mipi_Esc);
 
     const clock_group_config_t mipiEscClockGroupConfig = {
-        .clockOff = false,
-        .resetDiv = 2,
-        .div0     = 2, /* TX esc clock. */
+        .clockOff = false, .resetDiv = 2, .div0 = 2, /* TX esc clock. */
     };
 
     CLOCK_SetGroupConfig(kCLOCK_Group_MipiDsi, &mipiEscClockGroupConfig);
@@ -339,6 +359,10 @@ static status_t BOARD_InitLcdPanel(void)
 
 #if (DEMO_PANEL == DEMO_PANEL_RK055AHD091)
     status = RM68200_Init(&rm68200Handle, &displayConfig);
+
+#elif (DEMO_PANEL_RK055MHD091 == DEMO_PANEL)
+
+    status = HX8394_Init(&hx8394Handle, &displayConfig);
 
 #else
 
