@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 NXP
+ * Copyright 2017-2023 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -24,11 +24,15 @@
 #else
 #define SEMC_IOCR_PINMUXBITWIDTH (0x3UL)
 #endif /* FSL_FEATURE_SEMC_SUPPORT_SRAM_COUNT */
-#define SEMC_IOCR_NAND_CE                     (4UL)
-#define SEMC_IOCR_NOR_CE                      (5UL)
-#define SEMC_IOCR_NOR_CE_A8                   (2UL)
-#define SEMC_IOCR_PSRAM_CE                    (6UL)
-#define SEMC_IOCR_PSRAM_CE_A8                 (3UL)
+#define SEMC_IOCR_NAND_CE   (4UL)
+#define SEMC_IOCR_NOR_CE    (5UL)
+#define SEMC_IOCR_NOR_CE_A8 (2UL)
+#define SEMC_IOCR_PSRAM_CE  (6UL)
+#if defined(SEMC_IOCR_PINMUXBITWIDTH) && (SEMC_IOCR_PINMUXBITWIDTH == 0x4UL)
+#define SEMC_IOCR_PSRAM_CE_A8 (6UL)
+#else
+#define SEMC_IOCR_PSRAM_CE_A8 (3UL)
+#endif /* SEMC_IOCR_PINMUXBITWIDTH */
 #define SEMC_IOCR_DBI_CSX                     (7UL)
 #define SEMC_IOCR_DBI_CSX_A8                  (4UL)
 #define SEMC_NORFLASH_SRAM_ADDR_PORTWIDTHBASE (24U)
@@ -50,6 +54,51 @@
 #define SEMC_SDRAM_MODESETCAL_OFFSET          (4U)
 #define SEMC_BR_REG_NUM                       (9U)
 #define SEMC_BYTE_NUMBIT                      (8U)
+
+#ifdef SEMC_DBICR1_REH_MASK
+#if ((SEMC_DBICR1_REH_MASK >> SEMC_DBICR1_REH_SHIFT) == 0x1U)
+#define SEMC_DBICR1_REH_WIDTH 1U
+#elif ((SEMC_DBICR1_REH_MASK >> SEMC_DBICR1_REH_SHIFT) == 0x3U)
+#define SEMC_DBICR1_REH_WIDTH 2U
+#elif ((SEMC_DBICR1_REH_MASK >> SEMC_DBICR1_REH_SHIFT) == 0x7U)
+#define SEMC_DBICR1_REH_WIDTH 3U
+#elif ((SEMC_DBICR1_REH_MASK >> SEMC_DBICR1_REH_SHIFT) == 0xFU)
+#define SEMC_DBICR1_REH_WIDTH 4U
+#elif ((SEMC_DBICR1_REH_MASK >> SEMC_DBICR1_REH_SHIFT) == 0x1FU)
+#define SEMC_DBICR1_REH_WIDTH 5U
+#elif ((SEMC_DBICR1_REH_MASK >> SEMC_DBICR1_REH_SHIFT) == 0x3FU)
+#define SEMC_DBICR1_REH_WIDTH 6U
+#elif ((SEMC_DBICR1_REH_MASK >> SEMC_DBICR1_REH_SHIFT) == 0x7FU)
+#define SEMC_DBICR1_REH_WIDTH 7U
+#elif ((SEMC_DBICR1_REH_MASK >> SEMC_DBICR1_REH_SHIFT) == 0xFFU)
+#define SEMC_DBICR1_REH_WIDTH 8U
+#else
+#error SEMC_DBICR1_REH width not supported
+#endif
+#endif /* SEMC_DBICR1_REH_MASK */
+
+#ifdef SEMC_DBICR1_REL_MASK
+#if ((SEMC_DBICR1_REL_MASK >> SEMC_DBICR1_REL_SHIFT) == 0x1U)
+#define SEMC_DBICR1_REL_WIDTH 1U
+#elif ((SEMC_DBICR1_REL_MASK >> SEMC_DBICR1_REL_SHIFT) == 0x3U)
+#define SEMC_DBICR1_REL_WIDTH 2U
+#elif ((SEMC_DBICR1_REL_MASK >> SEMC_DBICR1_REL_SHIFT) == 0x7U)
+#define SEMC_DBICR1_REL_WIDTH 3U
+#elif ((SEMC_DBICR1_REL_MASK >> SEMC_DBICR1_REL_SHIFT) == 0xFU)
+#define SEMC_DBICR1_REL_WIDTH 4U
+#elif ((SEMC_DBICR1_REL_MASK >> SEMC_DBICR1_REL_SHIFT) == 0x1FU)
+#define SEMC_DBICR1_REL_WIDTH 5U
+#elif ((SEMC_DBICR1_REL_MASK >> SEMC_DBICR1_REL_SHIFT) == 0x3FU)
+#define SEMC_DBICR1_REL_WIDTH 6U
+#elif ((SEMC_DBICR1_REL_MASK >> SEMC_DBICR1_REL_SHIFT) == 0x7FU)
+#define SEMC_DBICR1_REL_WIDTH 7U
+#elif ((SEMC_DBICR1_REL_MASK >> SEMC_DBICR1_REL_SHIFT) == 0xFFU)
+#define SEMC_DBICR1_REL_WIDTH 8U
+#else
+#error SEMC_DBICR1_REL width not supported
+#endif
+#endif /* SEMC_DBICR1_REL_MASK */
+
 /*******************************************************************************
  * Prototypes
  ******************************************************************************/
@@ -63,12 +112,11 @@ static uint32_t SEMC_GetInstance(SEMC_Type *base);
 /*!
  * @brief Covert the input memory size to internal register set value.
  *
- * @param base SEMC peripheral base address
  * @param size_kbytes SEMC memory size in unit of kbytes.
  * @param sizeConverted SEMC converted memory size to 0 ~ 0x1F.
  * @return Execution status.
  */
-static status_t SEMC_CovertMemorySize(SEMC_Type *base, uint32_t size_kbytes, uint8_t *sizeConverted);
+static status_t SEMC_CovertMemorySize(uint32_t size_kbytes, uint8_t *sizeConverted);
 
 /*!
  * @brief Covert the external timing nanosecond to internal clock cycle.
@@ -131,7 +179,7 @@ static uint32_t SEMC_GetInstance(SEMC_Type *base)
     return instance;
 }
 
-static status_t SEMC_CovertMemorySize(SEMC_Type *base, uint32_t size_kbytes, uint8_t *sizeConverted)
+static status_t SEMC_CovertMemorySize(uint32_t size_kbytes, uint8_t *sizeConverted)
 {
     assert(sizeConverted != NULL);
     uint32_t memsize;
@@ -266,12 +314,12 @@ void SEMC_GetDefaultConfig(semc_config_t *config)
 
     queueaWeight->qos              = SEMC_BMCR0_TYPICAL_WQOS;
     queueaWeight->aging            = SEMC_BMCR0_TYPICAL_WAGE;
-    queueaWeight->slaveHitSwith    = SEMC_BMCR0_TYPICAL_WSH;
-    queueaWeight->slaveHitNoswitch = SEMC_BMCR0_TYPICAL_WRWS;
+    queueaWeight->slaveHitNoswitch = SEMC_BMCR0_TYPICAL_WSH;
+    queueaWeight->slaveHitSwitch   = SEMC_BMCR0_TYPICAL_WRWS;
     queuebWeight->qos              = SEMC_BMCR1_TYPICAL_WQOS;
     queuebWeight->aging            = SEMC_BMCR1_TYPICAL_WAGE;
-    queuebWeight->slaveHitSwith    = SEMC_BMCR1_TYPICAL_WRWS;
     queuebWeight->weightPagehit    = SEMC_BMCR1_TYPICAL_WPH;
+    queuebWeight->slaveHitNoswitch = SEMC_BMCR1_TYPICAL_WRWS;
     queuebWeight->bankRotation     = SEMC_BMCR1_TYPICAL_WBR;
 }
 
@@ -408,7 +456,7 @@ status_t SEMC_ConfigureSDRAM(SEMC_Type *base, semc_sdram_cs_t cs, semc_sdram_con
     uint32_t iocReg = base->IOCR & (~(SEMC_IOCR_PINMUXBITWIDTH << (uint32_t)config->csxPinMux));
 
     /* Base control. */
-    result = SEMC_CovertMemorySize(base, config->memsize_kbytes, &memsize);
+    result = SEMC_CovertMemorySize(config->memsize_kbytes, &memsize);
     if (result != kStatus_Success)
     {
         return result;
@@ -541,14 +589,14 @@ status_t SEMC_ConfigureNAND(SEMC_Type *base, semc_nand_config_t *config, uint32_
     {
         base->MCR &= ~SEMC_MCR_WPOL1_MASK;
     }
-    result = SEMC_CovertMemorySize(base, config->axiMemsize_kbytes, &memsize);
+    result = SEMC_CovertMemorySize(config->axiMemsize_kbytes, &memsize);
     if (result != kStatus_Success)
     {
         return result;
     }
     base->BR[4] = (config->axiAddress & SEMC_BR_BA_MASK) | SEMC_BR_MS(memsize) | SEMC_BR_VLD_MASK;
 
-    result = SEMC_CovertMemorySize(base, config->ipgMemsize_kbytes, &memsize);
+    result = SEMC_CovertMemorySize(config->ipgMemsize_kbytes, &memsize);
     if (result != kStatus_Success)
     {
         return result;
@@ -627,15 +675,13 @@ status_t SEMC_ConfigureNOR(SEMC_Type *base, semc_nor_config_t *config, uint32_t 
     /* Address bit setting. */
     if (config->addrPortWidth > SEMC_NORFLASH_SRAM_ADDR_PORTWIDTHBASE)
     {
-        if (config->addrPortWidth >= (SEMC_NORFLASH_SRAM_ADDR_PORTWIDTHBASE + 1U))
+        /* Address bit 24 (A24) */
+        base->IOCR &= ~(uint32_t)SEMC_IOCR_MUX_CSX0_MASK;
+        if (config->cePinMux == kSEMC_MUXCSX0)
         {
-            /* Address bit 24 (A24) */
-            base->IOCR &= ~(uint32_t)SEMC_IOCR_MUX_CSX0_MASK;
-            if (config->cePinMux == kSEMC_MUXCSX0)
-            {
-                return kStatus_SEMC_InvalidSwPinmuxSelection;
-            }
+            return kStatus_SEMC_InvalidSwPinmuxSelection;
         }
+
         if (config->addrPortWidth >= (SEMC_NORFLASH_SRAM_ADDR_PORTWIDTHBASE + 2U))
         {
             /* Address bit 25 (A25) */
@@ -689,7 +735,7 @@ status_t SEMC_ConfigureNOR(SEMC_Type *base, semc_nor_config_t *config, uint32_t 
     {
         base->MCR &= ~SEMC_MCR_WPOL0_MASK;
     }
-    result = SEMC_CovertMemorySize(base, config->memsize_kbytes, &memsize);
+    result = SEMC_CovertMemorySize(config->memsize_kbytes, &memsize);
     if (result != kStatus_Success)
     {
         return result;
@@ -728,7 +774,12 @@ status_t SEMC_ConfigureNOR(SEMC_Type *base, semc_nor_config_t *config, uint32_t 
 #endif /* FSL_FEATURE_SEMC_HAS_NOR_WDH_TIME */
     timing |= SEMC_NORCR2_TA(SEMC_ConvertTiming(config->tTurnAround_Ns, clkSrc_Hz));
     timing |= SEMC_NORCR2_AWDH((uint32_t)SEMC_ConvertTiming(config->tAddr2WriteHold_Ns, clkSrc_Hz) + 0x01UL);
-    timing |= SEMC_NORCR2_LC(config->latencyCount) | SEMC_NORCR2_RD((uint32_t)config->readCycle - 0x01UL);
+#if defined(FSL_FEATURE_SEMC_HAS_NOR_LC_TIME) && (FSL_FEATURE_SEMC_HAS_NOR_LC_TIME)
+    timing |= SEMC_NORCR2_LC(config->latencyCount);
+#endif
+#if defined(FSL_FEATURE_SEMC_HAS_NOR_RD_TIME) && (FSL_FEATURE_SEMC_HAS_NOR_RD_TIME)
+    timing |= SEMC_NORCR2_RD((uint32_t)config->readCycle - 0x01UL);
+#endif
 
     /* NORCR2 timing setting. */
     base->NORCR2 = timing;
@@ -768,6 +819,13 @@ status_t SEMC_ConfigureSRAMWithChipSelection(SEMC_Type *base,
     uint8_t memsize;
     status_t result = kStatus_Success;
 
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_WAITEN) && (FSL_FEATURE_SEMC_HAS_SRAM_WAITEN)
+    bool waitEnable;
+#endif
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_WAITSP) && (FSL_FEATURE_SEMC_HAS_SRAM_WAITSP)
+    uint8_t waitSample;
+#endif
+
     if ((config->address < SEMC_STARTADDRESS) || (config->address > SEMC_ENDADDRESS))
     {
         return kStatus_SEMC_InvalidBaseAddress;
@@ -784,15 +842,13 @@ status_t SEMC_ConfigureSRAMWithChipSelection(SEMC_Type *base,
     /* Address bit setting. */
     if (config->addrPortWidth > SEMC_NORFLASH_SRAM_ADDR_PORTWIDTHBASE)
     {
-        if (config->addrPortWidth >= (SEMC_NORFLASH_SRAM_ADDR_PORTWIDTHBASE + 1U))
+        /* Address bit 24 (A24) */
+        base->IOCR &= ~(uint32_t)SEMC_IOCR_MUX_CSX0_MASK;
+        if (config->cePinMux == kSEMC_MUXCSX0)
         {
-            /* Address bit 24 (A24) */
-            base->IOCR &= ~(uint32_t)SEMC_IOCR_MUX_CSX0_MASK;
-            if (config->cePinMux == kSEMC_MUXCSX0)
-            {
-                return kStatus_SEMC_InvalidSwPinmuxSelection;
-            }
+            return kStatus_SEMC_InvalidSwPinmuxSelection;
         }
+
         if (config->addrPortWidth >= (SEMC_NORFLASH_SRAM_ADDR_PORTWIDTHBASE + 2U))
         {
             /* Address bit 25 (A25) */
@@ -838,7 +894,7 @@ status_t SEMC_ConfigureSRAMWithChipSelection(SEMC_Type *base,
         }
     }
     /* Base control. */
-    result = SEMC_CovertMemorySize(base, config->memsize_kbytes, &memsize);
+    result = SEMC_CovertMemorySize(config->memsize_kbytes, &memsize);
     if (result != kStatus_Success)
     {
         return result;
@@ -869,44 +925,47 @@ status_t SEMC_ConfigureSRAMWithChipSelection(SEMC_Type *base,
             break;
     }
 
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_WAITEN) && (FSL_FEATURE_SEMC_HAS_SRAM_WAITEN)
+    waitEnable = config->waitEnable;
+#endif
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_WAITSP) && (FSL_FEATURE_SEMC_HAS_SRAM_WAITSP)
+    waitSample = config->waitSample;
+#endif
+
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_SYNCEN) && (FSL_FEATURE_SEMC_HAS_SRAM_SYNCEN)
+    /* Ready/wait(WAITEN and WAITSP) feature is only for async mode. */
+    if (kSEMC_AsyncMode != config->syncMode)
+    {
+        /* Set the waitEnable and waitSample to default value. */
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_WAITEN) && (FSL_FEATURE_SEMC_HAS_SRAM_WAITEN)
+        waitEnable = false;
+#endif
+
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_WAITSP) && (FSL_FEATURE_SEMC_HAS_SRAM_WAITSP)
+        waitSample = 0U;
+#endif
+    }
+#endif /* FSL_FEATURE_SEMC_HAS_SRAM_SYNCEN */
+
     /* PSRAM0 SRAMCRx timing setting. */
     if (kSEMC_SRAM_CS0 == cs)
     {
-#if defined(FSL_FEATURE_SEMC_SUPPORT_SRAM_COUNT) && (FSL_FEATURE_SEMC_SUPPORT_SRAM_COUNT > 0x01U)
-        /* Ready/wait(WAITEN and WAITSP) feature is only for async mode. */
-        if (kSEMC_AsyncMode == config->syncMode)
-        {
-            tempCtrlVal = SEMC_SRAMCR0_PS(config->portSize) |
-#if defined(SEMC_SRAMCR4_SYNCEN_MASK) && (SEMC_SRAMCR4_SYNCEN_MASK)
-                          SEMC_SRAMCR4_SYNCEN(config->syncMode) |
-#endif /* SEMC_SRAMCR4_SYNCEN_MASK */
-#if defined(SEMC_SRAMCR0_WAITEN_MASK) && (SEMC_SRAMCR0_WAITEN_MASK)
-                          SEMC_SRAMCR0_WAITEN(config->waitEnable) |
-#endif /* SEMC_SRAMCR0_WAITEN_MASK */
-#if defined(SEMC_SRAMCR0_WAITSP_MASK) && (SEMC_SRAMCR0_WAITSP_MASK)
-                          SEMC_SRAMCR0_WAITSP(config->waitSample) |
-#endif /* SEMC_SRAMCR0_WAITSP_MASK */
-                          SEMC_SRAMCR0_BL(config->burstLen) | SEMC_SRAMCR0_AM(config->addrMode) |
-                          SEMC_SRAMCR0_ADVP(config->advActivePolarity) |
-#if defined(SEMC_SRAMCR4_ADVH_MASK) && (SEMC_SRAMCR4_ADVH_MASK)
-                          SEMC_SRAMCR4_ADVH(config->advLevelCtrl) |
-#endif /* SEMC_SRAMCR4_ADVH_MASK */
-                          SEMC_SRAMCR0_COL_MASK;
-        }
-        else
-#endif /* FSL_FEATURE_SEMC_SUPPORT_SRAM_COUNT */
-        {
-            tempCtrlVal = SEMC_SRAMCR0_PS(config->portSize) |
-#if defined(SEMC_SRAMCR4_SYNCEN_MASK) && (SEMC_SRAMCR4_SYNCEN_MASK)
-                          SEMC_SRAMCR4_SYNCEN(config->syncMode) |
-#endif /* SEMC_SRAMCR4_SYNCEN_MASK */
-                          SEMC_SRAMCR0_BL(config->burstLen) | SEMC_SRAMCR0_AM(config->addrMode) |
-                          SEMC_SRAMCR0_ADVP(config->advActivePolarity) |
-#if defined(SEMC_SRAMCR4_ADVH_MASK) && (SEMC_SRAMCR4_ADVH_MASK)
-                          SEMC_SRAMCR4_ADVH(config->advLevelCtrl) |
-#endif /* SEMC_SRAMCR4_ADVH_MASK */
-                          SEMC_SRAMCR0_COL_MASK;
-        }
+        tempCtrlVal = SEMC_SRAMCR0_PS(config->portSize) |
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_SYNCEN) && (FSL_FEATURE_SEMC_HAS_SRAM_SYNCEN)
+                      SEMC_SRAMCR0_SYNCEN(config->syncMode) |
+#endif /* FSL_FEATURE_SEMC_HAS_SRAM_SYNCEN */
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_WAITEN) && (FSL_FEATURE_SEMC_HAS_SRAM_WAITEN)
+                      SEMC_SRAMCR0_WAITEN(waitEnable) |
+#endif /* FSL_FEATURE_SEMC_HAS_SRAM_WAITEN */
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_WAITSP) && (FSL_FEATURE_SEMC_HAS_SRAM_WAITSP)
+                      SEMC_SRAMCR0_WAITSP(waitSample) |
+#endif /* FSL_FEATURE_SEMC_HAS_SRAM_WAITSP */
+                      SEMC_SRAMCR0_BL(config->burstLen) | SEMC_SRAMCR0_AM(config->addrMode) |
+                      SEMC_SRAMCR0_ADVP(config->advActivePolarity) |
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_ADVH) && (FSL_FEATURE_SEMC_HAS_SRAM_ADVH)
+                      SEMC_SRAMCR0_ADVH(config->advLevelCtrl) |
+#endif /* FSL_FEATURE_SEMC_HAS_SRAM_ADVH */
+                      SEMC_SRAMCR0_COL_MASK;
 
         base->SRAMCR0 = tempCtrlVal;
     }
@@ -914,22 +973,22 @@ status_t SEMC_ConfigureSRAMWithChipSelection(SEMC_Type *base,
     /* PSRAM1~PSRAM3 SRAMCRx timing setting. */
     else
     {
-        /* Ready/wait(WAITEN and WAITSP) feature is only for async mode. */
-        if (kSEMC_AsyncMode == config->syncMode)
-        {
-            tempCtrlVal = SEMC_SRAMCR4_PS(config->portSize) | SEMC_SRAMCR4_SYNCEN(config->syncMode) |
-                          SEMC_SRAMCR4_WAITEN(config->waitEnable) | SEMC_SRAMCR4_WAITSP(config->waitSample) |
-                          SEMC_SRAMCR4_BL(config->burstLen) | SEMC_SRAMCR4_AM(config->addrMode) |
-                          SEMC_SRAMCR4_ADVP(config->advActivePolarity) | SEMC_SRAMCR4_ADVH(config->advLevelCtrl) |
-                          SEMC_SRAMCR4_COL_MASK;
-        }
-        else
-        {
-            tempCtrlVal = SEMC_SRAMCR4_PS(config->portSize) | SEMC_SRAMCR4_SYNCEN(config->syncMode) |
-                          SEMC_SRAMCR4_BL(config->burstLen) | SEMC_SRAMCR4_AM(config->addrMode) |
-                          SEMC_SRAMCR4_ADVP(config->advActivePolarity) | SEMC_SRAMCR4_ADVH(config->advLevelCtrl) |
-                          SEMC_SRAMCR4_COL_MASK;
-        }
+        tempCtrlVal = SEMC_SRAMCR4_PS(config->portSize) |
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_SYNCEN) && (FSL_FEATURE_SEMC_HAS_SRAM_SYNCEN)
+                      SEMC_SRAMCR4_SYNCEN(config->syncMode) |
+#endif /* FSL_FEATURE_SEMC_HAS_SRAM_SYNCEN */
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_WAITEN) && (FSL_FEATURE_SEMC_HAS_SRAM_WAITEN)
+                      SEMC_SRAMCR4_WAITEN(waitEnable) |
+#endif /* FSL_FEATURE_SEMC_HAS_SRAM_WAITEN */
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_WAITSP) && (FSL_FEATURE_SEMC_HAS_SRAM_WAITSP)
+                      SEMC_SRAMCR4_WAITSP(waitSample) |
+#endif /* FSL_FEATURE_SEMC_HAS_SRAM_WAITSP */
+                      SEMC_SRAMCR4_BL(config->burstLen) | SEMC_SRAMCR4_AM(config->addrMode) |
+                      SEMC_SRAMCR4_ADVP(config->advActivePolarity) |
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_ADVH) && (FSL_FEATURE_SEMC_HAS_SRAM_ADVH)
+                      SEMC_SRAMCR4_ADVH(config->advLevelCtrl) |
+#endif /* FSL_FEATURE_SEMC_HAS_SRAM_ADVH */
+                      SEMC_SRAMCR4_COL_MASK;
 
         base->SRAMCR4 = tempCtrlVal;
     }
@@ -977,11 +1036,21 @@ status_t SEMC_ConfigureSRAMWithChipSelection(SEMC_Type *base,
         /* SRAMCR1 timing setting. */
         base->SRAMCR1 = timing;
 
-        timing = SEMC_SRAMCR2_WDS(SEMC_ConvertTiming(config->tWriteSetup_Ns, clkSrc_Hz));
+        timing = 0x00U;
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_WDS_TIME) && (FSL_FEATURE_SEMC_HAS_SRAM_WDS_TIME)
+        timing |= SEMC_SRAMCR2_WDS(SEMC_ConvertTiming(config->tWriteSetup_Ns, clkSrc_Hz));
+#endif
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_WDH_TIME) && (FSL_FEATURE_SEMC_HAS_SRAM_WDH_TIME)
         timing |= SEMC_SRAMCR2_WDH((uint32_t)SEMC_ConvertTiming(config->tWriteHold_Ns, clkSrc_Hz) + 1UL);
+#endif
         timing |= SEMC_SRAMCR2_TA(SEMC_ConvertTiming(config->tTurnAround_Ns, clkSrc_Hz));
         timing |= SEMC_SRAMCR2_AWDH(SEMC_ConvertTiming(config->tAddr2WriteHold_Ns, clkSrc_Hz));
-        timing |= SEMC_SRAMCR2_LC(config->latencyCount) | SEMC_SRAMCR2_RD((uint32_t)config->readCycle - 1UL);
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_LC_TIME) && (FSL_FEATURE_SEMC_HAS_SRAM_LC_TIME)
+        timing |= SEMC_SRAMCR2_LC(config->latencyCount);
+#endif
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_RD_TIME) && (FSL_FEATURE_SEMC_HAS_SRAM_RD_TIME)
+        timing |= SEMC_SRAMCR2_RD((uint32_t)config->readCycle - 1UL);
+#endif
         timing |= SEMC_SRAMCR2_CEITV(SEMC_ConvertTiming(config->tCeInterval_Ns, clkSrc_Hz));
 #if defined(FSL_FEATURE_SEMC_HAS_SRAM_RDH_TIME) && (FSL_FEATURE_SEMC_HAS_SRAM_RDH_TIME)
         timing |= SEMC_SRAMCR2_RDH((uint32_t)SEMC_ConvertTiming(config->readHoldTime_Ns, clkSrc_Hz) + 0x01U);
@@ -1005,11 +1074,21 @@ status_t SEMC_ConfigureSRAMWithChipSelection(SEMC_Type *base,
         /* SRAMCR5 timing setting. */
         base->SRAMCR5 = timing;
 
+        timing = 0x00U;
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_WDS_TIME) && (FSL_FEATURE_SEMC_HAS_SRAM_WDS_TIME)
         timing = SEMC_SRAMCR6_WDS(SEMC_ConvertTiming(config->tWriteSetup_Ns, clkSrc_Hz));
+#endif
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_WDH_TIME) && (FSL_FEATURE_SEMC_HAS_SRAM_WDH_TIME)
         timing |= SEMC_SRAMCR6_WDH((uint32_t)SEMC_ConvertTiming(config->tWriteHold_Ns, clkSrc_Hz) + 1UL);
+#endif
         timing |= SEMC_SRAMCR6_TA(SEMC_ConvertTiming(config->tTurnAround_Ns, clkSrc_Hz));
         timing |= SEMC_SRAMCR6_AWDH(SEMC_ConvertTiming(config->tAddr2WriteHold_Ns, clkSrc_Hz));
-        timing |= SEMC_SRAMCR6_LC(config->latencyCount) | SEMC_SRAMCR2_RD((uint32_t)config->readCycle - 1UL);
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_LC_TIME) && (FSL_FEATURE_SEMC_HAS_SRAM_LC_TIME)
+        timing |= SEMC_SRAMCR6_LC(config->latencyCount);
+#endif
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_RD_TIME) && (FSL_FEATURE_SEMC_HAS_SRAM_RD_TIME)
+        timing |= SEMC_SRAMCR6_RD((uint32_t)config->readCycle - 1UL);
+#endif
         timing |= SEMC_SRAMCR6_CEITV(SEMC_ConvertTiming(config->tCeInterval_Ns, clkSrc_Hz));
 #if defined(FSL_FEATURE_SEMC_HAS_SRAM_RDH_TIME) && (FSL_FEATURE_SEMC_HAS_SRAM_RDH_TIME)
         timing |= SEMC_SRAMCR6_RDH((uint32_t)SEMC_ConvertTiming(config->readHoldTime_Ns, clkSrc_Hz) + 0x01U);
@@ -1037,6 +1116,9 @@ status_t SEMC_ConfigureDBI(SEMC_Type *base, semc_dbi_config_t *config, uint32_t 
     uint8_t memsize;
     status_t result;
     uint32_t timing;
+#if (defined(SEMC_DBICR1_REL2_MASK) || defined(SEMC_DBICR1_REH2_MASK))
+    uint32_t cr1RE;
+#endif
 
     if ((config->address < SEMC_STARTADDRESS) || (config->address > SEMC_ENDADDRESS))
     {
@@ -1051,7 +1133,7 @@ status_t SEMC_ConfigureDBI(SEMC_Type *base, semc_dbi_config_t *config, uint32_t 
     /* IOMUX setting. */
     base->IOCR = iocReg | (muxCsx << (uint32_t)config->csxPinMux);
     /* Base control. */
-    result = SEMC_CovertMemorySize(base, config->memsize_kbytes, &memsize);
+    result = SEMC_CovertMemorySize(config->memsize_kbytes, &memsize);
     if (result != kStatus_Success)
     {
         return result;
@@ -1066,8 +1148,23 @@ status_t SEMC_ConfigureDBI(SEMC_Type *base, semc_dbi_config_t *config, uint32_t 
     timing |= SEMC_DBICR1_CEH(SEMC_ConvertTiming(config->tCsxHold_Ns, clkSrc_Hz));
     timing |= SEMC_DBICR1_WEL(SEMC_ConvertTiming(config->tWexLow_Ns, clkSrc_Hz));
     timing |= SEMC_DBICR1_WEH(SEMC_ConvertTiming(config->tWexHigh_Ns, clkSrc_Hz));
+
+#if defined(SEMC_DBICR1_REL2_MASK)
+    cr1RE = SEMC_ConvertTiming(config->tRdxLow_Ns, clkSrc_Hz);
+    timing |= SEMC_DBICR1_REL(cr1RE);
+    timing |= SEMC_DBICR1_REL2(cr1RE >> SEMC_DBICR1_REL_WIDTH);
+#else
     timing |= SEMC_DBICR1_REL(SEMC_ConvertTiming(config->tRdxLow_Ns, clkSrc_Hz));
+#endif
+
+#if defined(SEMC_DBICR1_REH2_MASK)
+    cr1RE = SEMC_ConvertTiming(config->tRdxHigh_Ns, clkSrc_Hz);
+    timing |= SEMC_DBICR1_REH(cr1RE);
+    timing |= SEMC_DBICR1_REH2(cr1RE >> SEMC_DBICR1_REH_WIDTH);
+#else
     timing |= SEMC_DBICR1_REH(SEMC_ConvertTiming(config->tRdxHigh_Ns, clkSrc_Hz));
+#endif
+
 #if defined(SEMC_DBICR1_CEITV_MASK)
     timing |= SEMC_DBICR1_CEITV(SEMC_ConvertTiming(config->tCsxInterval_Ns, clkSrc_Hz));
 #endif /* SEMC_DBICR1_CEITV_MASK */
@@ -1089,7 +1186,7 @@ status_t SEMC_ConfigureDBI(SEMC_Type *base, semc_dbi_config_t *config, uint32_t 
  * brief SEMC IP command access.
  *
  * param base  SEMC peripheral base address.
- * param type  SEMC memory type. refer to "semc_mem_type_t"
+ * param memType  SEMC memory type. refer to "semc_mem_type_t"
  * param address  SEMC device address.
  * param command  SEMC IP command.
  * For NAND device, we should use the SEMC_BuildNandIPCommand to get the right nand command.
@@ -1100,7 +1197,7 @@ status_t SEMC_ConfigureDBI(SEMC_Type *base, semc_dbi_config_t *config, uint32_t 
  * param read   Data pointer for read data out.
  */
 status_t SEMC_SendIPCommand(
-    SEMC_Type *base, semc_mem_type_t type, uint32_t address, uint32_t command, uint32_t write, uint32_t *read)
+    SEMC_Type *base, semc_mem_type_t memType, uint32_t address, uint32_t command, uint32_t write, uint32_t *read)
 {
     uint32_t cmdMode;
     bool readCmd  = false;
@@ -1114,7 +1211,7 @@ status_t SEMC_SendIPCommand(
 
     /* Check command mode. */
     cmdMode = (uint32_t)command & 0x0FU;
-    switch (type)
+    switch (memType)
     {
         case kSEMC_MemType_NAND:
             readCmd = (cmdMode == (uint32_t)kSEMC_NANDCM_CommandAddressRead) ||

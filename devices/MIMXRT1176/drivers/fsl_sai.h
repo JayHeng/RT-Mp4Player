@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2015, Freescale Semiconductor, Inc.
- * Copyright 2016-2020 NXP
+ * Copyright 2016-2022 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -12,7 +12,7 @@
 #include "fsl_common.h"
 
 /*!
- * @addtogroup sai_driver
+ * @addtogroup sai_driver SAI Driver
  * @{
  */
 
@@ -22,7 +22,7 @@
 
 /*! @name Driver version */
 /*@{*/
-#define FSL_SAI_DRIVER_VERSION (MAKE_VERSION(2, 3, 2)) /*!< Version 2.3.2 */
+#define FSL_SAI_DRIVER_VERSION (MAKE_VERSION(2, 3, 8)) /*!< Version 2.3.8 */
 /*@}*/
 
 /*! @brief _sai_status_t, SAI return status.*/
@@ -137,18 +137,18 @@ enum
     kSAI_SyncErrorInterruptEnable   = I2S_TCSR_SEIE_MASK, /*!< Sync error flag, means the sync error is detected */
     kSAI_FIFOWarningInterruptEnable = I2S_TCSR_FWIE_MASK, /*!< FIFO warning flag, means the FIFO is empty */
     kSAI_FIFOErrorInterruptEnable   = I2S_TCSR_FEIE_MASK, /*!< FIFO error flag */
-#if defined(FSL_FEATURE_SAI_FIFO_COUNT) && (FSL_FEATURE_SAI_FIFO_COUNT > 1)
+#if defined(FSL_FEATURE_SAI_HAS_FIFO) && (FSL_FEATURE_SAI_HAS_FIFO)
     kSAI_FIFORequestInterruptEnable = I2S_TCSR_FRIE_MASK, /*!< FIFO request, means reached watermark */
-#endif                                                    /* FSL_FEATURE_SAI_FIFO_COUNT */
+#endif                                                    /* FSL_FEATURE_SAI_HAS_FIFO */
 };
 
 /*! @brief _sai_dma_enable_t, The DMA request sources */
 enum
 {
     kSAI_FIFOWarningDMAEnable = I2S_TCSR_FWDE_MASK, /*!< FIFO warning caused by the DMA request */
-#if defined(FSL_FEATURE_SAI_FIFO_COUNT) && (FSL_FEATURE_SAI_FIFO_COUNT > 1)
+#if defined(FSL_FEATURE_SAI_HAS_FIFO) && (FSL_FEATURE_SAI_HAS_FIFO)
     kSAI_FIFORequestDMAEnable = I2S_TCSR_FRDE_MASK, /*!< FIFO request caused by the DMA request */
-#endif                                              /* FSL_FEATURE_SAI_FIFO_COUNT */
+#endif                                              /* FSL_FEATURE_SAI_HAS_FIFO */
 };
 
 /*! @brief _sai_flags, The SAI status flag */
@@ -157,9 +157,9 @@ enum
     kSAI_WordStartFlag = I2S_TCSR_WSF_MASK, /*!< Word start flag, means the first word in a frame detected */
     kSAI_SyncErrorFlag = I2S_TCSR_SEF_MASK, /*!< Sync error flag, means the sync error is detected */
     kSAI_FIFOErrorFlag = I2S_TCSR_FEF_MASK, /*!< FIFO error flag */
-#if defined(FSL_FEATURE_SAI_FIFO_COUNT) && (FSL_FEATURE_SAI_FIFO_COUNT > 1)
+#if defined(FSL_FEATURE_SAI_HAS_FIFO) && (FSL_FEATURE_SAI_HAS_FIFO)
     kSAI_FIFORequestFlag = I2S_TCSR_FRF_MASK, /*!< FIFO request flag. */
-#endif                                        /* FSL_FEATURE_SAI_FIFO_COUNT */
+#endif                                        /* FSL_FEATURE_SAI_HAS_FIFO */
     kSAI_FIFOWarningFlag = I2S_TCSR_FWF_MASK, /*!< FIFO warning flag */
 };
 
@@ -241,7 +241,7 @@ typedef enum _sai_data_pin_state
 } sai_data_pin_state_t;
 #endif
 
-#if defined(FSL_FEATURE_SAI_HAS_FIFO_FUNCTION_COMBINE) && FSL_FEATURE_SAI_HAS_FIFO_FUNCTION_COMBINE
+#if defined(FSL_FEATURE_SAI_HAS_FIFO_COMBINE_MODE) && FSL_FEATURE_SAI_HAS_FIFO_COMBINE_MODE
 /*! @brief sai fifo combine mode definition */
 typedef enum _sai_fifo_combine
 {
@@ -275,9 +275,9 @@ typedef struct _sai_transfer_format
 #if defined(FSL_FEATURE_SAI_HAS_MCLKDIV_REGISTER) && (FSL_FEATURE_SAI_HAS_MCLKDIV_REGISTER)
     uint32_t masterClockHz; /*!< Master clock frequency in Hz */
 #endif                      /* FSL_FEATURE_SAI_HAS_MCLKDIV_REGISTER */
-#if defined(FSL_FEATURE_SAI_FIFO_COUNT) && (FSL_FEATURE_SAI_FIFO_COUNT > 1)
+#if defined(FSL_FEATURE_SAI_HAS_FIFO) && (FSL_FEATURE_SAI_HAS_FIFO)
     uint8_t watermark; /*!< Watermark value */
-#endif                 /* FSL_FEATURE_SAI_FIFO_COUNT */
+#endif                 /* FSL_FEATURE_SAI_HAS_FIFO */
 
     /* for the multi channel usage, user can provide channelMask Oonly, then sai driver will handle
      * other parameter carefully, such as
@@ -318,9 +318,9 @@ typedef struct _sai_master_clock
 
 /*! @brief sai fifo feature*/
 #if (defined(FSL_FEATURE_SAI_HAS_FIFO_FUNCTION_AFTER_ERROR) && FSL_FEATURE_SAI_HAS_FIFO_FUNCTION_AFTER_ERROR) || \
-    (defined(FSL_FEATURE_SAI_HAS_FIFO_FUNCTION_COMBINE) && FSL_FEATURE_SAI_HAS_FIFO_FUNCTION_COMBINE) ||         \
+    (defined(FSL_FEATURE_SAI_HAS_FIFO_COMBINE_MODE) && FSL_FEATURE_SAI_HAS_FIFO_COMBINE_MODE) ||                 \
     (defined(FSL_FEATURE_SAI_HAS_FIFO_PACKING) && FSL_FEATURE_SAI_HAS_FIFO_PACKING) ||                           \
-    (defined(FSL_FEATURE_SAI_FIFO_COUNT) && (FSL_FEATURE_SAI_FIFO_COUNT > 1))
+    (defined(FSL_FEATURE_SAI_HAS_FIFO) && (FSL_FEATURE_SAI_HAS_FIFO))
 #define FSL_SAI_HAS_FIFO_EXTEND_FEATURE 1
 #else
 #define FSL_SAI_HAS_FIFO_EXTEND_FEATURE 0
@@ -334,14 +334,14 @@ typedef struct _sai_fifo
     bool fifoContinueOneError; /*!< fifo continues when error occur */
 #endif
 
-#if defined(FSL_FEATURE_SAI_HAS_FIFO_FUNCTION_COMBINE) && FSL_FEATURE_SAI_HAS_FIFO_FUNCTION_COMBINE
+#if defined(FSL_FEATURE_SAI_HAS_FIFO_COMBINE_MODE) && FSL_FEATURE_SAI_HAS_FIFO_COMBINE_MODE
     sai_fifo_combine_t fifoCombine; /*!< fifo combine mode */
 #endif
 
 #if defined(FSL_FEATURE_SAI_HAS_FIFO_PACKING) && FSL_FEATURE_SAI_HAS_FIFO_PACKING
     sai_fifo_packing_t fifoPacking; /*!< fifo packing mode */
 #endif
-#if defined(FSL_FEATURE_SAI_FIFO_COUNT) && (FSL_FEATURE_SAI_FIFO_COUNT > 1)
+#if defined(FSL_FEATURE_SAI_HAS_FIFO) && (FSL_FEATURE_SAI_HAS_FIFO)
     uint8_t fifoWatermark; /*!< fifo watermark */
 #endif
 } sai_fifo_t;
@@ -365,7 +365,7 @@ typedef struct _sai_frame_sync
     bool frameSyncEarly;    /*!< TRUE is frame sync assert one bit before the first bit of frame
                                 FALSE is frame sync assert with the first bit of the frame */
 
-#if defined(FSL_FEATURE_SAI_HAS_FRAME_SYNC_ON_DEMAND) && FSL_FEATURE_SAI_HAS_FRAME_SYNC_ON_DEMAND
+#if defined(FSL_FEATURE_SAI_HAS_ON_DEMAND_MODE) && FSL_FEATURE_SAI_HAS_ON_DEMAND_MODE
     bool frameSyncGenerateOnDemand; /*!< internal frame sync is generated when FIFO waring flag is clear */
 #endif
 
@@ -448,7 +448,7 @@ struct _sai_handle
     size_t transferSize[SAI_XFER_QUEUE_SIZE];     /*!< Data bytes need to transfer */
     volatile uint8_t queueUser;                   /*!< Index for user to queue transfer */
     volatile uint8_t queueDriver;                 /*!< Index for driver to get the transfer data and size */
-#if defined(FSL_FEATURE_SAI_FIFO_COUNT) && (FSL_FEATURE_SAI_FIFO_COUNT > 1)
+#if defined(FSL_FEATURE_SAI_HAS_FIFO) && (FSL_FEATURE_SAI_HAS_FIFO)
     uint8_t watermark; /*!< Watermark value */
 #endif
 };
@@ -940,9 +940,9 @@ static inline void SAI_RxClearStatusFlags(I2S_Type *base, uint32_t mask)
  * This function will also clear all the error flags such as FIFO error, sync error etc.
  *
  * @param base SAI base pointer
- * @param type Reset type, FIFO reset or software reset
+ * @param tresetType Reset type, FIFO reset or software reset
  */
-void SAI_TxSoftwareReset(I2S_Type *base, sai_reset_type_t type);
+void SAI_TxSoftwareReset(I2S_Type *base, sai_reset_type_t resetType);
 
 /*!
  * @brief Do software reset or FIFO reset .
@@ -953,9 +953,9 @@ void SAI_TxSoftwareReset(I2S_Type *base, sai_reset_type_t type);
  * This function will also clear all the error flags such as FIFO error, sync error etc.
  *
  * @param base SAI base pointer
- * @param type Reset type, FIFO reset or software reset
+ * @param resetType Reset type, FIFO reset or software reset
  */
-void SAI_RxSoftwareReset(I2S_Type *base, sai_reset_type_t type);
+void SAI_RxSoftwareReset(I2S_Type *base, sai_reset_type_t resetType);
 
 /*!
  * @brief Set the Tx channel FIFO enable mask.
@@ -1218,9 +1218,9 @@ static inline void SAI_RxEnableDMA(I2S_Type *base, uint32_t mask, bool enable)
  * @param channel Which data channel used.
  * @return data register address.
  */
-static inline uint32_t SAI_TxGetDataRegisterAddress(I2S_Type *base, uint32_t channel)
+static inline uintptr_t SAI_TxGetDataRegisterAddress(I2S_Type *base, uint32_t channel)
 {
-    return (uint32_t)(&(base->TDR)[channel]);
+    return (uintptr_t)(&(base->TDR)[channel]);
 }
 
 /*!
@@ -1232,9 +1232,9 @@ static inline uint32_t SAI_TxGetDataRegisterAddress(I2S_Type *base, uint32_t cha
  * @param channel Which data channel used.
  * @return data register address.
  */
-static inline uint32_t SAI_RxGetDataRegisterAddress(I2S_Type *base, uint32_t channel)
+static inline uintptr_t SAI_RxGetDataRegisterAddress(I2S_Type *base, uint32_t channel)
 {
-    return (uint32_t)(&(base->RDR)[channel]);
+    return (uintptr_t)(&(base->RDR)[channel]);
 }
 
 /*! @} */

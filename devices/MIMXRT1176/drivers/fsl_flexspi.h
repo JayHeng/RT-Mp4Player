@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016, Freescale Semiconductor, Inc.
- * Copyright 2016-2020 NXP
+ * Copyright 2016-2022 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -24,8 +24,8 @@
 
 /*! @name Driver version */
 /*@{*/
-/*! @brief FLEXSPI driver version 2.3.3. */
-#define FSL_FLEXSPI_DRIVER_VERSION (MAKE_VERSION(2, 3, 3))
+/*! @brief FLEXSPI driver version. */
+#define FSL_FLEXSPI_DRIVER_VERSION (MAKE_VERSION(2, 5, 1))
 /*@}*/
 
 #define FSL_FEATURE_FLEXSPI_AHB_BUFFER_COUNT FSL_FEATURE_FLEXSPI_AHB_BUFFER_COUNTn(0)
@@ -190,8 +190,10 @@ typedef enum _flexspi_port
 {
     kFLEXSPI_PortA1 = 0x0U, /*!< Access flash on A1 port. */
     kFLEXSPI_PortA2,        /*!< Access flash on A2 port. */
-    kFLEXSPI_PortB1,        /*!< Access flash on B1 port. */
-    kFLEXSPI_PortB2,        /*!< Access flash on B2 port. */
+#if !((defined(FSL_FEATURE_FLEXSPI_NO_SUPPORT_PORTB)) && (FSL_FEATURE_FLEXSPI_NO_SUPPORT_PORTB))
+    kFLEXSPI_PortB1, /*!< Access flash on B1 port. */
+    kFLEXSPI_PortB2, /*!< Access flash on B2 port. */
+#endif
     kFLEXSPI_PortCount
 } flexspi_port_t;
 
@@ -227,21 +229,31 @@ typedef struct _flexspi_config
 {
     flexspi_read_sample_clock_t rxSampleClock; /*!< Sample Clock source selection for Flash Reading. */
     bool enableSckFreeRunning;                 /*!< Enable/disable SCK output free-running. */
-    bool enableCombination;                    /*!< Enable/disable combining PORT A and B Data Pins
-                                               (SIOA[3:0] and SIOB[3:0]) to support Flash Octal mode. */
-    bool enableDoze;                           /*!< Enable/disable doze mode support. */
-    bool enableHalfSpeedAccess;                /*!< Enable/disable divide by 2 of the clock for half
-                                                speed commands. */
-    bool enableSckBDiffOpt;                    /*!< Enable/disable SCKB pad use as SCKA differential clock
-                                                output, when enable, Port B flash access is not available. */
-    bool enableSameConfigForAll;               /*!< Enable/disable same configuration for all connected devices
-                                                when enabled, same configuration in FLASHA1CRx is applied to all. */
-    uint16_t seqTimeoutCycle;                  /*!< Timeout wait cycle for command sequence execution,
-                                               timeout after ahbGrantTimeoutCyle*1024 serial root clock cycles. */
-    uint8_t ipGrantTimeoutCycle;               /*!< Timeout wait cycle for IP command grant, timeout after
-                                                ipGrantTimeoutCycle*1024 AHB clock cycles. */
-    uint8_t txWatermark;                       /*!< FLEXSPI IP transmit watermark value. */
-    uint8_t rxWatermark;                       /*!< FLEXSPI receive watermark value. */
+#if !(defined(FSL_FEATURE_FLEXSPI_HAS_NO_MCR0_COMBINATIONEN) && FSL_FEATURE_FLEXSPI_HAS_NO_MCR0_COMBINATIONEN)
+    bool enableCombination; /*!< Enable/disable combining PORT A and B Data Pins
+                            (SIOA[3:0] and SIOB[3:0]) to support Flash Octal mode. */
+#endif
+    bool enableDoze;            /*!< Enable/disable doze mode support. */
+    bool enableHalfSpeedAccess; /*!< Enable/disable divide by 2 of the clock for half
+                                 speed commands. */
+#if defined(FSL_FEATURE_FLEXSPI_SUPPORT_SEPERATE_RXCLKSRC_PORTB) && FSL_FEATURE_FLEXSPI_SUPPORT_SEPERATE_RXCLKSRC_PORTB
+    flexspi_read_sample_clock_t rxSampleClockPortB; /*!< Sample Clock source_b selection for Flash Reading. */
+#endif
+#if defined(FSL_FEATURE_FLEXSPI_SUPPORT_RXCLKSRC_DIFF) && FSL_FEATURE_FLEXSPI_SUPPORT_RXCLKSRC_DIFF
+    bool rxSampleClockDiff; /*!< Sample Clock source or source_b selection for Flash Reading. */
+#endif
+#if !(defined(FSL_FEATURE_FLEXSPI_HAS_NO_MCR2_SCKBDIFFOPT) && FSL_FEATURE_FLEXSPI_HAS_NO_MCR2_SCKBDIFFOPT)
+    bool enableSckBDiffOpt; /*!< Enable/disable SCKB pad use as SCKA differential clock
+                             output, when enable, Port B flash access is not available. */
+#endif
+    bool enableSameConfigForAll; /*!< Enable/disable same configuration for all connected devices
+                                  when enabled, same configuration in FLASHA1CRx is applied to all. */
+    uint16_t seqTimeoutCycle;    /*!< Timeout wait cycle for command sequence execution,
+                                 timeout after ahbGrantTimeoutCyle*1024 serial root clock cycles. */
+    uint8_t ipGrantTimeoutCycle; /*!< Timeout wait cycle for IP command grant, timeout after
+                                  ipGrantTimeoutCycle*1024 AHB clock cycles. */
+    uint8_t txWatermark;         /*!< FLEXSPI IP transmit watermark value. */
+    uint8_t rxWatermark;         /*!< FLEXSPI receive watermark value. */
     struct
     {
 #if !(defined(FSL_FEATURE_FLEXSPI_HAS_NO_MCR0_ATDFEN) && FSL_FEATURE_FLEXSPI_HAS_NO_MCR0_ATDFEN)
@@ -272,9 +284,12 @@ typedef struct _flexspi_config
 /*! @brief External device configuration items. */
 typedef struct _flexspi_device_config
 {
-    uint32_t flexspiRootClk;                         /*!< FLEXSPI serial root clock. */
-    bool isSck2Enabled;                              /*!< FLEXSPI use SCK2. */
-    uint32_t flashSize;                              /*!< Flash size in KByte. */
+    uint32_t flexspiRootClk; /*!< FLEXSPI serial root clock. */
+    bool isSck2Enabled;      /*!< FLEXSPI use SCK2. */
+    uint32_t flashSize;      /*!< Flash size in KByte. */
+#if defined(FSL_FEATURE_FLEXSPI_SUPPORT_ADDRESS_SHIFT) && (FSL_FEATURE_FLEXSPI_SUPPORT_ADDRESS_SHIFT)
+    bool addressShift;                               /*!< Address shift. */
+#endif                                               /* FSL_FEATURE_FLEXSPI_SUPPORT_ADDRESS_SHIFT */
     flexspi_cs_interval_cycle_unit_t CSIntervalUnit; /*!< CS interval unit, 1 or 256 cycle. */
     uint16_t CSInterval;                             /*!< CS line assert interval, multiply CS interval unit to
                                                       get the CS line assert interval cycles. */
@@ -292,6 +307,9 @@ typedef struct _flexspi_device_config
                                                       unit to get the AHB write wait cycles. */
     bool enableWriteMask;                            /*!< Enable/Disable FLEXSPI drive DQS pin as write mask
                                                       when writing to external device. */
+#if defined(FSL_FEATURE_FLEXSPI_HAS_ERRATA_051426) && (FSL_FEATURE_FLEXSPI_HAS_ERRATA_051426)
+    bool isFroClockSource; /*!< Is FRO clock source or not. */
+#endif
 } flexspi_device_config_t;
 
 /*! @brief Transfer structure for FLEXSPI. */
@@ -319,7 +337,7 @@ typedef void (*flexspi_transfer_callback_t)(FLEXSPI_Type *base,
 struct _flexspi_handle
 {
     uint32_t state;                                 /*!< Internal state for FLEXSPI transfer */
-    uint32_t *data;                                 /*!< Data buffer. */
+    uint8_t *data;                                  /*!< Data buffer. */
     size_t dataSize;                                /*!< Remaining Data size in bytes. */
     size_t transferTotalSize;                       /*!< Total Data size in bytes. */
     flexspi_transfer_callback_t completionCallback; /*!< Callback for users while transfer finish or error occurred */
@@ -596,7 +614,7 @@ static inline uint32_t FLEXSPI_GetInterruptStatusFlags(FLEXSPI_Type *base)
  */
 static inline void FLEXSPI_ClearInterruptStatusFlags(FLEXSPI_Type *base, uint32_t mask)
 {
-    base->INTR |= mask;
+    base->INTR = mask;
 }
 
 #if !((defined(FSL_FEATURE_FLEXSPI_HAS_NO_DATA_LEARN)) && (FSL_FEATURE_FLEXSPI_HAS_NO_DATA_LEARN))
@@ -613,10 +631,12 @@ static inline void FLEXSPI_GetDataLearningPhase(FLEXSPI_Type *base, uint8_t *por
         *portAPhase = (uint8_t)((base->STS0 & FLEXSPI_STS0_DATALEARNPHASEA_MASK) >> FLEXSPI_STS0_DATALEARNPHASEA_SHIFT);
     }
 
+#if !((defined(FSL_FEATURE_FLEXSPI_HAS_NO_STS0_DATALEARNPHASEB)) && (FSL_FEATURE_FLEXSPI_HAS_NO_STS0_DATALEARNPHASEB))
     if (portBPhase != NULL)
     {
         *portBPhase = (uint8_t)((base->STS0 & FLEXSPI_STS0_DATALEARNPHASEB_MASK) >> FLEXSPI_STS0_DATALEARNPHASEB_SHIFT);
     }
+#endif
 }
 #endif
 
@@ -681,6 +701,7 @@ static inline bool FLEXSPI_GetBusIdleStatus(FLEXSPI_Type *base)
  */
 void FLEXSPI_UpdateRxSampleClock(FLEXSPI_Type *base, flexspi_read_sample_clock_t clockSource);
 
+#if !(defined(FSL_FEATURE_FLEXSPI_HAS_NO_IP_PARALLEL_MODE) && FSL_FEATURE_FLEXSPI_HAS_NO_IP_PARALLEL_MODE)
 /*! @brief Enables/disables the FLEXSPI IP command parallel mode.
  *
  * @param base FLEXSPI peripheral base address.
@@ -697,7 +718,9 @@ static inline void FLEXSPI_EnableIPParallelMode(FLEXSPI_Type *base, bool enable)
         base->IPCR1 &= ~FLEXSPI_IPCR1_IPAREN_MASK;
     }
 }
+#endif
 
+#if !(defined(FSL_FEATURE_FLEXSPI_HAS_NO_AHB_PARALLEL_MODE) && FSL_FEATURE_FLEXSPI_HAS_NO_AHB_PARALLEL_MODE)
 /*! @brief Enables/disables the FLEXSPI AHB command parallel mode.
  *
  * @param base FLEXSPI peripheral base address.
@@ -714,6 +737,7 @@ static inline void FLEXSPI_EnableAHBParallelMode(FLEXSPI_Type *base, bool enable
         base->AHBCR &= ~FLEXSPI_AHBCR_APAREN_MASK;
     }
 }
+#endif
 
 /*! @brief Updates the LUT table.
  *
@@ -761,7 +785,7 @@ static inline uint32_t FLEXSPI_ReadData(FLEXSPI_Type *base, uint8_t fifoIndex)
  * @retval kStatus_FLEXSPI_IpCommandSequenceError IP command sequence error detected
  * @retval kStatus_FLEXSPI_IpCommandGrantTimeout IP command grant timeout detected
  */
-status_t FLEXSPI_WriteBlocking(FLEXSPI_Type *base, uint32_t *buffer, size_t size);
+status_t FLEXSPI_WriteBlocking(FLEXSPI_Type *base, uint8_t *buffer, size_t size);
 
 /*!
  * @brief Receives a buffer of data bytes using a blocking method.
@@ -774,7 +798,7 @@ status_t FLEXSPI_WriteBlocking(FLEXSPI_Type *base, uint32_t *buffer, size_t size
  * @retval kStatus_FLEXSPI_IpCommandSequenceError IP command sequencen error detected
  * @retval kStatus_FLEXSPI_IpCommandGrantTimeout IP command grant timeout detected
  */
-status_t FLEXSPI_ReadBlocking(FLEXSPI_Type *base, uint32_t *buffer, size_t size);
+status_t FLEXSPI_ReadBlocking(FLEXSPI_Type *base, uint8_t *buffer, size_t size);
 
 /*!
  * @brief Execute command to transfer a buffer data bytes using a blocking method.

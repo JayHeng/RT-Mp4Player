@@ -1,5 +1,5 @@
 /*
- * Copyright 2017, 2020 NXP
+ * Copyright 2017, 2020-2021, 2023 NXP
  * All rights reserved.
  *
  *
@@ -7,7 +7,7 @@
  */
 
 #include "fsl_video_common.h"
-#if defined(FSL_RTOS_FREE_RTOS)
+#if defined(SDK_OS_FREE_RTOS)
 #include "FreeRTOS.h"
 #include "task.h"
 #endif
@@ -32,7 +32,7 @@ bool VIDEO_IsYUV(video_pixel_format_t format)
 
 void VIDEO_DelayMs(uint32_t ms)
 {
-#if defined(FSL_RTOS_FREE_RTOS)
+#if defined(SDK_OS_FREE_RTOS)
     TickType_t tick;
 
     tick = ms * configTICK_RATE_HZ / 1000U;
@@ -85,6 +85,11 @@ uint8_t VIDEO_GetPixelSizeBits(video_pixel_format_t pixelFormat)
             ret = 16;
             break;
 
+        case kVIDEO_PixelFormatRAW8:
+        case kVIDEO_PixelFormatLUT8:
+            ret = 8;
+            break;
+
         default:
             ret = 0;
             break;
@@ -95,7 +100,7 @@ uint8_t VIDEO_GetPixelSizeBits(video_pixel_format_t pixelFormat)
 
 status_t VIDEO_RINGBUF_Init(video_ringbuf_t *ringbuf, void **buf, uint32_t size)
 {
-    assert(ringbuf);
+    assert(ringbuf != NULL);
 
     ringbuf->rear  = 0;
     ringbuf->front = 0;
@@ -109,7 +114,11 @@ status_t VIDEO_RINGBUF_Get(video_ringbuf_t *ringbuf, void **item)
 {
     uint32_t front_next;
 
-    if (ringbuf->rear != ringbuf->front)
+    /* To fix IAR Pa082 warning. */
+    uint32_t rear  = ringbuf->rear;
+    uint32_t front = ringbuf->front;
+
+    if (rear != front)
     {
         *item = ringbuf->buf[ringbuf->front];
 
@@ -158,7 +167,11 @@ uint32_t VIDEO_RINGBUF_GetLength(video_ringbuf_t *ringbuf)
 {
     uint32_t ret;
 
-    ret = (ringbuf->rear + ringbuf->size) - ringbuf->front;
+    /* To fix IAR Pa082 warning. */
+    uint32_t rear  = ringbuf->rear;
+    uint32_t front = ringbuf->front;
+
+    ret = (rear + ringbuf->size) - front;
 
     if (ret >= ringbuf->size)
     {
@@ -170,7 +183,11 @@ uint32_t VIDEO_RINGBUF_GetLength(video_ringbuf_t *ringbuf)
 
 bool VIDEO_RINGBUF_IsEmpty(video_ringbuf_t *ringbuf)
 {
-    if (ringbuf->rear == ringbuf->front)
+    /* To fix IAR Pa082 warning. */
+    uint32_t rear  = ringbuf->rear;
+    uint32_t front = ringbuf->front;
+
+    if (rear == front)
     {
         return true;
     }
@@ -244,4 +261,48 @@ void *VIDEO_MEMPOOL_Get(video_mempool_t *mempool)
 uint32_t VIDEO_MEMPOOL_GetCount(video_mempool_t *mempool)
 {
     return mempool->cnt;
+}
+
+status_t VIDEO_STACK_Init(video_stack_t *stack, void **buf, uint32_t size)
+{
+    stack->buf      = buf;
+    stack->maxCount = size;
+    stack->top      = 0U;
+
+    return kStatus_Success;
+}
+
+status_t VIDEO_STACK_Pop(video_stack_t *stack, void **item)
+{
+    status_t status;
+
+    if (stack->top > 0U)
+    {
+        *item  = stack->buf[--stack->top];
+        status = kStatus_Success;
+    }
+    else
+    {
+        *item  = NULL;
+        status = kStatus_Fail;
+    }
+
+    return status;
+}
+
+status_t VIDEO_STACK_Push(video_stack_t *stack, void *item)
+{
+    status_t status;
+
+    if (stack->top < (stack->maxCount))
+    {
+        stack->buf[stack->top++] = item;
+        status                   = kStatus_Success;
+    }
+    else
+    {
+        status = kStatus_Fail;
+    }
+
+    return status;
 }

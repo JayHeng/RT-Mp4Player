@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 NXP
+ * Copyright 2017-2023 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -20,8 +20,8 @@
 
 /*! @name Driver version */
 /*@{*/
-/*! @brief SEMC driver version 2.3.1. */
-#define FSL_SEMC_DRIVER_VERSION (MAKE_VERSION(2, 3, 1))
+/*! @brief SEMC driver version. */
+#define FSL_SEMC_DRIVER_VERSION (MAKE_VERSION(2, 6, 0))
 /*@}*/
 
 /*! @brief SEMC status, _semc_status. */
@@ -475,8 +475,12 @@ typedef struct _semc_nor_config
 #if defined(FSL_FEATURE_SEMC_HAS_NOR_WDH_TIME) && (FSL_FEATURE_SEMC_HAS_NOR_WDH_TIME)
     uint8_t tWriteHold_Ns; /*!< Write hold time for sync mode. */
 #endif
+#if defined(FSL_FEATURE_SEMC_HAS_NOR_LC_TIME) && (FSL_FEATURE_SEMC_HAS_NOR_LC_TIME)
     uint8_t latencyCount; /*!< Latency count for sync mode. */
-    uint8_t readCycle;    /*!< Read cycle time for sync mode. */
+#endif
+#if defined(FSL_FEATURE_SEMC_HAS_NOR_RD_TIME) && (FSL_FEATURE_SEMC_HAS_NOR_RD_TIME)
+    uint8_t readCycle; /*!< Read cycle time for sync mode. */
+#endif
 #if defined(FSL_FEATURE_SEMC_HAS_DELAY_CHAIN_CONTROL) && (FSL_FEATURE_SEMC_HAS_DELAY_CHAIN_CONTROL)
     uint8_t delayChain; /*!< Delay chain, which adds delays on DQS clock to compensate timings while DQS is faster than
                            read data. */
@@ -495,18 +499,18 @@ typedef struct _semc_sram_config
     semc_addr_mode_t addrMode;             /*!< Address mode. */
     sem_norsram_burst_len_t burstLen;      /*!< Burst length. */
     smec_port_size_t portSize;             /*!< Port size. */
-#if defined(SEMC_SRAMCR4_SYNCEN_MASK) && (SEMC_SRAMCR4_SYNCEN_MASK)
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_SYNCEN) && (FSL_FEATURE_SEMC_HAS_SRAM_SYNCEN)
     semc_sync_mode_t syncMode; /*!< Sync mode. */
-#endif                         /* SEMC_SRAMCR4_SYNCEN_MASK */
-#if defined(SEMC_SRAMCR0_WAITEN_MASK) && (SEMC_SRAMCR0_WAITEN_MASK)
+#endif                         /* FSL_FEATURE_SEMC_HAS_SRAM_SYNCEN */
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_WAITEN) && (FSL_FEATURE_SEMC_HAS_SRAM_WAITEN)
     bool waitEnable; /*!< Wait enable. */
-#endif               /* SEMC_SRAMCR0_WAITEN_MASK */
-#if defined(SEMC_SRAMCR0_WAITSP_MASK) && (SEMC_SRAMCR0_WAITSP_MASK)
+#endif               /* FSL_FEATURE_SEMC_HAS_SRAM_WAITEN */
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_WAITSP) && (FSL_FEATURE_SEMC_HAS_SRAM_WAITSP)
     uint8_t waitSample; /*!< Wait sample. */
-#endif                  /* SEMC_SRAMCR0_WAITSP_MASK */
-#if defined(SEMC_SRAMCR4_ADVH_MASK) && (SEMC_SRAMCR4_ADVH_MASK)
+#endif                  /* FSL_FEATURE_SEMC_HAS_SRAM_WAITSP */
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_ADVH) && (FSL_FEATURE_SEMC_HAS_SRAM_ADVH)
     semc_adv_level_control_t advLevelCtrl; /*!< ADV# level control during address hold state, 1: low, 0: high. */
-#endif                                     /* SEMC_SRAMCR4_ADVH_MASK */
+#endif                                     /* FSL_FEATURE_SEMC_HAS_SRAM_ADVH */
     uint8_t tCeSetup_Ns;                   /*!< The CE setup time. */
     uint8_t tCeHold_Ns;                    /*!< The CE hold time. */
     uint8_t tCeInterval_Ns;                /*!< CE interval minimum time. */
@@ -521,10 +525,18 @@ typedef struct _semc_sram_config
     uint8_t tReHigh_Ns;         /*!< RE high time for async mode. */
     uint8_t tTurnAround_Ns;     /*!< Turnaround time for async mode. */
     uint8_t tAddr2WriteHold_Ns; /*!< Address to write data hold time for async mode. */
-    uint8_t tWriteSetup_Ns;     /*!< Write data setup time for sync mode.*/
-    uint8_t tWriteHold_Ns;      /*!< Write hold time for sync mode. */
-    uint8_t latencyCount;       /*!< Latency count for sync mode. */
-    uint8_t readCycle;          /*!< Read cycle time for sync mode. */
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_WDS_TIME) && (FSL_FEATURE_SEMC_HAS_SRAM_WDS_TIME)
+    uint8_t tWriteSetup_Ns; /*!<Write data setup time for sync mode. */
+#endif
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_WDH_TIME) && (FSL_FEATURE_SEMC_HAS_SRAM_WDH_TIME)
+    uint8_t tWriteHold_Ns; /*!<Write hold time for sync mode. */
+#endif
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_LC_TIME) && (FSL_FEATURE_SEMC_HAS_SRAM_LC_TIME)
+    uint8_t latencyCount; /*!<Latency count for sync mode. */
+#endif
+#if defined(FSL_FEATURE_SEMC_HAS_SRAM_RD_TIME) && (FSL_FEATURE_SEMC_HAS_SRAM_RD_TIME)
+    uint8_t readCycle; /*!<Read cycle time for sync mode. */
+#endif
 #if defined(FSL_FEATURE_SEMC_HAS_DELAY_CHAIN_CONTROL) && (FSL_FEATURE_SEMC_HAS_DELAY_CHAIN_CONTROL)
     uint8_t delayChain; /*!< Delay chain, which adds delays on DQS clock to compensate timings while DQS is faster than
                            read data. */
@@ -554,8 +566,8 @@ typedef struct _semc_queuea_weight_struct
 {
     uint32_t qos : 4;              /*!< weight of qos for queue 0 . */
     uint32_t aging : 4;            /*!< weight of aging for queue 0.*/
-    uint32_t slaveHitSwith : 8;    /*!< weight of read/write switch for queue 0.*/
     uint32_t slaveHitNoswitch : 8; /*!< weight of read/write no switch for queue 0  .*/
+    uint32_t slaveHitSwitch : 8;   /*!< weight of read/write switch for queue 0.*/
 } semc_queuea_weight_struct_t;
 
 /*! @brief SEMC AXI queue a weight setting union. */
@@ -568,11 +580,11 @@ typedef union _semc_queuea_weight
 /*! @brief SEMC AXI queue b weight setting structure. */
 typedef struct _semc_queueb_weight_struct
 {
-    uint32_t qos : 4;           /*!< weight of qos for queue 1. */
-    uint32_t aging : 4;         /*!< weight of aging for queue 1.*/
-    uint32_t slaveHitSwith : 8; /*!< weight of read/write switch for queue 1.*/
-    uint32_t weightPagehit : 8; /*!< weight of page hit for queue 1 only .*/
-    uint32_t bankRotation : 8;  /*!< weight of bank rotation for queue 1 only .*/
+    uint32_t qos : 4;              /*!< weight of qos for queue 1. */
+    uint32_t aging : 4;            /*!< weight of aging for queue 1.*/
+    uint32_t weightPagehit : 8;    /*!< weight of page hit for queue 1 only .*/
+    uint32_t slaveHitNoswitch : 8; /*!< weight of read/write no switch for queue 1.*/
+    uint32_t bankRotation : 8;     /*!< weight of bank rotation for queue 1 only .*/
 } semc_queueb_weight_struct_t;
 
 /*! @brief SEMC AXI queue b weight setting union. */
@@ -820,7 +832,7 @@ static inline bool SEMC_IsInIdle(SEMC_Type *base)
  * @brief SEMC IP command access.
  *
  * @param base  SEMC peripheral base address.
- * @param type  SEMC memory type. refer to "semc_mem_type_t"
+ * @param memType  SEMC memory type. refer to "semc_mem_type_t"
  * @param address  SEMC device address.
  * @param command  SEMC IP command.
  * For NAND device, we should use the SEMC_BuildNandIPCommand to get the right nand command.
@@ -831,7 +843,7 @@ static inline bool SEMC_IsInIdle(SEMC_Type *base)
  * @param read   Data pointer for read data out.
  */
 status_t SEMC_SendIPCommand(
-    SEMC_Type *base, semc_mem_type_t type, uint32_t address, uint32_t command, uint32_t write, uint32_t *read);
+    SEMC_Type *base, semc_mem_type_t memType, uint32_t address, uint32_t command, uint32_t write, uint32_t *read);
 
 /*!
  * @brief Build SEMC IP command for NAND.

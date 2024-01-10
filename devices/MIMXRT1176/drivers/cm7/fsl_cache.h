@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2019 NXP
+ * Copyright 2016-2021 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -10,7 +10,7 @@
 #include "fsl_common.h"
 
 /*!
- * @addtogroup cache
+ * @addtogroup cache_armv7_m7
  * @{
  */
 
@@ -20,8 +20,8 @@
 
 /*! @name Driver version */
 /*@{*/
-/*! @brief cache driver version 2.0.3. */
-#define FSL_CACHE_DRIVER_VERSION (MAKE_VERSION(2, 0, 3))
+/*! @brief cache driver version 2.0.4. */
+#define FSL_CACHE_DRIVER_VERSION (MAKE_VERSION(2, 0, 4))
 /*@}*/
 
 #if defined(FSL_FEATURE_SOC_L2CACHEC_COUNT) && FSL_FEATURE_SOC_L2CACHEC_COUNT
@@ -139,7 +139,10 @@ static inline void L1CACHE_EnableICache(void)
  */
 static inline void L1CACHE_DisableICache(void)
 {
-    SCB_DisableICache();
+    if (SCB_CCR_IC_Msk == (SCB_CCR_IC_Msk & SCB->CCR))
+    {
+        SCB_DisableICache();
+    }
 }
 
 /*!
@@ -178,7 +181,10 @@ static inline void L1CACHE_EnableDCache(void)
  */
 static inline void L1CACHE_DisableDCache(void)
 {
-    SCB_DisableDCache();
+    if (SCB_CCR_DC_Msk == (SCB_CCR_DC_Msk & SCB->CCR))
+    {
+        SCB_DisableDCache();
+    }
 }
 
 /*!

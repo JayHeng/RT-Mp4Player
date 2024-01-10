@@ -3,13 +3,13 @@
 *        Solutions for real time microcontroller applications        *
 **********************************************************************
 *                                                                    *
-*        (c) 1996 - 2020  SEGGER Microcontroller GmbH                *
+*        (c) 1996 - 2022  SEGGER Microcontroller GmbH                *
 *                                                                    *
 *        Internet: www.segger.com    Support:  support@segger.com    *
 *                                                                    *
 **********************************************************************
 
-** emWin V6.14 - Graphical user interface for embedded applications **
+** emWin V6.32 - Graphical user interface for embedded applications **
 All  Intellectual Property rights  in the Software belongs to  SEGGER.
 emWin is protected by  international copyright laws.  Knowledge of the
 source code may not be used to write a similar product.  This file may
@@ -34,7 +34,7 @@ License model:            emWin License Agreement, dated August 20th 2011 and Am
 Licensed platform:        NXP's ARM 7/9, Cortex-M0, M3, M4, M7, A7, M33
 ----------------------------------------------------------------------
 Support and Update Agreement (SUA)
-SUA period:               2011-08-19 - 2020-09-02
+SUA period:               2011-08-19 - 2023-09-03
 Contact to extend SUA:    sales@segger.com
 ----------------------------------------------------------------------
 File        : GUIDRV_SH_MEM_Private.h
@@ -55,7 +55,9 @@ Purpose     : Private header file  for GUIDRV_SH_MEM driver
 */
 #define DRIVER_CONTEXT DRIVER_CONTEXT_SH_MEM
 
-#define XY2OFF(pContext, x, y) ((x >> 3) + (y * pContext->BytesPerLine))
+#define COMMAND_LEN    (0x02)
+
+#define XY2OFF(pContext, x, y) (2 + (x >> 3) + (y * (pContext->BytesPerLine + 2)))
 
 #define XY2OFF3(pContext, x, y) (((x * 3) / 24) * 3 + (pContext->BytesPerLine * y))
 
@@ -83,6 +85,7 @@ struct DRIVER_CONTEXT {
   U8               VCom;                                                   // Current state of VCOM signal
   U8               ExtMode;                                                // Setting of EXTMODE configuration pin
   U8               BitMode;                                                // 8-, 9- or 10-bit line addressing
+  U8               SendEnd;                                                // Send end command after sending cache
 };
 
 void    GUIDRV_SH_MEM__SendCacheOnDemand(DRIVER_CONTEXT * pContext, int y0, int y1);

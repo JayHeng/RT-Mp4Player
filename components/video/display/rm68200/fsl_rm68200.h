@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 NXP
+ * Copyright 2019-2021 NXP
  * All rights reserved.
  *
  *
@@ -14,6 +14,9 @@
 
 /*
  * Change log:
+ *
+ *   1.1.1
+ *     - Support 1 lane to 4 lanes, previously only support 2 lanes.
  *
  *   1.1.0
  *     - Fix MISRA-C 2012 issues.
@@ -46,6 +49,8 @@ extern const display_operations_t rm68200_ops;
 #if defined(__cplusplus)
 extern "C" {
 #endif
+
+extern uint8_t RM68200_DDB_START[5];
 
 status_t RM68200_Init(display_handle_t *handle, const display_config_t *config);
 

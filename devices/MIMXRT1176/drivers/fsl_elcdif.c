@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2019 NXP
+ * Copyright 2017-2022 NXP
  * All rights reserved.
  *
  *
@@ -22,14 +22,11 @@
  *
  * @param base ELCDIF peripheral base address
  */
-static uint32_t ELCDIF_GetInstance(LCDIF_Type *base);
+static uint32_t ELCDIF_GetInstance(const LCDIF_Type *base);
 
 /*******************************************************************************
  * Variables
  ******************************************************************************/
-
-/*! @brief Pointers to ELCDIF bases for each instance. */
-static LCDIF_Type *const s_elcdifBases[] = LCDIF_BASE_PTRS;
 
 #if !(defined(FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL) && FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL)
 /*! @brief Pointers to eLCDIF apb_clk for each instance. */
@@ -72,8 +69,10 @@ static const elcdif_pixel_format_reg_t s_pixelFormatReg[] = {
 /*******************************************************************************
  * Codes
  ******************************************************************************/
-static uint32_t ELCDIF_GetInstance(LCDIF_Type *base)
+static uint32_t ELCDIF_GetInstance(const LCDIF_Type *base)
 {
+    static LCDIF_Type *const s_elcdifBases[] = LCDIF_BASE_PTRS;
+
     uint32_t instance;
 
     /* Find the instance index from base address mappings. */
@@ -104,12 +103,12 @@ void ELCDIF_RgbModeInit(LCDIF_Type *base, const elcdif_rgb_mode_config_t *config
     assert(NULL != config);
     assert((uint32_t)config->pixelFormat < ARRAY_SIZE(s_pixelFormatReg));
 
-#if !(defined(FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL) && FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL)
+#if !(defined(FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL) && (0 != FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL))
     uint32_t instance = ELCDIF_GetInstance(base);
     /* Enable the clock. */
-    CLOCK_EnableClock(s_elcdifApbClocks[instance]);
+    (void)CLOCK_EnableClock(s_elcdifApbClocks[instance]);
 #if defined(LCDIF_PERIPH_CLOCKS)
-    CLOCK_EnableClock(s_elcdifPixClocks[instance]);
+    (void)CLOCK_EnableClock(s_elcdifPixClocks[instance]);
 #endif
 #endif /* FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL */
 
@@ -123,6 +122,8 @@ void ELCDIF_RgbModeInit(LCDIF_Type *base, const elcdif_rgb_mode_config_t *config
 
     base->CTRL1 = s_pixelFormatReg[(uint32_t)config->pixelFormat].regCtrl1;
 
+    base->CTRL2 = (base->CTRL2 & ~LCDIF_CTRL2_OUTSTANDING_REQS_MASK) | (LCDIF_CTRL2_OUTSTANDING_REQS(4));
+
     base->TRANSFER_COUNT = ((uint32_t)config->panelHeight << LCDIF_TRANSFER_COUNT_V_COUNT_SHIFT) |
                            ((uint32_t)config->panelWidth << LCDIF_TRANSFER_COUNT_H_COUNT_SHIFT);
 
@@ -135,7 +136,7 @@ void ELCDIF_RgbModeInit(LCDIF_Type *base, const elcdif_rgb_mode_config_t *config
         (uint32_t)config->vsw + (uint32_t)config->panelHeight + (uint32_t)config->vfp + (uint32_t)config->vbp;
     base->VDCTRL2 =
         ((uint32_t)config->hsw << LCDIF_VDCTRL2_HSYNC_PULSE_WIDTH_SHIFT) |
-        (((uint32_t)config->hfp + (uint32_t)config->hbp + (uint32_t)config->panelWidth + (uint32_t)config->hsw))
+        ((uint32_t)config->hfp + (uint32_t)config->hbp + (uint32_t)config->panelWidth + (uint32_t)config->hsw)
             << LCDIF_VDCTRL2_HSYNC_PERIOD_SHIFT;
 
     base->VDCTRL3 = (((uint32_t)config->hbp + config->hsw) << LCDIF_VDCTRL3_HORIZONTAL_WAIT_CNT_SHIFT) |
@@ -144,8 +145,8 @@ void ELCDIF_RgbModeInit(LCDIF_Type *base, const elcdif_rgb_mode_config_t *config
     base->VDCTRL4 = LCDIF_VDCTRL4_SYNC_SIGNALS_ON_MASK |
                     ((uint32_t)config->panelWidth << LCDIF_VDCTRL4_DOTCLK_H_VALID_DATA_CNT_SHIFT);
 
-    base->CUR_BUF  = config->bufferAddr;
-    base->NEXT_BUF = config->bufferAddr;
+    base->CUR_BUF  = ELCDIF_ADDR_CPU_2_IP(config->bufferAddr);
+    base->NEXT_BUF = ELCDIF_ADDR_CPU_2_IP(config->bufferAddr);
 }
 
 /*!
@@ -221,13 +222,13 @@ void ELCDIF_Deinit(LCDIF_Type *base)
 {
     ELCDIF_Reset(base);
 
-#if !(defined(FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL) && FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL)
+#if !(defined(FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL) && (0 != FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL))
     uint32_t instance = ELCDIF_GetInstance(base);
 /* Disable the clock. */
 #if defined(LCDIF_PERIPH_CLOCKS)
-    CLOCK_DisableClock(s_elcdifPixClocks[instance]);
+    (void)CLOCK_DisableClock(s_elcdifPixClocks[instance]);
 #endif
-    CLOCK_DisableClock(s_elcdifApbClocks[instance]);
+    (void)CLOCK_DisableClock(s_elcdifApbClocks[instance]);
 #endif /* FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL */
 }
 
@@ -288,7 +289,7 @@ void ELCDIF_Reset(LCDIF_Type *base)
     base->CTRL_CLR = LCDIF_CTRL_SFTRST_MASK;
 }
 
-#if !(defined(FSL_FEATURE_LCDIF_HAS_NO_AS) && FSL_FEATURE_LCDIF_HAS_NO_AS)
+#if !(defined(FSL_FEATURE_LCDIF_HAS_NO_AS) && (0 != FSL_FEATURE_LCDIF_HAS_NO_AS))
 /*!
  * brief Set the configuration for alpha surface buffer.
  *
@@ -300,8 +301,8 @@ void ELCDIF_SetAlphaSurfaceBufferConfig(LCDIF_Type *base, const elcdif_as_buffer
     assert(NULL != config);
 
     base->AS_CTRL     = (base->AS_CTRL & ~LCDIF_AS_CTRL_FORMAT_MASK) | LCDIF_AS_CTRL_FORMAT(config->pixelFormat);
-    base->AS_BUF      = config->bufferAddr;
-    base->AS_NEXT_BUF = config->bufferAddr;
+    base->AS_BUF      = ELCDIF_ADDR_CPU_2_IP(config->bufferAddr);
+    base->AS_NEXT_BUF = ELCDIF_ADDR_CPU_2_IP(config->bufferAddr);
 }
 
 /*!
@@ -330,7 +331,7 @@ void ELCDIF_SetAlphaSurfaceBlendConfig(LCDIF_Type *base, const elcdif_as_blend_c
 }
 #endif /* FSL_FEATURE_LCDIF_HAS_NO_AS */
 
-#if (defined(FSL_FEATURE_LCDIF_HAS_LUT) && FSL_FEATURE_LCDIF_HAS_LUT)
+#if (defined(FSL_FEATURE_LCDIF_HAS_LUT) && (0 != FSL_FEATURE_LCDIF_HAS_LUT))
 /*!
  * brief Load the LUT value.
  *
@@ -354,7 +355,7 @@ status_t ELCDIF_UpdateLut(
     status_t status;
 
     /* Only has 256 entries. */
-    if (startIndex + count > ELCDIF_LUT_ENTRY_NUM)
+    if ((startIndex + count) > ELCDIF_LUT_ENTRY_NUM)
     {
         status = kStatus_InvalidArgument;
     }

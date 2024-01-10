@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 NXP
+ * Copyright 2019-2021, 2023 NXP
  * All rights reserved.
  *
  *
@@ -22,9 +22,9 @@
 
 /*! @name Driver version */
 /*@{*/
-/*! @brief GPC driver version 2.1.0. */
-#define FSL_GPC_RIVER_VERSION (MAKE_VERSION(2, 1, 0))
-/*@}*/
+/*! @brief GPC driver version 2.3.0. */
+#define FSL_GPC_RIVER_VERSION (MAKE_VERSION(2, 3, 0))
+/*! @}*/
 
 #define GPC_RESERVED_USE_MACRO 0xFFFFFFFFU
 
@@ -55,7 +55,7 @@
 #define GPC_SP_BG_PLDO_OFF_CTRL_OFFSET  (0x190)
 #define GPC_SP_LDO_PRE_CTRL_OFFSET      (0x1A0)
 #define GPC_SP_DCDC_DOWN_CTRL_OFFSET    (0x1B0)
-#define GPC_SP_DCDC_UP_CTRL_OFFSET      (0x2B0)
+#define GPC_SP_DCDC_UP_CTRL_OFFSET      (0x200)
 #define GPC_SP_LDO_POST_CTRL_OFFSET     (0x210)
 #define GPC_SP_BG_PLDO_ON_CTRL_OFFSET   (0x220)
 #define GPC_SP_BIAS_ON_CTRL_OFFSET      (0x230)
@@ -260,7 +260,7 @@ typedef struct _gpc_tran_step_config
     bool enableStep;                      /*!< Enable the step. */
 } gpc_tran_step_config_t;
 
-/* @brief CPU wakeup sequence setpoint options. */
+/*! @brief CPU wakeup sequence setpoint options. */
 typedef enum _gpc_cm_wakeup_sp_sel
 {
     kGPC_CM_WakeupSetpoint =
@@ -288,6 +288,15 @@ typedef enum _gpc_stby_tran_step
     kGPC_STBY_PllOut     = 14UL, /*!< PLL out step. */
     kGPC_STBY_LpcgOut    = 15UL, /*!< LPCG out step. */
 } gpc_stby_tran_step_t;
+
+/*!
+ * @brief GPC CPU domain name, used to select the CPU domain.
+ */
+typedef enum _gpc_cpu_domain_name
+{
+    kGPC_CM7Core = 0U, /*!< CM7 core. */
+    kGPC_CM4Core = 1U, /*!< CM4 core. */
+} gpc_cpu_domain_name_t;
 /*******************************************************************************
  * API
  ******************************************************************************/
@@ -345,8 +354,8 @@ static inline void GPC_CM_SetNextCpuMode(GPC_CPU_MODE_CTRL_Type *base, gpc_cpu_m
  */
 static inline gpc_cpu_mode_t GPC_CM_GetCurrentCpuMode(GPC_CPU_MODE_CTRL_Type *base)
 {
-    return (gpc_cpu_mode_t)((base->CM_MODE_STAT & GPC_CPU_MODE_CTRL_CM_MODE_STAT_CPU_MODE_CURRENT_MASK) >>
-                            GPC_CPU_MODE_CTRL_CM_MODE_STAT_CPU_MODE_CURRENT_SHIFT);
+    return (gpc_cpu_mode_t)(uint32_t)((base->CM_MODE_STAT & GPC_CPU_MODE_CTRL_CM_MODE_STAT_CPU_MODE_CURRENT_MASK) >>
+                                      GPC_CPU_MODE_CTRL_CM_MODE_STAT_CPU_MODE_CURRENT_SHIFT);
 }
 
 /*!
@@ -357,8 +366,8 @@ static inline gpc_cpu_mode_t GPC_CM_GetCurrentCpuMode(GPC_CPU_MODE_CTRL_Type *ba
  */
 static inline gpc_cpu_mode_t GPC_CM_GetPreviousCpuMode(GPC_CPU_MODE_CTRL_Type *base)
 {
-    return (gpc_cpu_mode_t)((base->CM_MODE_STAT & GPC_CPU_MODE_CTRL_CM_MODE_STAT_CPU_MODE_PREVIOUS_MASK) >>
-                            GPC_CPU_MODE_CTRL_CM_MODE_STAT_CPU_MODE_PREVIOUS_SHIFT);
+    return (gpc_cpu_mode_t)(uint32_t)((base->CM_MODE_STAT & GPC_CPU_MODE_CTRL_CM_MODE_STAT_CPU_MODE_PREVIOUS_MASK) >>
+                                      GPC_CPU_MODE_CTRL_CM_MODE_STAT_CPU_MODE_PREVIOUS_SHIFT);
 }
 
 /*!
@@ -383,8 +392,6 @@ void GPC_CM_EnableIrqWakeup(GPC_CPU_MODE_CTRL_Type *base, uint32_t irqId, bool e
  */
 static inline void GPC_CM_EnableNonIrqWakeup(GPC_CPU_MODE_CTRL_Type *base, uint32_t mask, bool enable)
 {
-    assert(mask < 2UL);
-
     if (true == enable)
     {
         base->CM_NON_IRQ_WAKEUP_MASK &= ~mask;
@@ -463,7 +470,7 @@ void GPC_CM_RequestRunModeSetPointTransition(GPC_CPU_MODE_CTRL_Type *base, uint8
  * This function configures which set point is allowed after current set point. If there are multiple setpoints, use:
  * @code
  *    map = kkGPC_SetPoint0 | kGPC_SetPoint1 | ... | kGPC_SetPoint15;
- * @encode
+ * @endcode
  *
  * @param base GPC CPU module base address.
  * @param setPoint Set point index, available range is 0-15.
@@ -483,7 +490,7 @@ static inline void GPC_CM_SetSetPointMapping(GPC_CPU_MODE_CTRL_Type *base, uint3
  * setpoints, use:
  * @code
  *    map = kkGPC_SetPoint0 | kGPC_SetPoint1 | ... | kGPC_SetPoint15;
- * @encode
+ * @endcode
  *
  * @param base GPC CPU module base address.
  * @param mode CPU mode. Refer to "gpc_cpu_mode_t".
@@ -584,15 +591,6 @@ void GPC_SP_ConfigSetPointTransitionStep(GPC_SET_POINT_CTRL_Type *base,
                                          const gpc_tran_step_config_t *config);
 
 /*!
- * @brief Gets the response count of the selected setpoint transition step.
- *
- * @param base GPC Setpoint controller base address.
- * @param step step type, refer to "gpc_sp_tran_step_t".
- * @return The value of response delay count.
- */
-uint32_t GPC_SP_GetResponseCount(GPC_SET_POINT_CTRL_Type *base, gpc_sp_tran_step_t step);
-
-/*!
  * @brief Get system current setpoint, only valid when setpoint trans not busy.
  *
  * @param base GPC Setpoint controller base address.
@@ -639,7 +637,7 @@ static inline uint8_t GPC_SP_GetTargetSetPoint(GPC_SET_POINT_CTRL_Type *base)
 /*!
  * @brief Config the standby transition step.
  *
- * @param base GPC Setpoint controller base address.
+ * @param base GPC standby controller base address.
  * @param step step type, refer to "gpc_stby_tran_step_t".
  * @param config transition step configuration, refer to "gpc_tran_step_config_t".
  */
@@ -647,6 +645,16 @@ void GPC_STBY_ConfigStandbyTransitionStep(GPC_STBY_CTRL_Type *base,
                                           gpc_stby_tran_step_t step,
                                           const gpc_tran_step_config_t *config);
 
+/*!
+ * @brief Force selected CPU requesting standby mode.
+ *
+ * @param base GPC standby controller base address.
+ * @param cpuName The CPU name, refer to @ref gpc_cpu_domain_name_t.
+ */
+static inline void GPC_STBY_ForceCoreRequestStandbyMode(GPC_STBY_CTRL_Type *base, gpc_cpu_domain_name_t cpuName)
+{
+    base->STBY_MISC |= ((uint32_t)GPC_STBY_CTRL_STBY_MISC_FORCE_CPU0_STBY_MASK << (uint32_t)cpuName);
+}
 /*!
  * @}
  */

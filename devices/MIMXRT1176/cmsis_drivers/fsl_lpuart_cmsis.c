@@ -204,7 +204,7 @@
      (defined(RTE_USART5) && RTE_USART5 && defined(LPUART5)) || \
      (defined(RTE_USART6) && RTE_USART6 && defined(LPUART6)))
 
-#define ARM_LPUART_DRV_VERSION ARM_DRIVER_VERSION_MAJOR_MINOR((2), (1))
+#define ARM_LPUART_DRV_VERSION ARM_DRIVER_VERSION_MAJOR_MINOR((2), (4))
 
 /*
  * ARMCC does not support split the data section automatically, so the driver
@@ -243,6 +243,11 @@ typedef struct _cmsis_lpuart_dma_resource
     DMAMUX_Type *txDmamuxBase; /*!< DMAMUX peripheral base address for TX. */
     DMAMUX_Type *rxDmamuxBase; /*!< DMAMUX peripheral base address for RX. */
 #endif
+
+#if FSL_FEATURE_DMA_MODULE_CHANNEL != FSL_FEATURE_DMAMUX_MODULE_CHANNEL
+    uint32_t txDmamuxChannel; /*!< DMAMUX channel for LPUART TX.             */
+    uint32_t rxDmamuxChannel; /*!< DMAMUX channel for LPUART TX.             */
+#endif
 } cmsis_lpuart_dma_resource_t;
 
 typedef struct _cmsis_lpuart_dma_driver_state
@@ -262,11 +267,11 @@ typedef struct _cmsis_lpuart_edma_resource
 {
     DMA_Type *txEdmaBase;   /*!< EDMA peripheral base address for TX.    */
     uint32_t txEdmaChannel; /*!< EDMA channel for LPUART TX.             */
-    uint8_t txDmaRequest;   /*!< TX EDMA request source.                 */
+    uint32_t txDmaRequest;  /*!< TX EDMA request source.                 */
 
     DMA_Type *rxEdmaBase;   /*!< EDMA peripheral base address for RX.    */
     uint32_t rxEdmaChannel; /*!< EDMA channel for LPUART RX.             */
-    uint8_t rxDmaRequest;   /*!< RX EDMA request source.                 */
+    uint32_t rxDmaRequest;  /*!< RX EDMA request source.                 */
 
 #if (defined(FSL_FEATURE_SOC_DMAMUX_COUNT) && FSL_FEATURE_SOC_DMAMUX_COUNT)
     DMAMUX_Type *txDmamuxBase; /*!< DMAMUX peripheral base address for TX. */
@@ -480,13 +485,7 @@ static int32_t LPUARTx_SetModemControl(ARM_USART_MODEM_CONTROL control)
 
 static ARM_USART_MODEM_STATUS LPUARTx_GetModemStatus(void)
 {
-    ARM_USART_MODEM_STATUS modem_status;
-
-    modem_status.cts      = 0U;
-    modem_status.dsr      = 0U;
-    modem_status.ri       = 0U;
-    modem_status.dcd      = 0U;
-    modem_status.reserved = 0U;
+    ARM_USART_MODEM_STATUS modem_status = {0};
 
     return modem_status;
 }
@@ -556,8 +555,13 @@ static int32_t LPUART_DmaPowerControl(ARM_POWER_STATE state, cmsis_lpuart_dma_dr
             {
                 LPUART_Deinit(lpuart->resource->base);
 #if (defined(FSL_FEATURE_SOC_DMAMUX_COUNT) && FSL_FEATURE_SOC_DMAMUX_COUNT)
+#if FSL_FEATURE_DMA_MODULE_CHANNEL != FSL_FEATURE_DMAMUX_MODULE_CHANNEL
+                DMAMUX_DisableChannel(lpuart->dmaResource->rxDmamuxBase, lpuart->dmaResource->rxDmamuxChannel);
+                DMAMUX_DisableChannel(lpuart->dmaResource->txDmamuxBase, lpuart->dmaResource->txDmamuxChannel);
+#else
                 DMAMUX_DisableChannel(lpuart->dmaResource->rxDmamuxBase, lpuart->dmaResource->rxDmaChannel);
                 DMAMUX_DisableChannel(lpuart->dmaResource->txDmamuxBase, lpuart->dmaResource->txDmaChannel);
+#endif
 #endif
                 lpuart->flags = (uint8_t)USART_FLAG_INIT;
             }
@@ -590,12 +594,21 @@ static int32_t LPUART_DmaPowerControl(ARM_POWER_STATE state, cmsis_lpuart_dma_dr
 
             DMA_CreateHandle(lpuart->txHandle, dmaResource->txDmaBase, dmaResource->txDmaChannel);
 #if (defined(FSL_FEATURE_SOC_DMAMUX_COUNT) && FSL_FEATURE_SOC_DMAMUX_COUNT)
-            DMAMUX_SetSource(dmaResource->rxDmamuxBase, dmaResource->rxDmaChannel, dmaResource->rxDmaRequest);
+#if FSL_FEATURE_DMA_MODULE_CHANNEL != FSL_FEATURE_DMAMUX_MODULE_CHANNEL
+            DMAMUX_SetSource(dmaResource->rxDmamuxBase, dmaResource->rxDmamuxChannel, (int32_t)dmaResource->rxDmaRequest);
+            DMAMUX_EnableChannel(dmaResource->rxDmamuxBase, dmaResource->rxDmamuxChannel);
+
+            DMAMUX_SetSource(dmaResource->txDmamuxBase, dmaResource->txDmamuxChannel, (int32_t)dmaResource->txDmaRequest);
+            DMAMUX_EnableChannel(dmaResource->txDmamuxBase, dmaResource->txDmamuxChannel);
+#else
+            DMAMUX_SetSource(dmaResource->rxDmamuxBase, dmaResource->rxDmaChannel, (int32_t)dmaResource->rxDmaRequest);
             DMAMUX_EnableChannel(dmaResource->rxDmamuxBase, dmaResource->rxDmaChannel);
 
-            DMAMUX_SetSource(dmaResource->txDmamuxBase, dmaResource->txDmaChannel, dmaResource->txDmaRequest);
+            DMAMUX_SetSource(dmaResource->txDmamuxBase, dmaResource->txDmaChannel, (int32_t)dmaResource->txDmaRequest);
             DMAMUX_EnableChannel(dmaResource->txDmamuxBase, dmaResource->txDmaChannel);
 #endif
+#endif
+
             /* Setup the LPUART. */
             (void)LPUART_Init(lpuart->resource->base, &config, lpuart->resource->GetFreq());
             LPUART_TransferCreateHandleDMA(lpuart->resource->base, lpuart->handle, KSDK_LPUART_DmaCallback,
@@ -749,7 +762,7 @@ static int32_t LPUART_DmaControl(uint32_t control, uint32_t arg, cmsis_lpuart_dm
 
 static ARM_USART_STATUS LPUART_DmaGetStatus(cmsis_lpuart_dma_driver_state_t *lpuart)
 {
-    ARM_USART_STATUS stat;
+    ARM_USART_STATUS stat       = {0};
     uint32_t ksdk_lpuart_status = LPUART_GetStatusFlags(lpuart->resource->base);
 
     stat.tx_busy = (((uint8_t)kLPUART_TxBusy == lpuart->handle->txState) ? (1U) : (0U));
@@ -855,12 +868,13 @@ static int32_t LPUART_EdmaPowerControl(ARM_POWER_STATE state, cmsis_lpuart_edma_
             EDMA_CreateHandle(lpuart->txHandle, dmaResource->txEdmaBase, dmaResource->txEdmaChannel);
 
 #if (defined(FSL_FEATURE_SOC_DMAMUX_COUNT) && FSL_FEATURE_SOC_DMAMUX_COUNT)
-            DMAMUX_SetSource(dmaResource->rxDmamuxBase, dmaResource->rxEdmaChannel, dmaResource->rxDmaRequest);
+            DMAMUX_SetSource(dmaResource->rxDmamuxBase, dmaResource->rxEdmaChannel, (int32_t)dmaResource->rxDmaRequest);
             DMAMUX_EnableChannel(dmaResource->rxDmamuxBase, dmaResource->rxEdmaChannel);
 
-            DMAMUX_SetSource(dmaResource->txDmamuxBase, dmaResource->txEdmaChannel, dmaResource->txDmaRequest);
+            DMAMUX_SetSource(dmaResource->txDmamuxBase, dmaResource->txEdmaChannel, (int32_t)dmaResource->txDmaRequest);
             DMAMUX_EnableChannel(dmaResource->txDmamuxBase, dmaResource->txEdmaChannel);
 #endif
+
             /* Setup the LPUART. */
             (void)LPUART_Init(lpuart->resource->base, &config, lpuart->resource->GetFreq());
             LPUART_TransferCreateHandleEDMA(lpuart->resource->base, lpuart->handle, KSDK_LPUART_EdmaCallback,
@@ -1013,7 +1027,7 @@ static int32_t LPUART_EdmaControl(uint32_t control, uint32_t arg, cmsis_lpuart_e
 
 static ARM_USART_STATUS LPUART_EdmaGetStatus(cmsis_lpuart_edma_driver_state_t *lpuart)
 {
-    ARM_USART_STATUS stat;
+    ARM_USART_STATUS stat       = {0};
     uint32_t ksdk_lpuart_status = LPUART_GetStatusFlags(lpuart->resource->base);
 
     stat.tx_busy = (((uint8_t)kLPUART_TxBusy == lpuart->handle->txState) ? (1U) : (0U));
@@ -1280,7 +1294,7 @@ static int32_t LPUART_NonBlockingControl(uint32_t control,
 
 static ARM_USART_STATUS LPUART_NonBlockingGetStatus(cmsis_lpuart_non_blocking_driver_state_t *lpuart)
 {
-    ARM_USART_STATUS stat;
+    ARM_USART_STATUS stat       = {0};
     uint32_t ksdk_lpuart_status = LPUART_GetStatusFlags(lpuart->resource->base);
 
     stat.tx_busy = (((uint8_t)kLPUART_TxBusy == lpuart->handle->txState) ? (1U) : (0U));
@@ -1321,6 +1335,9 @@ static cmsis_lpuart_dma_resource_t LPUART0_DmaResource = {
 #if (defined(FSL_FEATURE_SOC_DMAMUX_COUNT) && FSL_FEATURE_SOC_DMAMUX_COUNT)
     RTE_USART0_DMA_TX_DMAMUX_BASE, RTE_USART0_DMA_RX_DMAMUX_BASE,
 #endif
+#if FSL_FEATURE_DMA_MODULE_CHANNEL != FSL_FEATURE_DMAMUX_MODULE_CHANNEL
+    RTE_USART0_DMAMUX_TX_CH,       RTE_USART0_DMAMUX_RX_CH
+#endif
 };
 
 static lpuart_dma_handle_t LPUART0_DmaHandle;
@@ -1331,7 +1348,7 @@ static dma_handle_t LPUART0_DmaTxHandle;
 ARMCC_SECTION("lpuart0_dma_driver_state")
 static cmsis_lpuart_dma_driver_state_t LPUART0_DmaDriverState = {
 #else
-static cmsis_lpuart_dma_driver_state_t LPUART0_DmaDriverState    = {
+static cmsis_lpuart_dma_driver_state_t LPUART0_DmaDriverState = {
 #endif
     &LPUART0_Resource, &LPUART0_DmaResource, &LPUART0_DmaHandle, &LPUART0_DmaRxHandle, &LPUART0_DmaTxHandle,
 };
@@ -1414,7 +1431,7 @@ static edma_handle_t LPUART0_EdmaTxHandle;
 ARMCC_SECTION("lpuart0_edma_driver_state")
 static cmsis_lpuart_edma_driver_state_t LPUART0_EdmaDriverState = {
 #else
-static cmsis_lpuart_edma_driver_state_t LPUART0_EdmaDriverState  = {
+static cmsis_lpuart_edma_driver_state_t LPUART0_EdmaDriverState = {
 #endif
     &LPUART0_Resource, &LPUART0_EdmaResource, &LPUART0_EdmaHandle, &LPUART0_EdmaRxHandle, &LPUART0_EdmaTxHandle,
 };
@@ -1645,6 +1662,9 @@ static cmsis_lpuart_dma_resource_t LPUART1_DmaResource = {
 #if (defined(FSL_FEATURE_SOC_DMAMUX_COUNT) && FSL_FEATURE_SOC_DMAMUX_COUNT)
     RTE_USART1_DMA_TX_DMAMUX_BASE, RTE_USART1_DMA_RX_DMAMUX_BASE,
 #endif
+#if FSL_FEATURE_DMA_MODULE_CHANNEL != FSL_FEATURE_DMAMUX_MODULE_CHANNEL
+    RTE_USART1_DMAMUX_TX_CH,       RTE_USART1_DMAMUX_RX_CH
+#endif
 };
 
 static lpuart_dma_handle_t LPUART1_DmaHandle;
@@ -1655,7 +1675,7 @@ static dma_handle_t LPUART1_DmaTxHandle;
 ARMCC_SECTION("lpuart1_dma_driver_state")
 static cmsis_lpuart_dma_driver_state_t LPUART1_DmaDriverState = {
 #else
-static cmsis_lpuart_dma_driver_state_t LPUART1_DmaDriverState    = {
+static cmsis_lpuart_dma_driver_state_t LPUART1_DmaDriverState = {
 #endif
     &LPUART1_Resource, &LPUART1_DmaResource, &LPUART1_DmaHandle, &LPUART1_DmaRxHandle, &LPUART1_DmaTxHandle,
 };
@@ -1737,7 +1757,7 @@ static edma_handle_t LPUART1_EdmaTxHandle;
 ARMCC_SECTION("lpuart1_edma_driver_state")
 static cmsis_lpuart_edma_driver_state_t LPUART1_EdmaDriverState = {
 #else
-static cmsis_lpuart_edma_driver_state_t LPUART1_EdmaDriverState  = {
+static cmsis_lpuart_edma_driver_state_t LPUART1_EdmaDriverState = {
 #endif
     &LPUART1_Resource, &LPUART1_EdmaResource, &LPUART1_EdmaHandle, &LPUART1_EdmaRxHandle, &LPUART1_EdmaTxHandle,
 };
@@ -1957,6 +1977,9 @@ static cmsis_lpuart_dma_resource_t LPUART2_DmaResource = {
 #if (defined(FSL_FEATURE_SOC_DMAMUX_COUNT) && FSL_FEATURE_SOC_DMAMUX_COUNT)
     RTE_USART2_DMA_TX_DMAMUX_BASE, RTE_USART2_DMA_RX_DMAMUX_BASE,
 #endif
+#if FSL_FEATURE_DMA_MODULE_CHANNEL != FSL_FEATURE_DMAMUX_MODULE_CHANNEL
+    RTE_USART2_DMAMUX_TX_CH,       RTE_USART2_DMAMUX_RX_CH
+#endif
 };
 
 static lpuart_dma_handle_t LPUART2_DmaHandle;
@@ -1967,7 +1990,7 @@ static dma_handle_t LPUART2_DmaTxHandle;
 ARMCC_SECTION("lpuart2_dma_driver_state")
 static cmsis_lpuart_dma_driver_state_t LPUART2_DmaDriverState = {
 #else
-static cmsis_lpuart_dma_driver_state_t LPUART2_DmaDriverState    = {
+static cmsis_lpuart_dma_driver_state_t LPUART2_DmaDriverState = {
 #endif
     &LPUART2_Resource, &LPUART2_DmaResource, &LPUART2_DmaHandle, &LPUART2_DmaRxHandle, &LPUART2_DmaTxHandle,
 };
@@ -2049,7 +2072,7 @@ static edma_handle_t LPUART2_EdmaTxHandle;
 ARMCC_SECTION("lpuart2_edma_driver_state")
 static cmsis_lpuart_edma_driver_state_t LPUART2_EdmaDriverState = {
 #else
-static cmsis_lpuart_edma_driver_state_t LPUART2_EdmaDriverState  = {
+static cmsis_lpuart_edma_driver_state_t LPUART2_EdmaDriverState = {
 #endif
     &LPUART2_Resource, &LPUART2_EdmaResource, &LPUART2_EdmaHandle, &LPUART2_EdmaRxHandle, &LPUART2_EdmaTxHandle,
 };
@@ -2269,6 +2292,9 @@ static cmsis_lpuart_dma_resource_t LPUART3_DmaResource = {
 #if (defined(FSL_FEATURE_SOC_DMAMUX_COUNT) && FSL_FEATURE_SOC_DMAMUX_COUNT)
     RTE_USART3_DMA_TX_DMAMUX_BASE, RTE_USART3_DMA_RX_DMAMUX_BASE,
 #endif
+#if FSL_FEATURE_DMA_MODULE_CHANNEL != FSL_FEATURE_DMAMUX_MODULE_CHANNEL
+    RTE_USART3_DMAMUX_TX_CH,       RTE_USART3_DMAMUX_RX_CH
+#endif
 };
 
 static lpuart_dma_handle_t LPUART3_DmaHandle;
@@ -2279,7 +2305,7 @@ static dma_handle_t LPUART3_DmaTxHandle;
 ARMCC_SECTION("lpuart3_dma_driver_state")
 static cmsis_lpuart_dma_driver_state_t LPUART3_DmaDriverState = {
 #else
-static cmsis_lpuart_dma_driver_state_t LPUART3_DmaDriverState    = {
+static cmsis_lpuart_dma_driver_state_t LPUART3_DmaDriverState = {
 #endif
     &LPUART3_Resource, &LPUART3_DmaResource, &LPUART3_DmaHandle, &LPUART3_DmaRxHandle, &LPUART3_DmaTxHandle,
 };
@@ -2361,7 +2387,7 @@ static edma_handle_t LPUART3_EdmaTxHandle;
 ARMCC_SECTION("lpuart3_edma_driver_state")
 static cmsis_lpuart_edma_driver_state_t LPUART3_EdmaDriverState = {
 #else
-static cmsis_lpuart_edma_driver_state_t LPUART3_EdmaDriverState  = {
+static cmsis_lpuart_edma_driver_state_t LPUART3_EdmaDriverState = {
 #endif
     &LPUART3_Resource, &LPUART3_EdmaResource, &LPUART3_EdmaHandle, &LPUART3_EdmaRxHandle, &LPUART3_EdmaTxHandle,
 };
@@ -2581,6 +2607,9 @@ static cmsis_lpuart_dma_resource_t LPUART4_DmaResource = {
 #if (defined(FSL_FEATURE_SOC_DMAMUX_COUNT) && FSL_FEATURE_SOC_DMAMUX_COUNT)
     RTE_USART4_DMA_TX_DMAMUX_BASE, RTE_USART4_DMA_RX_DMAMUX_BASE,
 #endif
+#if FSL_FEATURE_DMA_MODULE_CHANNEL != FSL_FEATURE_DMAMUX_MODULE_CHANNEL
+    RTE_USART4_DMAMUX_TX_CH,       RTE_USART4_DMAMUX_RX_CH
+#endif
 };
 
 static lpuart_dma_handle_t LPUART4_DmaHandle;
@@ -2591,7 +2620,7 @@ static dma_handle_t LPUART4_DmaTxHandle;
 ARMCC_SECTION("lpuart4_dma_driver_state")
 static cmsis_lpuart_dma_driver_state_t LPUART4_DmaDriverState = {
 #else
-static cmsis_lpuart_dma_driver_state_t LPUART4_DmaDriverState    = {
+static cmsis_lpuart_dma_driver_state_t LPUART4_DmaDriverState = {
 #endif
     &LPUART4_Resource, &LPUART4_DmaResource, &LPUART4_DmaHandle, &LPUART4_DmaRxHandle, &LPUART4_DmaTxHandle};
 
@@ -2672,7 +2701,7 @@ static edma_handle_t LPUART4_EdmaTxHandle;
 ARMCC_SECTION("lpuart4_edma_driver_state")
 static cmsis_lpuart_edma_driver_state_t LPUART4_EdmaDriverState = {
 #else
-static cmsis_lpuart_edma_driver_state_t LPUART4_EdmaDriverState  = {
+static cmsis_lpuart_edma_driver_state_t LPUART4_EdmaDriverState = {
 #endif
     &LPUART4_Resource, &LPUART4_EdmaResource, &LPUART4_EdmaHandle, &LPUART4_EdmaRxHandle, &LPUART4_EdmaTxHandle};
 
@@ -2891,6 +2920,9 @@ static cmsis_lpuart_dma_resource_t LPUART5_DmaResource = {
 #if (defined(FSL_FEATURE_SOC_DMAMUX_COUNT) && FSL_FEATURE_SOC_DMAMUX_COUNT)
     RTE_USART5_DMA_TX_DMAMUX_BASE, RTE_USART5_DMA_RX_DMAMUX_BASE,
 #endif
+#if FSL_FEATURE_DMA_MODULE_CHANNEL != FSL_FEATURE_DMAMUX_MODULE_CHANNEL
+    RTE_USART5_DMAMUX_TX_CH,       RTE_USART5_DMAMUX_RX_CH
+#endif
 };
 
 static lpuart_dma_handle_t LPUART5_DmaHandle;
@@ -2901,7 +2933,7 @@ static dma_handle_t LPUART5_DmaTxHandle;
 ARMCC_SECTION("lpuart5_dma_driver_state")
 static cmsis_lpuart_dma_driver_state_t LPUART5_DmaDriverState = {
 #else
-static cmsis_lpuart_dma_driver_state_t LPUART5_DmaDriverState    = {
+static cmsis_lpuart_dma_driver_state_t LPUART5_DmaDriverState = {
 #endif
     &LPUART5_Resource, &LPUART5_DmaResource, &LPUART5_DmaHandle, &LPUART5_DmaRxHandle, &LPUART5_DmaTxHandle,
 };
@@ -2985,7 +3017,7 @@ static edma_handle_t LPUART5_EdmaTxHandle;
 ARMCC_SECTION("lpuart5_edma_driver_state")
 static cmsis_lpuart_edma_driver_state_t LPUART5_EdmaDriverState = {
 #else
-static cmsis_lpuart_edma_driver_state_t LPUART5_EdmaDriverState  = {
+static cmsis_lpuart_edma_driver_state_t LPUART5_EdmaDriverState = {
 #endif
     &LPUART5_Resource, &LPUART5_EdmaResource, &LPUART5_EdmaHandle, &LPUART5_EdmaRxHandle, &LPUART5_EdmaTxHandle,
 };
@@ -3201,6 +3233,9 @@ static cmsis_lpuart_dma_resource_t LPUART6_DmaResource = {
 #if (defined(FSL_FEATURE_SOC_DMAMUX_COUNT) && FSL_FEATURE_SOC_DMAMUX_COUNT)
     RTE_USART6_DMA_TX_DMAMUX_BASE, RTE_USART6_DMA_RX_DMAMUX_BASE,
 #endif
+#if FSL_FEATURE_DMA_MODULE_CHANNEL != FSL_FEATURE_DMAMUX_MODULE_CHANNEL
+    RTE_USART6_DMAMUX_TX_CH,       RTE_USART6_DMAMUX_RX_CH
+#endif
 };
 
 static lpuart_dma_handle_t LPUART6_DmaHandle;
@@ -3211,7 +3246,7 @@ static dma_handle_t LPUART6_DmaTxHandle;
 ARMCC_SECTION("lpuart5_dma_driver_state")
 static cmsis_lpuart_dma_driver_state_t LPUART6_DmaDriverState = {
 #else
-static cmsis_lpuart_dma_driver_state_t LPUART6_DmaDriverState    = {
+static cmsis_lpuart_dma_driver_state_t LPUART6_DmaDriverState = {
 #endif
     &LPUART6_Resource, &LPUART6_DmaResource, &LPUART6_DmaHandle, &LPUART6_DmaRxHandle, &LPUART6_DmaTxHandle,
 };
@@ -3295,7 +3330,7 @@ static edma_handle_t LPUART6_EdmaTxHandle;
 ARMCC_SECTION("lpuart6_edma_driver_state")
 static cmsis_lpuart_edma_driver_state_t LPUART6_EdmaDriverState = {
 #else
-static cmsis_lpuart_edma_driver_state_t LPUART6_EdmaDriverState  = {
+static cmsis_lpuart_edma_driver_state_t LPUART6_EdmaDriverState = {
 #endif
     &LPUART6_Resource, &LPUART6_EdmaResource, &LPUART6_EdmaHandle, &LPUART6_EdmaRxHandle, &LPUART6_EdmaTxHandle,
 };
@@ -3511,6 +3546,9 @@ static cmsis_lpuart_dma_resource_t LPUART7_DmaResource = {
 #if (defined(FSL_FEATURE_SOC_DMAMUX_COUNT) && FSL_FEATURE_SOC_DMAMUX_COUNT)
     RTE_USART7_DMA_TX_DMAMUX_BASE, RTE_USART7_DMA_RX_DMAMUX_BASE,
 #endif
+#if FSL_FEATURE_DMA_MODULE_CHANNEL != FSL_FEATURE_DMAMUX_MODULE_CHANNEL
+    RTE_USART7_DMAMUX_TX_CH,       RTE_USART7_DMAMUX_RX_CH
+#endif
 };
 
 static lpuart_dma_handle_t LPUART7_DmaHandle;
@@ -3521,7 +3559,7 @@ static dma_handle_t LPUART7_DmaTxHandle;
 ARMCC_SECTION("lpuart5_dma_driver_state")
 static cmsis_lpuart_dma_driver_state_t LPUART7_DmaDriverState = {
 #else
-static cmsis_lpuart_dma_driver_state_t LPUART7_DmaDriverState    = {
+static cmsis_lpuart_dma_driver_state_t LPUART7_DmaDriverState = {
 #endif
     &LPUART7_Resource, &LPUART7_DmaResource, &LPUART7_DmaHandle, &LPUART7_DmaRxHandle, &LPUART7_DmaTxHandle,
 };
@@ -3605,7 +3643,7 @@ static edma_handle_t LPUART7_EdmaTxHandle;
 ARMCC_SECTION("lpuart7_edma_driver_state")
 static cmsis_lpuart_edma_driver_state_t LPUART7_EdmaDriverState = {
 #else
-static cmsis_lpuart_edma_driver_state_t LPUART7_EdmaDriverState  = {
+static cmsis_lpuart_edma_driver_state_t LPUART7_EdmaDriverState = {
 #endif
     &LPUART7_Resource, &LPUART7_EdmaResource, &LPUART7_EdmaHandle, &LPUART7_EdmaRxHandle, &LPUART7_EdmaTxHandle,
 };
@@ -3821,6 +3859,9 @@ static cmsis_lpuart_dma_resource_t LPUART8_DmaResource = {
 #if (defined(FSL_FEATURE_SOC_DMAMUX_COUNT) && FSL_FEATURE_SOC_DMAMUX_COUNT)
     RTE_USART8_DMA_TX_DMAMUX_BASE, RTE_USART8_DMA_RX_DMAMUX_BASE,
 #endif
+#if FSL_FEATURE_DMA_MODULE_CHANNEL != FSL_FEATURE_DMAMUX_MODULE_CHANNEL
+    RTE_USART8_DMAMUX_TX_CH,       RTE_USART8_DMAMUX_RX_CH
+#endif
 };
 
 static lpuart_dma_handle_t LPUART8_DmaHandle;
@@ -3831,7 +3872,7 @@ static dma_handle_t LPUART8_DmaTxHandle;
 ARMCC_SECTION("lpuart5_dma_driver_state")
 static cmsis_lpuart_dma_driver_state_t LPUART8_DmaDriverState = {
 #else
-static cmsis_lpuart_dma_driver_state_t LPUART8_DmaDriverState    = {
+static cmsis_lpuart_dma_driver_state_t LPUART8_DmaDriverState = {
 #endif
     &LPUART8_Resource, &LPUART8_DmaResource, &LPUART8_DmaHandle, &LPUART8_DmaRxHandle, &LPUART8_DmaTxHandle,
 };
@@ -3915,7 +3956,7 @@ static edma_handle_t LPUART8_EdmaTxHandle;
 ARMCC_SECTION("lpuart8_edma_driver_state")
 static cmsis_lpuart_edma_driver_state_t LPUART8_EdmaDriverState = {
 #else
-static cmsis_lpuart_edma_driver_state_t LPUART8_EdmaDriverState  = {
+static cmsis_lpuart_edma_driver_state_t LPUART8_EdmaDriverState = {
 #endif
     &LPUART8_Resource, &LPUART8_EdmaResource, &LPUART8_EdmaHandle, &LPUART8_EdmaRxHandle, &LPUART8_EdmaTxHandle,
 };
@@ -4131,6 +4172,9 @@ static cmsis_lpuart_dma_resource_t LPUART9_DmaResource = {
 #if (defined(FSL_FEATURE_SOC_DMAMUX_COUNT) && FSL_FEATURE_SOC_DMAMUX_COUNT)
     RTE_USART9_DMA_TX_DMAMUX_BASE, RTE_USART9_DMA_RX_DMAMUX_BASE,
 #endif
+#if FSL_FEATURE_DMA_MODULE_CHANNEL != FSL_FEATURE_DMAMUX_MODULE_CHANNEL
+    RTE_USART9_DMAMUX_TX_CH,       RTE_USART9_DMAMUX_RX_CH
+#endif
 };
 
 static lpuart_dma_handle_t LPUART9_DmaHandle;
@@ -4141,7 +4185,7 @@ static dma_handle_t LPUART9_DmaTxHandle;
 ARMCC_SECTION("lpuart5_dma_driver_state")
 static cmsis_lpuart_dma_driver_state_t LPUART9_DmaDriverState = {
 #else
-static cmsis_lpuart_dma_driver_state_t LPUART9_DmaDriverState    = {
+static cmsis_lpuart_dma_driver_state_t LPUART9_DmaDriverState = {
 #endif
     &LPUART9_Resource, &LPUART9_DmaResource, &LPUART9_DmaHandle, &LPUART9_DmaRxHandle, &LPUART9_DmaTxHandle,
 };
@@ -4225,7 +4269,7 @@ static edma_handle_t LPUART9_EdmaTxHandle;
 ARMCC_SECTION("lpuart9_edma_driver_state")
 static cmsis_lpuart_edma_driver_state_t LPUART9_EdmaDriverState = {
 #else
-static cmsis_lpuart_edma_driver_state_t LPUART9_EdmaDriverState  = {
+static cmsis_lpuart_edma_driver_state_t LPUART9_EdmaDriverState = {
 #endif
     &LPUART9_Resource, &LPUART9_EdmaResource, &LPUART9_EdmaHandle, &LPUART9_EdmaRxHandle, &LPUART9_EdmaTxHandle,
 };
@@ -4441,6 +4485,9 @@ static cmsis_lpuart_dma_resource_t LPUART10_DmaResource = {
 #if (defined(FSL_FEATURE_SOC_DMAMUX_COUNT) && FSL_FEATURE_SOC_DMAMUX_COUNT)
     RTE_USART10_DMA_TX_DMAMUX_BASE, RTE_USART10_DMA_RX_DMAMUX_BASE,
 #endif
+#if FSL_FEATURE_DMA_MODULE_CHANNEL != FSL_FEATURE_DMAMUX_MODULE_CHANNEL
+    RTE_USART10_DMAMUX_TX_CH,       RTE_USART10_DMAMUX_RX_CH
+#endif
 };
 
 static lpuart_dma_handle_t LPUART10_DmaHandle;
@@ -4451,7 +4498,7 @@ static dma_handle_t LPUART10_DmaTxHandle;
 ARMCC_SECTION("lpuart5_dma_driver_state")
 static cmsis_lpuart_dma_driver_state_t LPUART10_DmaDriverState = {
 #else
-static cmsis_lpuart_dma_driver_state_t LPUART10_DmaDriverState   = {
+static cmsis_lpuart_dma_driver_state_t LPUART10_DmaDriverState = {
 #endif
     &LPUART10_Resource, &LPUART10_DmaResource, &LPUART10_DmaHandle, &LPUART10_DmaRxHandle, &LPUART10_DmaTxHandle,
 };
@@ -4751,6 +4798,9 @@ static cmsis_lpuart_dma_resource_t LPUART11_DmaResource = {
 #if (defined(FSL_FEATURE_SOC_DMAMUX_COUNT) && FSL_FEATURE_SOC_DMAMUX_COUNT)
     RTE_USART11_DMA_TX_DMAMUX_BASE, RTE_USART11_DMA_RX_DMAMUX_BASE,
 #endif
+#if FSL_FEATURE_DMA_MODULE_CHANNEL != FSL_FEATURE_DMAMUX_MODULE_CHANNEL
+    RTE_USART11_DMAMUX_TX_CH,       RTE_USART101_DMAMUX_RX_CH
+#endif
 };
 
 static lpuart_dma_handle_t LPUART11_DmaHandle;
@@ -4761,7 +4811,7 @@ static dma_handle_t LPUART11_DmaTxHandle;
 ARMCC_SECTION("lpuart5_dma_driver_state")
 static cmsis_lpuart_dma_driver_state_t LPUART11_DmaDriverState = {
 #else
-static cmsis_lpuart_dma_driver_state_t LPUART11_DmaDriverState   = {
+static cmsis_lpuart_dma_driver_state_t LPUART11_DmaDriverState = {
 #endif
     &LPUART11_Resource, &LPUART11_DmaResource, &LPUART11_DmaHandle, &LPUART11_DmaRxHandle, &LPUART11_DmaTxHandle,
 };
@@ -5061,6 +5111,9 @@ static cmsis_lpuart_dma_resource_t LPUART12_DmaResource = {
 #if (defined(FSL_FEATURE_SOC_DMAMUX_COUNT) && FSL_FEATURE_SOC_DMAMUX_COUNT)
     RTE_USART12_DMA_TX_DMAMUX_BASE, RTE_USART12_DMA_RX_DMAMUX_BASE,
 #endif
+#if FSL_FEATURE_DMA_MODULE_CHANNEL != FSL_FEATURE_DMAMUX_MODULE_CHANNEL
+    RTE_USART12_DMAMUX_TX_CH,       RTE_USART12_DMAMUX_RX_CH
+#endif
 };
 
 static lpuart_dma_handle_t LPUART12_DmaHandle;
@@ -5071,7 +5124,7 @@ static dma_handle_t LPUART12_DmaTxHandle;
 ARMCC_SECTION("lpuart5_dma_driver_state")
 static cmsis_lpuart_dma_driver_state_t LPUART12_DmaDriverState = {
 #else
-static cmsis_lpuart_dma_driver_state_t LPUART12_DmaDriverState   = {
+static cmsis_lpuart_dma_driver_state_t LPUART12_DmaDriverState = {
 #endif
     &LPUART12_Resource, &LPUART12_DmaResource, &LPUART12_DmaHandle, &LPUART12_DmaRxHandle, &LPUART12_DmaTxHandle,
 };

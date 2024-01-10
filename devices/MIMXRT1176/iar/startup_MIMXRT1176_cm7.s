@@ -4,11 +4,11 @@
 ;            MIMXRT1176_cm7
 ;  @version: 1.0
 ;  @date:    2020-12-29
-;  @build:   b210203
+;  @build:   b220909
 ; -------------------------------------------------------------------------
 ;
 ; Copyright 1997-2016 Freescale Semiconductor, Inc.
-; Copyright 2016-2021 NXP
+; Copyright 2016-2022 NXP
 ; All rights reserved.
 ;
 ; SPDX-License-Identifier: BSD-3-Clause
@@ -152,11 +152,11 @@ __vector_table_0x1c
         DCD     SAI4_RX_IRQHandler                            ;SAI4 interrupt
         DCD     SAI4_TX_IRQHandler                            ;SAI4 interrupt
         DCD     SPDIF_IRQHandler                              ;SPDIF interrupt
-        DCD     ANATOP_TEMP_INT_IRQHandler                    ;ANATOP interrupt
-        DCD     ANATOP_TEMP_LOW_HIGH_IRQHandler               ;ANATOP interrupt
-        DCD     ANATOP_TEMP_PANIC_IRQHandler                  ;ANATOP interrupt
-        DCD     ANATOP_LP8_BROWNOUT_IRQHandler                ;ANATOP interrupt
-        DCD     ANATOP_LP0_BROWNOUT_IRQHandler                ;ANATOP interrupt
+        DCD     TMPSNS_INT_IRQHandler                         ;TMPSNS interrupt
+        DCD     TMPSNS_LOW_HIGH_IRQHandler                    ;TMPSNS low high interrupt
+        DCD     TMPSNS_PANIC_IRQHandler                       ;TMPSNS panic interrupt
+        DCD     LPSR_LP8_BROWNOUT_IRQHandler                  ;LPSR 1p8 brownout interrupt
+        DCD     LPSR_LP0_BROWNOUT_IRQHandler                  ;LPSR 1p0 brownout interrupt
         DCD     ADC1_IRQHandler                               ;ADC1 interrupt
         DCD     ADC2_IRQHandler                               ;ADC2 interrupt
         DCD     USBPHY1_IRQHandler                            ;USBPHY1 interrupt
@@ -208,12 +208,12 @@ __vector_table_0x1c
         DCD     USB_OTG1_IRQHandler                           ;USBO2 USB OTG1
         DCD     ENET_IRQHandler                               ;ENET interrupt
         DCD     ENET_1588_Timer_IRQHandler                    ;ENET_1588_Timer interrupt
-        DCD     ENET_MAC0_Tx_Rx_Done_0_IRQHandler             ;ENET 1G MAC0 transmit/receive done 0
-        DCD     ENET_MAC0_Tx_Rx_Done_1_IRQHandler             ;ENET 1G MAC0 transmit/receive done 1
+        DCD     ENET_1G_MAC0_Tx_Rx_1_IRQHandler               ;ENET 1G MAC0 transmit/receive 1
+        DCD     ENET_1G_MAC0_Tx_Rx_2_IRQHandler               ;ENET 1G MAC0 transmit/receive 2
         DCD     ENET_1G_IRQHandler                            ;ENET 1G interrupt
         DCD     ENET_1G_1588_Timer_IRQHandler                 ;ENET_1G_1588_Timer interrupt
-        DCD     XBAR1_IRQ_0_1_IRQHandler                      ;XBAR1 interrupt
-        DCD     XBAR1_IRQ_2_3_IRQHandler                      ;XBAR1 interrupt
+        DCD     XBAR1_IRQ_0_1_IRQHandler                      ;XBARA1 output signal 0, 1 interrupt
+        DCD     XBAR1_IRQ_2_3_IRQHandler                      ;XBARA1 output signal 2, 3 interrupt
         DCD     ADC_ETC_IRQ0_IRQHandler                       ;ADCETC IRQ0 interrupt
         DCD     ADC_ETC_IRQ1_IRQHandler                       ;ADCETC IRQ1 interrupt
         DCD     ADC_ETC_IRQ2_IRQHandler                       ;ADCETC IRQ2 interrupt
@@ -269,8 +269,8 @@ __vector_table_0x1c
         DCD     Reserved213_IRQHandler                        ;Reserved interrupt
         DCD     Reserved214_IRQHandler                        ;Reserved interrupt
         DCD     Reserved215_IRQHandler                        ;Reserved interrupt
-        DCD     HWVAD_EVENT_IRQHandler                        ;HWVAD event interrupt
-        DCD     HWVAD_ERROR_IRQHandler                        ;HWVAD error interrupt
+        DCD     PDM_HWVAD_EVENT_IRQHandler                    ;HWVAD event interrupt
+        DCD     PDM_HWVAD_ERROR_IRQHandler                    ;HWVAD error interrupt
         DCD     PDM_EVENT_IRQHandler                          ;PDM event interrupt
         DCD     PDM_ERROR_IRQHandler                          ;PDM error interrupt
         DCD     EMVSIM1_IRQHandler                            ;EMVSIM1 interrupt
@@ -722,7 +722,19 @@ CAN3_ERROR_IRQHandler
         PUBWEAK CSI_IRQHandler
         PUBWEAK PXP_IRQHandler
         PUBWEAK MIPI_CSI_IRQHandler
+        PUBWEAK MIPI_CSI_DriverIRQHandler
+        SECTION .text:CODE:REORDER:NOROOT(2)
+MIPI_CSI_IRQHandler
+        LDR     R0, =MIPI_CSI_DriverIRQHandler
+        BX      R0
+
         PUBWEAK MIPI_DSI_IRQHandler
+        PUBWEAK MIPI_DSI_DriverIRQHandler
+        SECTION .text:CODE:REORDER:NOROOT(2)
+MIPI_DSI_IRQHandler
+        LDR     R0, =MIPI_DSI_DriverIRQHandler
+        BX      R0
+
         PUBWEAK GPU2D_IRQHandler
         PUBWEAK GPIO6_Combined_0_15_IRQHandler
         PUBWEAK GPIO6_Combined_16_31_IRQHandler
@@ -794,11 +806,11 @@ SPDIF_IRQHandler
         LDR     R0, =SPDIF_DriverIRQHandler
         BX      R0
 
-        PUBWEAK ANATOP_TEMP_INT_IRQHandler
-        PUBWEAK ANATOP_TEMP_LOW_HIGH_IRQHandler
-        PUBWEAK ANATOP_TEMP_PANIC_IRQHandler
-        PUBWEAK ANATOP_LP8_BROWNOUT_IRQHandler
-        PUBWEAK ANATOP_LP0_BROWNOUT_IRQHandler
+        PUBWEAK TMPSNS_INT_IRQHandler
+        PUBWEAK TMPSNS_LOW_HIGH_IRQHandler
+        PUBWEAK TMPSNS_PANIC_IRQHandler
+        PUBWEAK LPSR_LP8_BROWNOUT_IRQHandler
+        PUBWEAK LPSR_LP0_BROWNOUT_IRQHandler
         PUBWEAK ADC1_IRQHandler
         PUBWEAK ADC2_IRQHandler
         PUBWEAK USBPHY1_IRQHandler
@@ -904,18 +916,18 @@ ENET_1588_Timer_IRQHandler
         LDR     R0, =ENET_1588_Timer_DriverIRQHandler
         BX      R0
 
-        PUBWEAK ENET_MAC0_Tx_Rx_Done_0_IRQHandler
-        PUBWEAK ENET_MAC0_Tx_Rx_Done_0_DriverIRQHandler
+        PUBWEAK ENET_1G_MAC0_Tx_Rx_1_IRQHandler
+        PUBWEAK ENET_1G_MAC0_Tx_Rx_1_DriverIRQHandler
         SECTION .text:CODE:REORDER:NOROOT(2)
-ENET_MAC0_Tx_Rx_Done_0_IRQHandler
-        LDR     R0, =ENET_MAC0_Tx_Rx_Done_0_DriverIRQHandler
+ENET_1G_MAC0_Tx_Rx_1_IRQHandler
+        LDR     R0, =ENET_1G_MAC0_Tx_Rx_1_DriverIRQHandler
         BX      R0
 
-        PUBWEAK ENET_MAC0_Tx_Rx_Done_1_IRQHandler
-        PUBWEAK ENET_MAC0_Tx_Rx_Done_1_DriverIRQHandler
+        PUBWEAK ENET_1G_MAC0_Tx_Rx_2_IRQHandler
+        PUBWEAK ENET_1G_MAC0_Tx_Rx_2_DriverIRQHandler
         SECTION .text:CODE:REORDER:NOROOT(2)
-ENET_MAC0_Tx_Rx_Done_1_IRQHandler
-        LDR     R0, =ENET_MAC0_Tx_Rx_Done_1_DriverIRQHandler
+ENET_1G_MAC0_Tx_Rx_2_IRQHandler
+        LDR     R0, =ENET_1G_MAC0_Tx_Rx_2_DriverIRQHandler
         BX      R0
 
         PUBWEAK ENET_1G_IRQHandler
@@ -989,18 +1001,18 @@ ENET_1G_1588_Timer_IRQHandler
         PUBWEAK Reserved213_IRQHandler
         PUBWEAK Reserved214_IRQHandler
         PUBWEAK Reserved215_IRQHandler
-        PUBWEAK HWVAD_EVENT_IRQHandler
-        PUBWEAK HWVAD_EVENT_DriverIRQHandler
+        PUBWEAK PDM_HWVAD_EVENT_IRQHandler
+        PUBWEAK PDM_HWVAD_EVENT_DriverIRQHandler
         SECTION .text:CODE:REORDER:NOROOT(2)
-HWVAD_EVENT_IRQHandler
-        LDR     R0, =HWVAD_EVENT_DriverIRQHandler
+PDM_HWVAD_EVENT_IRQHandler
+        LDR     R0, =PDM_HWVAD_EVENT_DriverIRQHandler
         BX      R0
 
-        PUBWEAK HWVAD_ERROR_IRQHandler
-        PUBWEAK HWVAD_ERROR_DriverIRQHandler
+        PUBWEAK PDM_HWVAD_ERROR_IRQHandler
+        PUBWEAK PDM_HWVAD_ERROR_DriverIRQHandler
         SECTION .text:CODE:REORDER:NOROOT(2)
-HWVAD_ERROR_IRQHandler
-        LDR     R0, =HWVAD_ERROR_DriverIRQHandler
+PDM_HWVAD_ERROR_IRQHandler
+        LDR     R0, =PDM_HWVAD_ERROR_DriverIRQHandler
         BX      R0
 
         PUBWEAK PDM_EVENT_IRQHandler
@@ -1127,8 +1139,8 @@ eLCDIF_IRQHandler
 LCDIFv2_IRQHandler
 CSI_IRQHandler
 PXP_IRQHandler
-MIPI_CSI_IRQHandler
-MIPI_DSI_IRQHandler
+MIPI_CSI_DriverIRQHandler
+MIPI_DSI_DriverIRQHandler
 GPU2D_IRQHandler
 GPIO6_Combined_0_15_IRQHandler
 GPIO6_Combined_16_31_IRQHandler
@@ -1152,11 +1164,11 @@ SAI3_TX_DriverIRQHandler
 SAI4_RX_DriverIRQHandler
 SAI4_TX_DriverIRQHandler
 SPDIF_DriverIRQHandler
-ANATOP_TEMP_INT_IRQHandler
-ANATOP_TEMP_LOW_HIGH_IRQHandler
-ANATOP_TEMP_PANIC_IRQHandler
-ANATOP_LP8_BROWNOUT_IRQHandler
-ANATOP_LP0_BROWNOUT_IRQHandler
+TMPSNS_INT_IRQHandler
+TMPSNS_LOW_HIGH_IRQHandler
+TMPSNS_PANIC_IRQHandler
+LPSR_LP8_BROWNOUT_IRQHandler
+LPSR_LP0_BROWNOUT_IRQHandler
 ADC1_IRQHandler
 ADC2_IRQHandler
 USBPHY1_IRQHandler
@@ -1208,8 +1220,8 @@ USB_OTG2_IRQHandler
 USB_OTG1_IRQHandler
 ENET_DriverIRQHandler
 ENET_1588_Timer_DriverIRQHandler
-ENET_MAC0_Tx_Rx_Done_0_DriverIRQHandler
-ENET_MAC0_Tx_Rx_Done_1_DriverIRQHandler
+ENET_1G_MAC0_Tx_Rx_1_DriverIRQHandler
+ENET_1G_MAC0_Tx_Rx_2_DriverIRQHandler
 ENET_1G_DriverIRQHandler
 ENET_1G_1588_Timer_DriverIRQHandler
 XBAR1_IRQ_0_1_IRQHandler
@@ -1269,8 +1281,8 @@ Reserved212_IRQHandler
 Reserved213_IRQHandler
 Reserved214_IRQHandler
 Reserved215_IRQHandler
-HWVAD_EVENT_DriverIRQHandler
-HWVAD_ERROR_DriverIRQHandler
+PDM_HWVAD_EVENT_DriverIRQHandler
+PDM_HWVAD_ERROR_DriverIRQHandler
 PDM_EVENT_DriverIRQHandler
 PDM_ERROR_DriverIRQHandler
 EMVSIM1_IRQHandler

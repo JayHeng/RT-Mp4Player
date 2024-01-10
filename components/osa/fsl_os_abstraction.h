@@ -9,7 +9,14 @@
 #ifndef _FSL_OS_ABSTRACTION_H_
 #define _FSL_OS_ABSTRACTION_H_
 
+#ifndef SDK_COMPONENT_DEPENDENCY_FSL_COMMON
+#define SDK_COMPONENT_DEPENDENCY_FSL_COMMON (1U)
+#endif
+#if (defined(SDK_COMPONENT_DEPENDENCY_FSL_COMMON) && (SDK_COMPONENT_DEPENDENCY_FSL_COMMON > 0U))
 #include "fsl_common.h"
+#else
+#endif
+
 #include "fsl_os_abstraction_config.h"
 #include "fsl_component_generic_list.h"
 
@@ -86,6 +93,7 @@ typedef enum _osa_timer
 } osa_timer_t;
 
 /*! @brief Defines the return status of OSA's functions */
+#if (defined(SDK_COMPONENT_DEPENDENCY_FSL_COMMON) && (SDK_COMPONENT_DEPENDENCY_FSL_COMMON > 0U))
 typedef enum _osa_status
 {
     KOSA_StatusSuccess = kStatus_Success,                  /*!< Success */
@@ -94,14 +102,25 @@ typedef enum _osa_status
     KOSA_StatusIdle    = MAKE_STATUS(kStatusGroup_OSA, 3), /*!< Used for bare metal only, the wait object is not ready
                                                                  and timeout still not occur */
 } osa_status_t;
+#else
+typedef enum _osa_status
+{
+    KOSA_StatusSuccess = 0, /*!< Success */
+    KOSA_StatusError   = 1, /*!< Failed */
+    KOSA_StatusTimeout = 2, /*!< Timeout occurs while waiting */
+    KOSA_StatusIdle    = 3, /*!< Used for bare metal only, the wait object is not ready
+                                                and timeout still not occur */
+} osa_status_t;
+
+#endif
 
 #ifdef USE_RTOS
 #undef USE_RTOS
 #endif
 
-#if defined(FSL_RTOS_MQX)
+#if defined(SDK_OS_MQX)
 #define USE_RTOS (1)
-#elif defined(FSL_RTOS_FREE_RTOS)
+#elif defined(SDK_OS_FREE_RTOS)
 #define USE_RTOS (1)
 #if (defined(GENERIC_LIST_LIGHT) && (GENERIC_LIST_LIGHT > 0U))
 #define OSA_TASK_HANDLE_SIZE (12U)
@@ -113,9 +132,11 @@ typedef enum _osa_status
 #define OSA_MUTEX_HANDLE_SIZE (4U)
 #define OSA_MSGQ_HANDLE_SIZE  (4U)
 #define OSA_MSG_HANDLE_SIZE   (0U)
-#elif defined(FSL_RTOS_UCOSII)
+#elif defined(SDK_OS_UCOSII)
 #define USE_RTOS (1)
-#elif defined(FSL_RTOS_UCOSIII)
+#elif defined(SDK_OS_UCOSIII)
+#define USE_RTOS (1)
+#elif defined(FSL_RTOS_THREADX)
 #define USE_RTOS (1)
 #else
 #define USE_RTOS (0)
@@ -129,8 +150,13 @@ typedef enum _osa_status
 #else
 #define OSA_EVENT_HANDLE_SIZE (16U)
 #endif /* FSL_OSA_TASK_ENABLE */
-#define OSA_SEM_HANDLE_SIZE   (12U)
+#if (defined(FSL_OSA_BM_TIMEOUT_ENABLE) && (FSL_OSA_BM_TIMEOUT_ENABLE > 0U))
+#define OSA_SEM_HANDLE_SIZE   (16U)
 #define OSA_MUTEX_HANDLE_SIZE (12U)
+#else
+#define OSA_SEM_HANDLE_SIZE   (8U)
+#define OSA_MUTEX_HANDLE_SIZE (4U)
+#endif
 #if (defined(FSL_OSA_TASK_ENABLE) && (FSL_OSA_TASK_ENABLE > 0U))
 #define OSA_MSGQ_HANDLE_SIZE (32U)
 #else
@@ -141,44 +167,51 @@ typedef enum _osa_status
 
 /*! @brief Priority setting for OSA. */
 #ifndef OSA_PRIORITY_IDLE
-#define OSA_PRIORITY_IDLE (6)
+#define OSA_PRIORITY_IDLE (6U)
 #endif
 
 #ifndef OSA_PRIORITY_LOW
-#define OSA_PRIORITY_LOW (5)
+#define OSA_PRIORITY_LOW (5U)
 #endif
 
 #ifndef OSA_PRIORITY_BELOW_NORMAL
-#define OSA_PRIORITY_BELOW_NORMAL (4)
+#define OSA_PRIORITY_BELOW_NORMAL (4U)
 #endif
 
 #ifndef OSA_PRIORITY_NORMAL
-#define OSA_PRIORITY_NORMAL (3)
+#define OSA_PRIORITY_NORMAL (3U)
 #endif
 
 #ifndef OSA_PRIORITY_ABOVE_NORMAL
-#define OSA_PRIORITY_ABOVE_NORMAL (2)
+#define OSA_PRIORITY_ABOVE_NORMAL (2U)
 #endif
 
 #ifndef OSA_PRIORITY_HIGH
-#define OSA_PRIORITY_HIGH (1)
+#define OSA_PRIORITY_HIGH (1U)
 #endif
 
 #ifndef OSA_PRIORITY_REAL_TIME
-#define OSA_PRIORITY_REAL_TIME (0)
+#define OSA_PRIORITY_REAL_TIME (0U)
 #endif
 
 #ifndef OSA_TASK_PRIORITY_MAX
-#define OSA_TASK_PRIORITY_MAX (0)
+#define OSA_TASK_PRIORITY_MAX (0U)
 #endif
 
 #ifndef OSA_TASK_PRIORITY_MIN
-#define OSA_TASK_PRIORITY_MIN (15)
+#define OSA_TASK_PRIORITY_MIN (15U)
 #endif
+
+/*
+ * Converse the percent of the priority to the priority of the OSA.
+ * The the range of the parameter x is 0-100.
+ */
+#define OSA_TASK_PRIORITY_PERCENT(x) ((((OSA_TASK_PRIORITY_MIN - OSA_TASK_PRIORITY_MAX) * (100 - (x))) / 100 ) + OSA_TASK_PRIORITY_MAX)
 
 #define SIZE_IN_UINT32_UNITS(size) (((size) + sizeof(uint32_t) - 1) / sizeof(uint32_t))
 
 /*! @brief Constant to pass as timeout value in order to wait indefinitely. */
+#define osaWaitNone_c            ((uint32_t)(0))
 #define osaWaitForever_c         ((uint32_t)(-1))
 #define osaEventFlagsAll_c       ((osa_event_flags_t)(0x00FFFFFF))
 #define osThreadStackArray(name) osThread_##name##_stack
@@ -194,13 +227,13 @@ typedef enum _osa_status
  * \param         stackSz      stack size (in bytes) requirements for the thread function.
  * \param         useFloat
  */
-#if defined(FSL_RTOS_MQX)
+#if defined(SDK_OS_MQX)
 #define OSA_TASK_DEFINE(name, priority, instances, stackSz, useFloat)                                        \
     osa_thread_link_t osThreadLink_##name[instances]                               = {0};                    \
     osThreadStackDef(name, stackSz, instances) osa_task_def_t os_thread_def_##name = {                       \
         (name),           (priority), (instances), (stackSz), osThreadStackArray(name), osThreadLink_##name, \
         (uint8_t *)#name, (useFloat)}
-#elif defined(FSL_RTOS_UCOSII)
+#elif defined(SDK_OS_UCOSII)
 #if gTaskMultipleInstancesManagement_c
 #define OSA_TASK_DEFINE(name, priority, instances, stackSz, useFloat)                                        \
     osa_thread_link_t osThreadLink_##name[instances]                               = {0};                    \
@@ -212,6 +245,11 @@ typedef enum _osa_status
     osThreadStackDef(name, stackSz, instances) osa_task_def_t os_thread_def_##name = { \
         (name), (priority), (instances), (stackSz), osThreadStackArray(name), NULL, (uint8_t *)#name, (useFloat)}
 #endif
+#elif defined(FSL_RTOS_THREADX)
+#define OSA_TASK_DEFINE(name, priority, instances, stackSz, useFloat)                   \
+    uint32_t s_stackBuffer##name[(stackSz + sizeof(uint32_t) - 1U) / sizeof(uint32_t)]; \
+    static const osa_task_def_t os_thread_def_##name = {                                \
+        (name), (priority), (instances), (stackSz), s_stackBuffer##name, NULL, (uint8_t *)#name, (useFloat)}
 #else
 #define OSA_TASK_DEFINE(name, priority, instances, stackSz, useFloat)                             \
     const osa_task_def_t os_thread_def_##name = {(name), (priority), (instances),      (stackSz), \
@@ -222,7 +260,7 @@ typedef enum _osa_status
  */
 #define OSA_TASK(name) (const osa_task_def_t *)&os_thread_def_##name
 
-#define OSA_TASK_PROTO(name) externosa_task_def_t os_thread_def_##name
+#define OSA_TASK_PROTO(name) extern osa_task_def_t os_thread_def_##name
 /*  ==== Timer Management  ====
  * Define a Timer object.
  * \param         name          name of the timer object.
@@ -308,7 +346,7 @@ typedef enum _osa_status
  * @param msgSize Message size.
  *
  */
-#if defined(FSL_RTOS_FREE_RTOS)
+#if defined(SDK_OS_FREE_RTOS)
 /*< Macro For FREE_RTOS*/
 #define OSA_MSGQ_HANDLE_DEFINE(name, numberOfMsgs, msgSize) \
     uint32_t name[(OSA_MSGQ_HANDLE_SIZE + sizeof(uint32_t) - 1U) / sizeof(uint32_t)]
@@ -335,18 +373,23 @@ typedef enum _osa_status
  */
 #define OSA_TASK_HANDLE_DEFINE(name) uint32_t name[(OSA_TASK_HANDLE_SIZE + sizeof(uint32_t) - 1U) / sizeof(uint32_t)]
 
-#if defined(FSL_RTOS_FREE_RTOS)
+#if defined(SDK_OS_FREE_RTOS)
 #include "fsl_os_abstraction_free_rtos.h"
+#elif defined(FSL_RTOS_THREADX)
+#include "fsl_os_abstraction_threadx.h"
 #else
 #include "fsl_os_abstraction_bm.h"
 #endif
 
 extern const uint8_t gUseRtos_c;
 
+#ifndef __DSB
+#define __DSB()
+#endif
 /*
  * alloc the temporary memory to store the status
  */
-#define OSA_SR_ALLOC() uint32_t osaCurrentSr;
+#define OSA_SR_ALLOC() uint32_t osaCurrentSr = 0U;
 /*
  * Enter critical mode
  */
@@ -354,7 +397,9 @@ extern const uint8_t gUseRtos_c;
 /*
  * Exit critical mode and retore the previous mode
  */
-#define OSA_EXIT_CRITICAL() OSA_ExitCritical(osaCurrentSr)
+#define OSA_EXIT_CRITICAL() \
+    __DSB();                \
+    OSA_ExitCritical(osaCurrentSr);
 
 /*******************************************************************************
  * API
@@ -401,6 +446,34 @@ void OSA_ExitCritical(uint32_t sr);
  */
 
 /*!
+ * @brief Initialize OSA.
+ *
+ * This function is used to setup the basic services.
+ *
+ * Example below shows how to use this API to create the task handle.
+ * @code
+ *   OSA_Init();
+ * @endcode
+ */
+#if (defined(FSL_OSA_TASK_ENABLE) && (FSL_OSA_TASK_ENABLE > 0U))
+void OSA_Init(void);
+#endif
+
+/*!
+ * @brief Start OSA schedule.
+ *
+ * This function is used to start OSA scheduler.
+ *
+ * Example below shows how to use this API to start osa schedule.
+ * @code
+ *   OSA_Start();
+ * @endcode
+ */
+#if (defined(FSL_OSA_TASK_ENABLE) && (FSL_OSA_TASK_ENABLE > 0U))
+void OSA_Start(void);
+#endif
+
+/*!
  * @brief Creates a task.
  *
  * This function is used to create task based on the resources defined
@@ -445,11 +518,10 @@ osa_task_handle_t OSA_TaskGetCurrentHandle(void);
  * When a task calls this function, it gives up the CPU and puts itself to the
  * end of a task ready list.
  *
- * @retval KOSA_StatusSuccess The function is called successfully.
- * @retval KOSA_StatusError   Error occurs with this function.
+ * @retval NULL
  */
 #if ((defined(FSL_OSA_TASK_ENABLE)) && (FSL_OSA_TASK_ENABLE > 0U))
-osa_status_t OSA_TaskYield(void);
+void OSA_TaskYield(void);
 #endif /* FSL_OSA_TASK_ENABLE */
 
 /*!
@@ -489,6 +561,29 @@ osa_status_t OSA_TaskDestroy(osa_task_handle_t taskHandle);
 #endif /* FSL_OSA_TASK_ENABLE */
 
 /*!
+ * @brief Pre-creates a semaphore.
+ *
+ * This function pre-creates a semaphore with the task handler.
+ *
+ * Example below shows how to use this API to create the semaphore handle.
+ * @code
+ *   OSA_SEMAPHORE_HANDLE_DEFINE(semaphoreHandle);
+ *   OSA_SemaphoreCreate((osa_semaphore_handle_t)semaphoreHandle, (osa_task_ptr_t)taskHandler);
+ * @endcode
+ *
+ * @param semaphoreHandle Pointer to a memory space of size OSA_SEM_HANDLE_SIZE allocated by the caller.
+ * The handle should be 4 byte aligned, because unaligned access doesn't be supported on some devices.
+ * You can define the handle in the following two ways:
+ * #OSA_SEMAPHORE_HANDLE_DEFINE(semaphoreHandle);
+ * or
+ * uint32_t semaphoreHandle[((OSA_SEM_HANDLE_SIZE + sizeof(uint32_t) - 1U) / sizeof(uint32_t))];
+ * @param taskHandler taskHandler The task handler this event is used by.
+ *
+ * @retval KOSA_StatusSuccess  the new semaphore if the semaphore is created successfully.
+ */
+osa_status_t OSA_SemaphorePrecreate(osa_semaphore_handle_t semaphoreHandle, osa_task_ptr_t taskHandler);
+
+/*!
  * @brief Creates a semaphore with a given value.
  *
  * This function creates a semaphore and sets the value to the parameter
@@ -512,6 +607,29 @@ osa_status_t OSA_TaskDestroy(osa_task_handle_t taskHandle);
  * @retval KOSA_StatusError   if the semaphore can not be created.
  */
 osa_status_t OSA_SemaphoreCreate(osa_semaphore_handle_t semaphoreHandle, uint32_t initValue);
+
+/*!
+ * @brief Creates a binary semaphore.
+ *
+ * This function creates a binary semaphore
+ *
+ * Example below shows how to use this API to create the semaphore handle.
+ * @code
+ *   OSA_SEMAPHORE_HANDLE_DEFINE(semaphoreHandle);
+ *   OSA_SemaphoreCreateBinary((osa_semaphore_handle_t)semaphoreHandle);
+ * @endcode
+ *
+ * @param semaphoreHandle Pointer to a memory space of size OSA_SEM_HANDLE_SIZE allocated by the caller.
+ * The handle should be 4 byte aligned, because unaligned access doesn't be supported on some devices.
+ * You can define the handle in the following two ways:
+ * #OSA_SEMAPHORE_HANDLE_DEFINE(semaphoreHandle);
+ * or
+ * uint32_t semaphoreHandle[((OSA_SEM_HANDLE_SIZE + sizeof(uint32_t) - 1U) / sizeof(uint32_t))];
+ *
+ * @retval KOSA_StatusSuccess  the new binary semaphore if the binary semaphore is created successfully.
+ * @retval KOSA_StatusError   if the binary semaphore can not be created.
+ */
+osa_status_t OSA_SemaphoreCreateBinary(osa_semaphore_handle_t semaphoreHandle);
 
 /*!
  * @brief Destroys a previously created semaphore.
@@ -619,6 +737,28 @@ osa_status_t OSA_MutexUnlock(osa_mutex_handle_t mutexHandle);
  *
  */
 osa_status_t OSA_MutexDestroy(osa_mutex_handle_t mutexHandle);
+
+/*!
+ * @brief Pre-initializes an event object.
+ *
+ * This function pre-creates an event object and indicates which task this event is used by.
+ *
+ * Example below shows how to use this API to create the event handle.
+ * @code
+ *   OSA_EVENT_HANDLE_DEFINE(eventHandle);
+ *   OSA_EventPrecreate((osa_event_handle_t)eventHandle, (osa_task_ptr_t)taskHandler);
+ * @endcode
+ *
+ * @param eventHandle Pointer to a memory space of size OSA_EVENT_HANDLE_SIZE allocated by the caller.
+ * The handle should be 4 byte aligned, because unaligned access doesn't be supported on some devices.
+ * You can define the handle in the following two ways:
+ * #OSA_EVENT_HANDLE_DEFINE(eventHandle);
+ * or
+ * uint32 eventHandle[((OSA_EVENT_HANDLE_SIZE + sizeof(uint32) - 1U) / sizeof(uint32))];
+ * @param taskHandler The task handler this event is used by.
+ * @retval KOSA_StatusSuccess  the new event if the event is pre-created successfully.
+ */
+osa_status_t OSA_EventPrecreate(osa_event_handle_t eventHandle, osa_task_ptr_t taskHandler);
 
 /*!
  * @brief Initializes an event object with all flags cleared.

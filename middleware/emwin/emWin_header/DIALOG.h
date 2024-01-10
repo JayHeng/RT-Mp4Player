@@ -3,13 +3,13 @@
 *        Solutions for real time microcontroller applications        *
 **********************************************************************
 *                                                                    *
-*        (c) 1996 - 2020  SEGGER Microcontroller GmbH                *
+*        (c) 1996 - 2022  SEGGER Microcontroller GmbH                *
 *                                                                    *
 *        Internet: www.segger.com    Support:  support@segger.com    *
 *                                                                    *
 **********************************************************************
 
-** emWin V6.14 - Graphical user interface for embedded applications **
+** emWin V6.32 - Graphical user interface for embedded applications **
 All  Intellectual Property rights  in the Software belongs to  SEGGER.
 emWin is protected by  international copyright laws.  Knowledge of the
 source code may not be used to write a similar product.  This file may
@@ -34,7 +34,7 @@ License model:            emWin License Agreement, dated August 20th 2011 and Am
 Licensed platform:        NXP's ARM 7/9, Cortex-M0, M3, M4, M7, A7, M33
 ----------------------------------------------------------------------
 Support and Update Agreement (SUA)
-SUA period:               2011-08-19 - 2020-09-02
+SUA period:               2011-08-19 - 2023-09-03
 Contact to extend SUA:    sales@segger.com
 ----------------------------------------------------------------------
 File        : Dialog.h
@@ -66,6 +66,7 @@ Purpose     : Dialog box include
 #include "LISTVIEW.h"
 #include "LISTWHEEL.h"
 #include "MENU.h"
+#include "MOVIE.h"
 #include "MULTIEDIT.h"
 #include "MULTIPAGE.h"
 #include "PROGBAR.h"
@@ -73,12 +74,15 @@ Purpose     : Dialog box include
 #include "RADIO.h"
 #include "ROTARY.h"
 #include "SCROLLBAR.h"
+#include "SCROLLER.h"
 #include "SLIDER.h"
 #include "SPINBOX.h"
 #include "SWIPELIST.h"
 #include "SWITCH.h"
 #include "TEXT.h"
+#include "TICKER.h"
 #include "TREEVIEW.h"
+#include "WHEEL.h"
 
 #if GUI_WINSUPPORT
 

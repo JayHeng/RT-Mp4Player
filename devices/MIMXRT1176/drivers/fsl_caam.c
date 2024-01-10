@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2016, Freescale Semiconductor, Inc.
- * Copyright 2016-2017, 2020 NXP
+ * Copyright 2016-2022 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -8,6 +8,17 @@
 
 #include "fsl_caam.h"
 #include "fsl_clock.h"
+
+#if defined(FSL_FEATURE_HAS_L1CACHE) || defined(__DCACHE_PRESENT)
+#include "fsl_cache.h"
+
+#if defined(CACHE_MODE_WRITE_THROUGH) && CACHE_MODE_WRITE_THROUGH
+#define CAAM_OUT_INVALIDATE (1u)
+#else
+#warning "DCACHE must be set to write-trough mode to safely invalidate cache!!"
+#endif /* CACHE_MODE_WRITE_THROUGH */
+
+#endif /* defined(FSL_FEATURE_HAS_L1CACHE) || defined(__DCACHE_PRESENT) */
 
 /*******************************************************************************
  * Definitions
@@ -29,14 +40,14 @@
 #endif
 
 /*! IRBAR and ORBAR job ring registers are 64-bit. these macros access least significant address 32-bit word. */
-#define IRBAR0 *(((volatile uint32_t *)&(base->JOBRING[0].IRBAR_JR)) + 1)
-#define ORBAR0 *(((volatile uint32_t *)&(base->JOBRING[0].ORBAR_JR)) + 1)
-#define IRBAR1 *(((volatile uint32_t *)&(base->JOBRING[1].IRBAR_JR)) + 1)
-#define ORBAR1 *(((volatile uint32_t *)&(base->JOBRING[1].ORBAR_JR)) + 1)
-#define IRBAR2 *(((volatile uint32_t *)&(base->JOBRING[2].IRBAR_JR)) + 1)
-#define ORBAR2 *(((volatile uint32_t *)&(base->JOBRING[2].ORBAR_JR)) + 1)
-#define IRBAR3 *(((volatile uint32_t *)&(base->JOBRING[3].IRBAR_JR)) + 1)
-#define ORBAR3 *(((volatile uint32_t *)&(base->JOBRING[3].ORBAR_JR)) + 1)
+#define IRBAR0 *(((volatile uint32_t *)(uint32_t) & (base->JOBRING[0].IRBAR_JR)) + 1)
+#define ORBAR0 *(((volatile uint32_t *)(uint32_t) & (base->JOBRING[0].ORBAR_JR)) + 1)
+#define IRBAR1 *(((volatile uint32_t *)(uint32_t) & (base->JOBRING[1].IRBAR_JR)) + 1)
+#define ORBAR1 *(((volatile uint32_t *)(uint32_t) & (base->JOBRING[1].ORBAR_JR)) + 1)
+#define IRBAR2 *(((volatile uint32_t *)(uint32_t) & (base->JOBRING[2].IRBAR_JR)) + 1)
+#define ORBAR2 *(((volatile uint32_t *)(uint32_t) & (base->JOBRING[2].ORBAR_JR)) + 1)
+#define IRBAR3 *(((volatile uint32_t *)(uint32_t) & (base->JOBRING[3].IRBAR_JR)) + 1)
+#define ORBAR3 *(((volatile uint32_t *)(uint32_t) & (base->JOBRING[3].ORBAR_JR)) + 1)
 
 /*! Job Descriptor defines */
 #define DESC_SIZE_MASK         0x0000003Fu
@@ -48,6 +59,8 @@
 #define DESC_JUMP_2            0xA0000002u
 #define DESC_JUMP_4            0xA0000004u
 #define DESC_JUMP_6            0xA0000006u
+#define DESC_BLACKKEY_NOMMEN   0x4u
+#define SEC_MEM                0x8u
 
 typedef enum _caam_algorithm
 {
@@ -59,6 +72,7 @@ typedef enum _caam_algorithm
     kCAAM_AlgorithmSHA256 = 0x43u << 16,
     kCAAM_AlgorithmSHA384 = 0x44u << 16,
     kCAAM_AlgorithmSHA512 = 0x45u << 16,
+    kCAAM_AlgorithmCRC    = 0x90u << 16,
 } caam_algorithm_t;
 
 typedef enum _caam_aai_symmetric_alg
@@ -129,14 +143,14 @@ typedef struct _caam_hash_ctx_internal
     uint32_t blksz;                       /*!< number of valid bytes in memory buffer */
     CAAM_Type *base;                      /*!< CAAM peripheral base address */
     caam_handle_t *handle;                /*!< CAAM handle (specifies jobRing and optional callback function) */
-    caam_hash_algo_t algo;        /*!< selected algorithm from the set of supported algorithms in caam_hash_algo_t */
-    caam_hash_algo_state_t state; /*!< finite machine state of the hash software process */
+    caam_hash_algo_t algo; /*!< selected algorithm from the set of supported algorithms in caam_hash_algo_t */
+    caam_hash_algo_state_t fsm_state; /*!< finite machine state of the hash software process */
 } caam_hash_ctx_internal_t;
 
 /*! Definitions of indexes into hash job descriptor */
 enum _caam_hash_sgt_index
 {
-    kCAAM_HashDescriptorSgtIdx = 13u, /*!< Index of the hash job descriptor[] where the two entry SGT starts. */
+    kCAAM_HashDescriptorSgtIdx = 14u, /*!< Index of the hash job descriptor[] where the two entry SGT starts. */
 };
 
 /*! One entry in the SGT */
@@ -172,20 +186,32 @@ enum _caam_hash_non_blocking_sgt_entries
         (sizeof(caam_hash_block_t) + sizeof(uint32_t) * kCAAM_HashCtxKeyStartIdx) / sizeof(caam_sgt_entry_t),
 };
 
+typedef struct _caam_crc_ctx_internal
+{
+    caam_hash_block_t blk; /*!< memory buffer. only full 64-byte blocks are written to CAAM during hash updates */
+    uint32_t word[kCAAM_HashCtxNumWords]; /*!< CAAM module context that needs to be saved/restored between CAAM jobs */
+    uint32_t blksz;                       /*!< number of valid bytes in memory buffer */
+    CAAM_Type *base;                      /*!< CAAM peripheral base address */
+    caam_handle_t *handle;                /*!< CAAM handle (specifies jobRing and optional callback function) */
+    caam_crc_algo_t algo;       /*!< selected algorithm from the set of supported algorithms in caam_hash_algo_t */
+    caam_aai_crc_alg_t crcmode; /*!< Specifies how CRC engine manipulates input and output data */
+    caam_hash_algo_state_t fsm_state; /*!< finite machine state of the hash software process */
+} caam_crc_ctx_internal_t;
+
 /*******************************************************************************
  * Variables
  ******************************************************************************/
 static caam_job_ring_interface_t *s_jr0 = NULL; /*!< Pointer to job ring interface 0. */
-static int32_t s_jrIndex0               = 0;    /*!< Current index in the input job ring 0. */
+static uint32_t s_jrIndex0              = 0;    /*!< Current index in the input job ring 0. */
 
 static caam_job_ring_interface_t *s_jr1 = NULL; /*!< Pointer to job ring interface 1. */
-static int32_t s_jrIndex1               = 0;    /*!< Current index in the input job ring 1. */
+static uint32_t s_jrIndex1              = 0;    /*!< Current index in the input job ring 1. */
 
 static caam_job_ring_interface_t *s_jr2 = NULL; /*!< Pointer to job ring interface 2. */
-static int32_t s_jrIndex2               = 0;    /*!< Current index in the input job ring 2. */
+static uint32_t s_jrIndex2              = 0;    /*!< Current index in the input job ring 2. */
 
 static caam_job_ring_interface_t *s_jr3 = NULL; /*!< Pointer to job ring interface 3. */
-static int32_t s_jrIndex3               = 0;    /*!< Current index in the input job ring 3. */
+static uint32_t s_jrIndex3              = 0;    /*!< Current index in the input job ring 3. */
 
 /*******************************************************************************
  * Code
@@ -194,6 +220,40 @@ static int32_t s_jrIndex3               = 0;    /*!< Current index in the input 
 /*******************************************************************************
  * CAAM Common code static
  ******************************************************************************/
+
+/* Macros and functions computing data offset for descriptors */
+#if defined(FSL_FEATURE_MEMORY_HAS_ADDRESS_OFFSET)
+#include "fsl_memory.h"
+
+#ifndef FSL_MEM_M4_TCM_OFFSET
+#define CAAM_OFFSET 0U
+#else
+#define CAAM_OFFSET FSL_MEM_M4_TCM_OFFSET
+#endif
+
+static uint32_t ADD_OFFSET(uint32_t addr)
+{
+    if (addr > FSL_MEM_M4_TCM_END)
+    {
+        return addr;
+    }
+    else if (addr < FSL_MEM_M4_TCM_BEGIN)
+    {
+        return addr;
+    }
+    else
+    {
+        return addr + CAAM_OFFSET;
+    }
+}
+
+#else  /* !defined(FLS_FEATURE_CAAM_OFFSET) */
+static uint32_t ADD_OFFSET(uint32_t addr)
+{
+    return addr;
+}
+#endif /* FLS_FEATURE_CAAM_OFFSET */
+
 #if 0
 /* for build without string.h memcpy() */
 static void caam_memcpy(void *dst, const void *src, size_t size)
@@ -240,33 +300,33 @@ static void caam_job_ring_set_base_address_and_size(CAAM_Type *base,
 {
     if (kCAAM_JobRing0 == jr)
     {
-        IRBAR0                   = (uintptr_t)inputRingBase;
+        IRBAR0                   = ADD_OFFSET((uint32_t)inputRingBase);
         base->JOBRING[0].IRSR_JR = inputRingSize;
-        ORBAR0                   = (uintptr_t)outputRingBase;
+        ORBAR0                   = ADD_OFFSET((uint32_t)outputRingBase);
         base->JOBRING[0].ORSR_JR = outputRingSize;
     }
 
     if (kCAAM_JobRing1 == jr)
     {
-        IRBAR1                   = (uintptr_t)inputRingBase;
+        IRBAR1                   = (uintptr_t)ADD_OFFSET((uint32_t)inputRingBase);
         base->JOBRING[1].IRSR_JR = inputRingSize;
-        ORBAR1                   = (uintptr_t)outputRingBase;
+        ORBAR1                   = (uintptr_t)ADD_OFFSET((uint32_t)outputRingBase);
         base->JOBRING[1].ORSR_JR = outputRingSize;
     }
 
     if (kCAAM_JobRing2 == jr)
     {
-        IRBAR2                   = (uintptr_t)inputRingBase;
+        IRBAR2                   = (uintptr_t)ADD_OFFSET((uint32_t)inputRingBase);
         base->JOBRING[2].IRSR_JR = inputRingSize;
-        ORBAR2                   = (uintptr_t)outputRingBase;
+        ORBAR2                   = (uintptr_t)ADD_OFFSET((uint32_t)outputRingBase);
         base->JOBRING[2].ORSR_JR = outputRingSize;
     }
 
     if (kCAAM_JobRing3 == jr)
     {
-        IRBAR3                   = (uintptr_t)inputRingBase;
+        IRBAR3                   = (uintptr_t)ADD_OFFSET((uint32_t)inputRingBase);
         base->JOBRING[3].IRSR_JR = inputRingSize;
-        ORBAR3                   = (uintptr_t)outputRingBase;
+        ORBAR3                   = (uintptr_t)ADD_OFFSET((uint32_t)outputRingBase);
         base->JOBRING[3].ORSR_JR = outputRingSize;
     }
 }
@@ -356,20 +416,22 @@ static uint32_t caam_output_ring_get_slots_full(CAAM_Type *base, caam_job_ring_t
  * @param keySize Input key length in bytes.
  * @return True if the key length is supported, false if not.
  */
+bool caam_check_key_size(const uint32_t keySize);
 bool caam_check_key_size(const uint32_t keySize)
 {
     return ((keySize == 16u) || ((keySize == 24u)) || ((keySize == 32u)));
 }
 
-static status_t caam_in_job_ring_add(CAAM_Type *base, caam_job_ring_t jobRing, void *descaddr)
+static status_t caam_in_job_ring_add(CAAM_Type *base, caam_job_ring_t jobRing, uint32_t *descaddr)
 {
     /* adding new job to the s_inJobRing[] must be atomic
      * as this is global variable
      */
     uint32_t currPriMask = DisableGlobalIRQ();
+
     if (kCAAM_JobRing0 == jobRing)
     {
-        s_jr0->inputJobRing[s_jrIndex0] = (uintptr_t)descaddr;
+        s_jr0->inputJobRing[s_jrIndex0] = (ADD_OFFSET((uint32_t)descaddr));
         s_jrIndex0++;
         if (s_jrIndex0 >= ARRAY_SIZE(s_jr0->inputJobRing))
         {
@@ -378,7 +440,7 @@ static status_t caam_in_job_ring_add(CAAM_Type *base, caam_job_ring_t jobRing, v
     }
     else if (kCAAM_JobRing1 == jobRing)
     {
-        s_jr1->inputJobRing[s_jrIndex1] = (uintptr_t)descaddr;
+        s_jr1->inputJobRing[s_jrIndex1] = ADD_OFFSET((uint32_t)descaddr);
         s_jrIndex1++;
         if (s_jrIndex1 >= ARRAY_SIZE(s_jr1->inputJobRing))
         {
@@ -387,7 +449,7 @@ static status_t caam_in_job_ring_add(CAAM_Type *base, caam_job_ring_t jobRing, v
     }
     else if (kCAAM_JobRing2 == jobRing)
     {
-        s_jr2->inputJobRing[s_jrIndex2] = (uintptr_t)descaddr;
+        s_jr2->inputJobRing[s_jrIndex2] = ADD_OFFSET((uint32_t)descaddr);
         s_jrIndex2++;
         if (s_jrIndex2 >= ARRAY_SIZE(s_jr2->inputJobRing))
         {
@@ -396,7 +458,7 @@ static status_t caam_in_job_ring_add(CAAM_Type *base, caam_job_ring_t jobRing, v
     }
     else if (kCAAM_JobRing3 == jobRing)
     {
-        s_jr3->inputJobRing[s_jrIndex3] = (uintptr_t)descaddr;
+        s_jr3->inputJobRing[s_jrIndex3] = ADD_OFFSET((uint32_t)descaddr);
         s_jrIndex3++;
         if (s_jrIndex3 >= ARRAY_SIZE(s_jr3->inputJobRing))
         {
@@ -410,7 +472,10 @@ static status_t caam_in_job_ring_add(CAAM_Type *base, caam_job_ring_t jobRing, v
     }
 
     caam_input_ring_set_jobs_added(base, jobRing, 1);
+
+    /* Enable IRQ */
     EnableGlobalIRQ(currPriMask);
+
     return kStatus_Success;
 }
 
@@ -439,23 +504,27 @@ static status_t caam_out_job_ring_remove(CAAM_Type *base, caam_job_ring_t jobRin
         s_jr3->outputJobRing[outIndex++] = 0; /* clear descriptor address */
         s_jr3->outputJobRing[outIndex]   = 0; /* clear status */
     }
+    else
+    {
+        /* Intentional empty */
+    }
 
     caam_output_ring_set_jobs_removed(base, jobRing, 1);
     return 0;
 }
 
 static status_t caam_out_job_ring_test_and_remove(
-    CAAM_Type *base, caam_job_ring_t jobRing, void *descriptor, bool *wait, bool *found)
+    CAAM_Type *base, caam_job_ring_t jobRing, uint32_t *descriptor, bool *wait, bool *found)
 {
     uint32_t currPriMask = DisableGlobalIRQ();
-    int i;
+    uint32_t i;
     status_t status;
 
     *found = false;
     *wait  = true;
     status = kStatus_Success;
     uint32_t *jr;
-    int jrEntries;
+    uint32_t jrEntries;
 
     if (jobRing == kCAAM_JobRing0)
     {
@@ -483,7 +552,7 @@ static status_t caam_out_job_ring_test_and_remove(
     }
 
     /* check if an interrupt or other thread consumed the result that we just saw */
-    if (caam_output_ring_get_slots_full(base, jobRing))
+    if ((caam_output_ring_get_slots_full(base, jobRing)) != 0U)
     {
         /* check if our descriptor is in the output job ring
          * look from the beginning of the out job ring
@@ -497,23 +566,23 @@ static status_t caam_out_job_ring_test_and_remove(
                 *found = true;
                 *wait  = false;
                 /* check for error in status word */
-                if (jr[i + 1])
+                if ((jr[i + 1U]) != 0U)
                 {
                     /* printf("Error 0x%lx\r\n", jr[i + 1]); */
 
                     /* for JMP/HALT commands with User specified status, return the user status, just to allow the
                      * software to test for user status termination status words */
                     /* This is used by PKHA PrimalityTest to report a candidate is believed not being prime */
-                    if (0x30000000u == (jr[i + 1] & 0xff000000u))
+                    if (0x30000000u == (jr[i + 1U] & 0xff000000u))
                     {
-                        status = jr[i + 1];
+                        status = (int32_t)jr[i + 1U];
                     }
                     else
                     {
                         status = kStatus_Fail;
                     }
                 }
-                caam_out_job_ring_remove(base, jobRing, i);
+                (void)caam_out_job_ring_remove(base, jobRing, (int)i);
             }
             else
             {
@@ -563,13 +632,14 @@ static status_t caam_aes_gcm_check_input_args(CAAM_Type *base,
                                               size_t aadSize,
                                               size_t tagSize)
 {
-    if (!base)
+    if (base == NULL)
     {
         return kStatus_InvalidArgument;
     }
 
     /* tag can be NULL to skip tag processing */
-    if ((ivSize && (!iv)) || (aadSize && (!aad)) || (inputSize && ((!src) || (!dst))))
+    if (((ivSize != 0U) && (iv == NULL)) || ((aadSize != 0U) && (aad == NULL)) ||
+        ((inputSize != 0U) && ((src == NULL) || (dst == NULL))))
     {
         return kStatus_InvalidArgument;
     }
@@ -581,7 +651,7 @@ static status_t caam_aes_gcm_check_input_args(CAAM_Type *base,
     }
 
     /* no IV AAD DATA makes no sense */
-    if (0 == (inputSize + ivSize + aadSize))
+    if (0U == (inputSize + ivSize + aadSize))
     {
         return kStatus_InvalidArgument;
     }
@@ -614,26 +684,44 @@ static const uint32_t templateAesGcm[] = {
     /* 08 */ 0x22310000u, /* FIFO LOAD AAD (flush) */
     /* 09 */ 0x00000000u, /* place: AAD address */
 
-    /* 10 */ 0x22130000u, /* FIFO LOAD message */
+    /* 10 */ 0x22530000u, /* FIFO LOAD message */
     /* 11 */ 0x00000000u, /* place: message address */
+    /* 12 */ 0x00000000u, /* place: message size */
 
-    /* 12 */ 0x60300000u, /* FIFO STORE Message */
-    /* 13 */ 0x00000000u, /* place: destination address */
+    /* 13 */ 0x60700000u, /* FIFO STORE Message */
+    /* 14 */ 0x00000000u, /* place: destination address */
+    /* 15 */ 0x00000000u, /* place: destination size */
 
-    /* 14 */ 0xA3001201u, /* JMP always to next command. Load/store checkpoint. Class 1 done checkpoint. */
+    /* 16 */ 0xA3001201u, /* JMP always to next command. Load/store checkpoint. Class 1 done checkpoint. */
 
     /* For encryption, write the computed and encrypted MAC to user buffer */
     /* For decryption, compare the computed tag with the received tag, CICV-only job. */
-    /* 15 */ 0x10880004u, /* LOAD Immediate to Clear Written Register. */
-    /* 16 */ 0x08000004u, /* value for Clear Written Register: C1D and C1DS bits are set */
-    /* 17 */ 0x12820004u, /* LOAD Immediate to C1DS Register. */
-    /* 18 */ 0x00000000u, /* zero data size */
-    /* 19 */ 0x12830004u, /* LOAD Class 1 ICV Size Register by IMM data */
-    /* 20 */ 0x00000000u, /* place: received ICV size */
-    /* 21 */ 0x82100902u, /* OPERATION: AES GCM Decrypt Update ICV_TEST */
-    /* 22 */ 0x223B0000u, /* FIFO LOAD ICV */
-    /* 23 */ 0x00000000u, /* place: received ICV address */
+    /* 17 */ 0x10880004u, /* LOAD Immediate to Clear Written Register. */
+    /* 18 */ 0x08000004u, /* value for Clear Written Register: C1D and C1DS bits are set */
+    /* 19 */ 0x12820004u, /* LOAD Immediate to C1DS Register. */
+    /* 20 */ 0x00000000u, /* zero data size */
+    /* 21 */ 0x12830004u, /* LOAD Class 1 ICV Size Register by IMM data */
+    /* 22 */ 0x00000000u, /* place: received ICV size */
+    /* 23 */ 0x82100902u, /* OPERATION: AES GCM Decrypt Update ICV_TEST */
+    /* 24 */ 0x223B0000u, /* FIFO LOAD ICV */
+    /* 25 */ 0x00000000u, /* place: received ICV address */
 };
+
+status_t caam_aes_gcm_non_blocking(CAAM_Type *base,
+                                   caam_handle_t *handle,
+                                   caam_desc_aes_gcm_t descriptor,
+                                   const uint8_t *input,
+                                   uint8_t *output,
+                                   size_t size,
+                                   const uint8_t *iv,
+                                   size_t ivSize,
+                                   const uint8_t *aad,
+                                   size_t aadSize,
+                                   const uint8_t *key,
+                                   size_t keySize,
+                                   uint32_t tag,
+                                   size_t tagSize,
+                                   int encrypt);
 
 status_t caam_aes_gcm_non_blocking(CAAM_Type *base,
                                    caam_handle_t *handle,
@@ -662,17 +750,17 @@ status_t caam_aes_gcm_non_blocking(CAAM_Type *base,
 
     /* get template descriptor and it's size */
     uint32_t descriptorSize = ARRAY_SIZE(templateAesGcm);
-    caam_memcpy(descriptor, templateAesGcm, sizeof(templateAesGcm));
+    (void)caam_memcpy(descriptor, templateAesGcm, sizeof(templateAesGcm));
 
     /* add descriptor size */
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
 
     /* key address and key size */
     descriptor[1] |= (keySize & DESC_KEY_SIZE_MASK);
-    descriptor[2] = (uint32_t)key;
+    descriptor[2] = ADD_OFFSET((uint32_t)key);
 
     /* Encrypt decrypt */
-    if (encrypt)
+    if (0 != encrypt)
     {
         descriptor[3] |= 1u; /* ENC */
     }
@@ -680,12 +768,12 @@ status_t caam_aes_gcm_non_blocking(CAAM_Type *base,
     /* ICV Size */
     descriptor[5] = tagSize;
 
-    bool ivLast  = (aadSize == 0) && (size == 0);
-    bool aadLast = (size == 0);
+    bool ivLast  = (aadSize == 0U) && (size == 0U);
+    bool aadLast = (size == 0U);
 
     /* IV address and size */
     descriptor[6] |= (ivSize & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[7] = (uint32_t)iv;
+    descriptor[7] = ADD_OFFSET((uint32_t)iv);
     if (ivLast)
     {
         descriptor[6] |= DESC_LC1_MASK; /* LC1 */
@@ -693,41 +781,41 @@ status_t caam_aes_gcm_non_blocking(CAAM_Type *base,
 
     /* AAD address and size */
     descriptor[8] |= (aadSize & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[9] = (uint32_t)aad;
+    descriptor[9] = ADD_OFFSET((uint32_t)aad);
     if ((!ivLast) && aadLast)
     {
         descriptor[8] |= DESC_LC1_MASK; /* LC1 */
     }
 
     /* Message source address and size */
-    descriptor[10] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[11] = (uint32_t)input;
+    descriptor[11] = ADD_OFFSET((uint32_t)input);
+    descriptor[12] = size;
 
     /* Message destination address and size */
-    descriptor[12] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[13] = (uint32_t)output;
+    descriptor[14] = ADD_OFFSET((uint32_t)output);
+    descriptor[15] = size;
 
-    if (tag)
+    if (tag != 0U)
     {
-        if (!encrypt)
+        if (encrypt == 0)
         {
-            descriptor[20] = tagSize;
-            descriptor[22] |= (tagSize & DESC_TAG_SIZE_MASK);
-            descriptor[23] = (uint32_t)tag;
+            descriptor[22] = tagSize;
+            descriptor[24] |= (tagSize & DESC_TAG_SIZE_MASK);
+            descriptor[25] = ADD_OFFSET((uint32_t)tag);
         }
         else
         {
             /* For encryption change the command to FIFO STORE, as tag data needs to be put into tag output */
-            descriptor[14] = 0x52200000u | (tagSize & DESC_TAG_SIZE_MASK); /* STORE from Class 1 context to tag */
-            descriptor[15] = (uint32_t)tag;                                /* place: tag address */
+            descriptor[16] = 0x52200000u | (tagSize & DESC_TAG_SIZE_MASK); /* STORE from Class 1 context to tag */
+            descriptor[17] = ADD_OFFSET((uint32_t)tag);                    /* place: tag address */
             ;
-            descriptor[16] = DESC_HALT; /* always halt with status 0x0 (normal) */
+            descriptor[18] = DESC_HALT; /* always halt with status 0x0 (normal) */
         }
     }
     else
     {
         /* tag is NULL, skip tag processing */
-        descriptor[14] = DESC_HALT; /* always halt with status 0x0 (normal) */
+        descriptor[16] = DESC_HALT; /* always halt with status 0x0 (normal) */
     }
 
     /* add operation specified by descriptor to CAAM Job Ring */
@@ -744,13 +832,13 @@ static status_t caam_aes_ccm_check_input_args(CAAM_Type *base,
                                               size_t keySize,
                                               size_t tagSize)
 {
-    if (!base)
+    if (base == NULL)
     {
         return kStatus_InvalidArgument;
     }
 
     /* tag can be NULL to skip tag processing */
-    if ((!src) || (!iv) || (!key) || (!dst))
+    if ((src == NULL) || (iv == NULL) || (key == NULL) || (dst == NULL))
     {
         return kStatus_InvalidArgument;
     }
@@ -762,7 +850,7 @@ static status_t caam_aes_ccm_check_input_args(CAAM_Type *base,
     }
     /* octet length of MAC (tagSize) must be element of 4,6,8,10,12,14,16 for tag processing or zero to skip tag
      * processing */
-    if (((tagSize > 0) && (tagSize < 4u)) || (tagSize > 16u) || (tagSize & 1u))
+    if (((tagSize > 0U) && (tagSize < 4u)) || (tagSize > 16u) || ((tagSize & 1u) != 0U))
     {
         return kStatus_InvalidArgument;
     }
@@ -787,33 +875,33 @@ static void caam_aes_ccm_context_init(
     caam_xcm_block_t blk;
     caam_xcm_block_t blkZero = {{0x0u, 0x0u, 0x0u, 0x0u}};
 
-    int q; /* octet length of binary representation of the octet length of the payload. computed as (15 - n), where n is
-              length of nonce(=ivSize) */
-    uint8_t flags; /* flags field in B0 and CTR0 */
+    uint8_t q; /* octet length of binary representation of the octet length of the payload. computed as (15 - n), where
+              n is length of nonce(=ivSize) */
+    uint8_t flags_field; /* flags field in B0 and CTR0 */
 
     /* compute B0 */
-    caam_memcpy(&blk, &blkZero, sizeof(blk));
+    (void)caam_memcpy(&blk, &blkZero, sizeof(blk));
     /* tagSize - size of output MAC */
-    q     = 15 - ivSize;
-    flags = (uint8_t)(8 * ((tagSize - 2) / 2) + q - 1); /* 8*M' + L' */
-    if (aadSize)
+    q           = 15U - (uint8_t)ivSize;
+    flags_field = (uint8_t)(8U * ((tagSize - 2U) / 2U) + q - 1U); /* 8*M' + L' */
+    if (aadSize != 0U)
     {
-        flags |= 0x40; /* Adata */
+        flags_field |= 0x40U; /* Adata */
     }
-    blk.b[0] = flags;                   /* flags field */
-    blk.w[3] = swap_bytes(inputSize);   /* message size, most significant byte first */
-    caam_memcpy(&blk.b[1], iv, ivSize); /* nonce field */
+    blk.b[0] = flags_field;                   /* flags field */
+    blk.w[3] = swap_bytes(inputSize);         /* message size, most significant byte first */
+    (void)caam_memcpy(&blk.b[1], iv, ivSize); /* nonce field */
 
     /* Write B0 data to the context register.
      */
-    caam_memcpy(b0, &blk.b[0], 16);
+    (void)caam_memcpy(b0, (void *)&blk.b[0], 16);
 
     /* Write CTR0 to the context register.
      */
-    caam_memcpy(&blk, &blkZero, sizeof(blk)); /* ctr(0) field = zero */
-    blk.b[0] = q - 1;                         /* flags field */
-    caam_memcpy(&blk.b[1], iv, ivSize);       /* nonce field */
-    caam_memcpy(ctr0, &blk.b[0], 16);
+    (void)caam_memcpy(&blk, &blkZero, sizeof(blk)); /* ctr(0) field = zero */
+    blk.b[0] = q - 1U;                              /* flags field */
+    (void)caam_memcpy(&blk.b[1], iv, ivSize);       /* nonce field */
+    (void)caam_memcpy(ctr0, (void *)&blk.b[0], 16);
 }
 
 static const uint32_t templateAesCcm[] = {
@@ -840,19 +928,37 @@ static const uint32_t templateAesCcm[] = {
     /* 16 */ 0x22310000u, /* FIFO LOAD additional authentication data. Flush as this is last data of AAD type. */
     /* 17 */ 0x00000000u, /* place: AAD address */
 
-    /* 18 */ 0x22130000u, /* FIFO LOAD message */
+    /* 18 */ 0x22530000u, /* FIFO LOAD message */
     /* 19 */ 0x00000000u, /* place: message address */
+    /* 20 */ 0x00000000u, /* place: message size */
 
-    /* 20 */ 0x60300000u, /* FIFO STORE Message */
-    /* 21 */ 0x00000000u, /* place: destination address */
+    /* 21 */ 0x60700000u, /* FIFO STORE Message */
+    /* 22 */ 0x00000000u, /* place: destination address */
+    /* 23 */ 0x00000000u, /* place: destination size */
 
     /* For encryption, write the computed and encrypted MAC to user buffer */
-    /* 22 */ 0x52202000u, /* STORE from Class 1 context to tag */
-    /* 23 */ 0x00000000u, /* place: tag address */
+    /* 24 */ 0x52202000u, /* STORE from Class 1 context to tag */
+    /* 25 */ 0x00000000u, /* place: tag address */
 
     /* For decryption, compare the computed tag with the received tag */
 
 };
+
+status_t caam_aes_ccm_non_blocking(CAAM_Type *base,
+                                   caam_handle_t *handle,
+                                   caam_desc_aes_ccm_t descriptor,
+                                   const uint8_t *input,
+                                   uint8_t *output,
+                                   size_t size,
+                                   const uint8_t *iv,
+                                   size_t ivSize,
+                                   const uint8_t *aad,
+                                   size_t aadSize,
+                                   const uint8_t *key,
+                                   size_t keySize,
+                                   uint32_t tag,
+                                   size_t tagSize,
+                                   int encrypt);
 
 status_t caam_aes_ccm_non_blocking(CAAM_Type *base,
                                    caam_handle_t *handle,
@@ -875,7 +981,7 @@ status_t caam_aes_ccm_non_blocking(CAAM_Type *base,
 
     /* get template descriptor and it's size */
     uint32_t descriptorSize = ARRAY_SIZE(templateAesCcm);
-    caam_memcpy(descriptor, templateAesCcm, sizeof(templateAesCcm));
+    (void)caam_memcpy(descriptor, templateAesCcm, sizeof(templateAesCcm));
 
     status = caam_aes_ccm_check_input_args(base, input, iv, key, output, ivSize, aadSize, keySize, tagSize);
     if (status != kStatus_Success)
@@ -888,18 +994,21 @@ status_t caam_aes_ccm_non_blocking(CAAM_Type *base,
 
     /* key address and key size */
     descriptor[1] |= (keySize & DESC_KEY_SIZE_MASK);
-    descriptor[2] = (uint32_t)key;
+    descriptor[2] = ADD_OFFSET((uint32_t)key);
 
     /* B0 and CTR0 */
     caam_aes_ccm_context_init(size, iv, ivSize, aadSize, tagSize, &descriptor[4], &descriptor[9]);
 
     /* Encrypt decrypt */
-    if (encrypt)
+    if (encrypt != 0)
     {
         descriptor[13] |= 1u; /* ENC */
     }
-    else if (tag)
+    else if (tag != 0U)
     {
+        /* If we decrypt message with tag, then desc[18] is not last FIFO LOAD because FIFO LOAD is used for TAG */
+        /* So desc[18] is changed from 0x22530000u to 0x22510000u*/
+        descriptor[18] = 0x22510000u;
         descriptor[13] |= 2u; /* ICV_TEST */
     }
     else
@@ -909,27 +1018,28 @@ status_t caam_aes_ccm_non_blocking(CAAM_Type *base,
 
     /* AAD address and size */
     /* encoding is two octets, msbyte first */
-    if (aadSize)
+    if (aadSize != 0U)
     {
         uint32_t swapped = swap_bytes(aadSize);
         uint32_t sz;
-        caam_memcpy(&descriptor[15], ((uint8_t *)&swapped) + sizeof(uint16_t), sizeof(uint16_t));
-        sz = aadSize > 2u ? 2u : aadSize;                       /* limit aad to the end of 16 bytes blk */
-        caam_memcpy(((uint8_t *)&descriptor[15]) + 2, aad, sz); /* fill B1 with aad */
+        (void)caam_memcpy(&descriptor[15], (uint32_t *)(uintptr_t)(((uint8_t *)&swapped) + sizeof(uint16_t)),
+                          sizeof(uint16_t));
+        sz = aadSize > 2u ? 2u : aadSize;                             /* limit aad to the end of 16 bytes blk */
+        (void)caam_memcpy(((uint8_t *)&descriptor[15]) + 2, aad, sz); /* fill B1 with aad */
         /* track consumed AAD. sz bytes have been moved to fifo. */
         aadSize -= sz;
         aad += sz;
 
-        if (!aadSize)
+        if (aadSize == 0U)
         {
             /* in case aadSize is 1 or 2, we add Flush bit to the command and skip FIFO LOAD AAD */
-            descriptor[14] |= 0x00010000; /* Flush (last AAD data) */
-            descriptor[16] = DESC_JUMP_2; /* jump to current index + 2 (=18) */
+            descriptor[14] |= 0x00010000U; /* Flush (last AAD data) */
+            descriptor[16] = DESC_JUMP_2;  /* jump to current index + 2 (=18) */
         }
         else
         {
             descriptor[16] |= (aadSize & DESC_PAYLOAD_SIZE_MASK);
-            descriptor[17] = (uint32_t)aad;
+            descriptor[17] = ADD_OFFSET((uint32_t)aad);
         }
     }
     else
@@ -939,28 +1049,28 @@ status_t caam_aes_ccm_non_blocking(CAAM_Type *base,
     }
 
     /* Message source address and size */
-    descriptor[18] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[19] = (uint32_t)input;
+    descriptor[19] = ADD_OFFSET((uint32_t)input);
+    descriptor[20] = size;
 
     /* Message destination address and size */
-    descriptor[20] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[21] = (uint32_t)output;
+    descriptor[22] = ADD_OFFSET((uint32_t)output);
+    descriptor[23] = size;
 
-    if (tag)
+    if (tag != 0U)
     {
         /* For decryption change the command to FIFO LOAD, as tag data needs to be put into input FIFO */
-        if (!encrypt)
+        if (encrypt == 0)
         {
             /* FIFO LOAD ICV */
-            descriptor[22] = 0x223B0000u;
+            descriptor[24] = 0x223B0000u;
         }
-        descriptor[22] |= (tagSize & DESC_TAG_SIZE_MASK);
-        descriptor[23] = (uint32_t)tag;
+        descriptor[24] |= (tagSize & DESC_TAG_SIZE_MASK);
+        descriptor[25] = ADD_OFFSET((uint32_t)tag);
     }
     else
     {
         /* tag is NULL, skip tag processing */
-        descriptor[22] = DESC_HALT; /* always halt with status 0x0 (normal) */
+        descriptor[24] = DESC_HALT; /* always halt with status 0x0 (normal) */
     }
 
     /* add operation specified by descriptor to CAAM Job Ring */
@@ -1057,26 +1167,28 @@ static const uint32_t templateAesCtr[] = {
     /* 04 */ 0x00000000u, /* place: CTR0 address */
 
     /* 05 */ 0x82100000u, /* OPERATION: AES CTR (de)crypt in Update mode */
-    /* 06 */ 0x22130000u, /* FIFO LOAD Message */
+    /* 06 */ 0x22530000u, /* FIFO LOAD Message */
     /* 07 */ 0x00000000u, /* place: source address */
-    /* 08 */ 0x60300000u, /* FIFO STORE Message */
-    /* 09 */ 0x00000000u, /* place: destination address */
+    /* 08 */ 0x00000000u, /* place: source size */
+    /* 09 */ 0x60700000u, /* FIFO STORE Message */
+    /* 10 */ 0x00000000u, /* place: destination address */
+    /* 11 */ 0x00000000u, /* place: destination size */
 
-    /* 10 */ 0xA2000001u, /* JMP always to next command. Done checkpoint (wait for Class 1 Done) */
-    /* 11 */ 0x10880004u, /* LOAD Immediate to Clear Written Register. */
-    /* 12 */ 0x08000004u, /* value for Clear Written Register: C1D and C1DS bits are set */
-    /* 13 */ 0x22930010u, /* FIFO LOAD Message Immediate 16 bytes */
-    /* 14 */ 0x00000000u, /* all zeroes 0-3 */
+    /* 12 */ 0xA2000001u, /* JMP always to next command. Done checkpoint (wait for Class 1 Done) */
+    /* 13 */ 0x10880004u, /* LOAD Immediate to Clear Written Register. */
+    /* 14 */ 0x08000004u, /* value for Clear Written Register: C1D and C1DS bits are set */
+    /* 15 */ 0x22930010u, /* FIFO LOAD Message Immediate 16 bytes */
+    /* 16 */ 0x00000000u, /* all zeroes 0-3 */
 
-    /* 15 */ 0x00000000u, /* all zeroes 4-7 */
-    /* 16 */ 0x00000000u, /* all zeroes 8-11 */
-    /* 17 */ 0x00000000u, /* all zeroes 12-15 */
-    /* 18 */ 0x60300010u, /* FIFO STORE Message 16 bytes */
-    /* 19 */ 0x00000000u, /* place: counterlast[] block address */
+    /* 17 */ 0x00000000u, /* all zeroes 4-7 */
+    /* 18 */ 0x00000000u, /* all zeroes 8-11 */
+    /* 19 */ 0x00000000u, /* all zeroes 12-15 */
+    /* 20 */ 0x60300010u, /* FIFO STORE Message 16 bytes */
+    /* 21 */ 0x00000000u, /* place: counterlast[] block address */
 
-    /* 20 */ 0x82100000u, /* OPERATION: AES CTR (de)crypt in Update mode */
-    /* 21 */ 0x52201010u, /* STORE 16 bytes of CTRi from Class 1 Context Register offset 16 bytes. */
-    /* 22 */ 0x00000000u, /* place: CTRi address */
+    /* 22 */ 0x82100000u, /* OPERATION: AES CTR (de)crypt in Update mode */
+    /* 23 */ 0x52201010u, /* STORE 16 bytes of CTRi from Class 1 Context Register offset 16 bytes. */
+    /* 24 */ 0x00000000u, /* place: CTRi address */
 };
 
 /*!
@@ -1127,25 +1239,25 @@ status_t CAAM_AES_CryptCtrNonBlocking(CAAM_Type *base,
 
     /* get template descriptor and it's size */
     descriptorSize = ARRAY_SIZE(templateAesCtr);
-    caam_memcpy(descriptor, templateAesCtr, sizeof(templateAesCtr));
+    (void)caam_memcpy(descriptor, templateAesCtr, sizeof(templateAesCtr));
 
     /* add descriptor size */
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
 
     /* key address and key size */
     descriptor[1] |= (keySize & DESC_KEY_SIZE_MASK);
-    descriptor[2] = (uint32_t)key;
+    descriptor[2] = ADD_OFFSET((uint32_t)key);
 
     /* descriptor[3] configures 16 bytes length for CTR0 in templateAesCtr */
-    descriptor[4] = (uint32_t)counter;
+    descriptor[4] = ADD_OFFSET((uint32_t)counter);
 
     /* source address and size */
-    descriptor[6] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[7] = (uint32_t)input;
+    descriptor[7] = ADD_OFFSET((uint32_t)input);
+    descriptor[8] = size;
 
     /* destination address and size */
-    descriptor[8] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[9] = (uint32_t)output;
+    descriptor[10] = ADD_OFFSET((uint32_t)output);
+    descriptor[11] = size;
 
     /* AES CTR Crypt OPERATION in descriptor[5]
      * Algorithm State (AS) in template is Update (0h)
@@ -1159,36 +1271,36 @@ status_t CAAM_AES_CryptCtrNonBlocking(CAAM_Type *base,
     /* if counterlast or szLeft is NULL, the caller is not interested in AES of last counter
      * Thus, we can skip the counterlast processing
      * and only read the last CTRi from context.
-     * So, we replace descriptor[10] with a jump command to STORE
+     * So, we replace descriptor[11] with a jump command to STORE
      */
     if ((counterlast == NULL) || (szLeft == NULL))
     {
         /*  To create an unconditional jump, use TEST TYPE = 00 (all specified conditions true) and
             clear all TEST CONDITION bits because the tested condition is considered to be true if
             no test condition bits are set. */
-        descriptor[10] = 0xA000000Bu; /* jump to current index + 11 (=21) */
+        descriptor[12] = 0xA000000Bu; /* jump to current index + 11 (=23) */
     }
     else
     {
         uint32_t lastSize;
 
         descriptor[5] |= 0x08u; /* finalize */
-        descriptor[19] = (uint32_t)counterlast;
+        descriptor[21] = ADD_OFFSET((uint32_t)counterlast);
 
         lastSize = size % 16u;
-        if (lastSize)
+        if (lastSize != 0U)
         {
             *szLeft = 16u - lastSize;
         }
         else
         {
             *szLeft = 0;
-            /* descriptor[10] = 0xA000000Bu; */ /* jump to current index + 11 (=21) */
+            /* descriptor[12] = 0xA000000Bu; */ /* jump to current index + 11 (=23) */
         }
     }
 
     /* read last CTRi from AES back to caller */
-    descriptor[22] = (uint32_t)counter;
+    descriptor[24] = ADD_OFFSET((uint32_t)counter);
 
     /* add operation specified by descriptor to CAAM Job Ring */
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
@@ -1198,11 +1310,13 @@ static const uint32_t templateAesEcb[] = {
     /* 00 */ 0xB0800000u, /* HEADER */
     /* 01 */ 0x02000000u, /* KEY */
     /* 02 */ 0x00000000u, /* place: key address */
-    /* 03 */ 0x22130000u, /* FIFO LOAD Message */
+    /* 03 */ 0x22530000u, /* FIFO LOAD Message with EXT size */
     /* 04 */ 0x00000000u, /* place: source address */
-    /* 05 */ 0x60300000u, /* FIFO STORE Message */
-    /* 06 */ 0x00000000u, /* place: destination address */
-    /* 07 */ 0x82100200u, /* OPERATION: AES ECB Decrypt */
+    /* 05 */ 0x00000000u, /* place: source size */
+    /* 06 */ 0x60700000u, /* FIFO STORE Message with EXT size */
+    /* 07 */ 0x00000000u, /* place: destination address */
+    /* 08 */ 0x00000000u, /* place: destination size */
+    /* 09 */ 0x82100200u, /* OPERATION: AES ECB Decrypt */
 };
 
 /*!
@@ -1236,21 +1350,23 @@ status_t CAAM_AES_EncryptEcbNonBlocking(CAAM_Type *base,
         return kStatus_InvalidArgument;
     }
     /* ECB mode, size must be non-zero 16-byte multiple */
-    if (size % 16u)
+    if (0U != (size % 16u))
     {
         return kStatus_InvalidArgument;
     }
 
     descriptorSize = ARRAY_SIZE(templateAesEcb);
-    caam_memcpy(descriptor, templateAesEcb, sizeof(templateAesEcb));
+    (void)caam_memcpy(descriptor, templateAesEcb, sizeof(templateAesEcb));
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
     descriptor[1] |= (keySize & DESC_KEY_SIZE_MASK);
-    descriptor[2] = (uint32_t)key;
-    descriptor[3] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[4] = (uint32_t)plaintext;
-    descriptor[5] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[6] = (uint32_t)ciphertext;
-    descriptor[7] |= 1u; /* add ENC bit to specify Encrypt OPERATION */
+    descriptor[2] = (uint32_t)ADD_OFFSET((uint32_t)key);
+    /* descriptor[3] FIFO LOAD copied from template */
+    descriptor[4] = (uint32_t)ADD_OFFSET((uint32_t)plaintext);
+    descriptor[5] = size; /* FIFO LOAD EXT size */
+                          /* descriptor[6] FIFO STORE copied from template */
+    descriptor[7] = (uint32_t)ADD_OFFSET((uint32_t)ciphertext);
+    descriptor[8] = size; /* FIFO STORE EXT size */
+    descriptor[9] |= 1u;  /* add ENC bit to specify Encrypt OPERATION */
 
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
 }
@@ -1286,20 +1402,22 @@ status_t CAAM_AES_DecryptEcbNonBlocking(CAAM_Type *base,
         return kStatus_InvalidArgument;
     }
     /* ECB mode, size must be non-zero 16-byte multiple */
-    if (size % 16u)
+    if (0U != (size % 16u))
     {
         return kStatus_InvalidArgument;
     }
 
     descriptorSize = ARRAY_SIZE(templateAesEcb);
-    caam_memcpy(descriptor, templateAesEcb, sizeof(templateAesEcb));
+    (void)caam_memcpy(descriptor, templateAesEcb, sizeof(templateAesEcb));
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
     descriptor[1] |= (keySize & DESC_KEY_SIZE_MASK);
-    descriptor[2] = (uint32_t)key;
-    descriptor[3] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[4] = (uint32_t)ciphertext;
-    descriptor[5] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[6] = (uint32_t)plaintext;
+    descriptor[2] = (uint32_t)ADD_OFFSET((uint32_t)key);
+    /* descriptor[3] FIFO LOAD copied from template */
+    descriptor[4] = (uint32_t)ADD_OFFSET((uint32_t)ciphertext);
+    descriptor[5] = size;
+    /* descriptor[6] FIFO STORE copied from template */
+    descriptor[7] = (uint32_t)ADD_OFFSET((uint32_t)plaintext);
+    descriptor[8] = size; /* FIFO STORE EXT size */
 
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
 }
@@ -1310,11 +1428,13 @@ static const uint32_t templateAesCbc[] = {
     /* 02 */ 0x00000000u, /* place: key address */
     /* 03 */ 0x12200010u, /* LOAD 16 bytes of iv to Class 1 Context Register */
     /* 04 */ 0x00000000u, /* place: iv address */
-    /* 05 */ 0x22130000u, /* FIFO LOAD Message */
+    /* 05 */ 0x22530000u, /* FIFO LOAD Message */
     /* 06 */ 0x00000000u, /* place: source address */
-    /* 07 */ 0x60300000u, /* FIFO STORE Message */
-    /* 08 */ 0x00000000u, /* place: destination address */
-    /* 09 */ 0x82100100u, /* OPERATION: AES CBC Decrypt */
+    /* 07 */ 0x00000000u, /* place: source size */
+    /* 08 */ 0x60700000u, /* FIFO STORE Message */
+    /* 09 */ 0x00000000u, /* place: destination address */
+    /* 10 */ 0x00000000u, /* place: destination size */
+    /* 11 */ 0x82100100u, /* OPERATION: AES CBC Decrypt */
 };
 
 /*!
@@ -1352,35 +1472,35 @@ status_t CAAM_AES_EncryptCbcNonBlocking(CAAM_Type *base,
     }
 
     /* CBC mode, size must be non-zero 16-byte multiple */
-    if (size % 16u)
+    if (0U != (size % 16u))
     {
         return kStatus_InvalidArgument;
     }
 
     /* get template descriptor and it's size */
     descriptorSize = ARRAY_SIZE(templateAesCbc);
-    caam_memcpy(descriptor, templateAesCbc, sizeof(templateAesCbc));
+    (void)caam_memcpy(descriptor, templateAesCbc, sizeof(templateAesCbc));
 
     /* add descriptor size */
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
 
     /* key address and key size */
     descriptor[1] |= (keySize & DESC_KEY_SIZE_MASK);
-    descriptor[2] = (uint32_t)key;
+    descriptor[2] = (uint32_t)ADD_OFFSET((uint32_t)key);
 
     /* descriptor[3] configures 16 bytes length for IV in templateAesCbc */
-    descriptor[4] = (uint32_t)iv;
+    descriptor[4] = (uint32_t)ADD_OFFSET((uint32_t)iv);
 
     /* source address and size */
-    descriptor[5] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[6] = (uint32_t)plaintext;
+    descriptor[6] = (uint32_t)ADD_OFFSET((uint32_t)plaintext);
+    descriptor[7] = size;
 
     /* destination address and size */
-    descriptor[7] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[8] = (uint32_t)ciphertext;
+    descriptor[9]  = (uint32_t)ADD_OFFSET((uint32_t)ciphertext);
+    descriptor[10] = size;
 
     /* AES CBC */
-    descriptor[9] |= 1u; /* add ENC bit to specify Encrypt OPERATION */
+    descriptor[11] |= 1u; /* add ENC bit to specify Encrypt OPERATION */
 
     /* add operation specified by descriptor to CAAM Job Ring */
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
@@ -1420,34 +1540,34 @@ status_t CAAM_AES_DecryptCbcNonBlocking(CAAM_Type *base,
     }
 
     /* CBC mode, size must be non-zero 16-byte multiple */
-    if (size % 16u)
+    if (0U != (size % 16u))
     {
         return kStatus_InvalidArgument;
     }
 
     /* get template descriptor and it's size */
     descriptorSize = ARRAY_SIZE(templateAesCbc);
-    caam_memcpy(descriptor, templateAesCbc, sizeof(templateAesCbc));
+    (void)caam_memcpy(descriptor, templateAesCbc, sizeof(templateAesCbc));
 
     /* add descriptor size */
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
 
     /* key address and key size */
     descriptor[1] |= (keySize & DESC_KEY_SIZE_MASK);
-    descriptor[2] = (uint32_t)key;
+    descriptor[2] = ADD_OFFSET((uint32_t)key);
 
     /* descriptor[3] configures 16 bytes length for IV in templateAesCbc */
-    descriptor[4] = (uint32_t)iv;
+    descriptor[4] = ADD_OFFSET((uint32_t)iv);
 
     /* source address and size */
-    descriptor[5] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[6] = (uint32_t)ciphertext;
+    descriptor[6] = ADD_OFFSET((uint32_t)ciphertext);
+    descriptor[7] = size;
 
     /* destination address and size */
-    descriptor[7] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[8] = (uint32_t)plaintext;
+    descriptor[9]  = ADD_OFFSET((uint32_t)plaintext);
+    descriptor[10] = size;
 
-    /* AES CBC Decrypt OPERATION in descriptor[9] */
+    /* AES CBC Decrypt OPERATION in descriptor[11] */
 
     /* add operation specified by descriptor to CAAM Job Ring */
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
@@ -1550,11 +1670,11 @@ status_t CAAM_AES_DecryptTagGcmNonBlocking(CAAM_Type *base,
 void CAAM_GetDefaultConfig(caam_config_t *config)
 {
     /* Initializes the configure structure to zero. */
-    memset(config, 0, sizeof(*config));
+    (void)memset(config, 0, sizeof(*config));
 
     caam_config_t userConfig = {
-        {NULL, NULL}, kCAAM_RNG_SampleModeVonNeumann, kCAAM_RNG_RingOscDiv4, true, true, true,
-        true,         kCAAM_NormalOperationBlobs,
+        {NULL, NULL, NULL, NULL},   kCAAM_RNG_SampleModeVonNeumann, kCAAM_RNG_RingOscDiv4, true, true, true, true,
+        kCAAM_NormalOperationBlobs,
     };
 
     *config = userConfig;
@@ -1593,39 +1713,39 @@ status_t CAAM_Init(CAAM_Type *base, const caam_config_t *config)
      * an entry in the output ring is two 32-bit words. (descriptor pointer followed by termination status word)
      */
     s_jr0 = config->jobRingInterface[0];
-    memset(s_jr0, 0, sizeof(*s_jr0));
+    (void)memset(s_jr0, 0, sizeof(*s_jr0));
     s_jrIndex0 = 0;
     caam_job_ring_set_base_address_and_size(base, kCAAM_JobRing0, s_jr0->inputJobRing, ARRAY_SIZE(s_jr0->inputJobRing),
-                                            s_jr0->outputJobRing, ARRAY_SIZE(s_jr0->outputJobRing) / 2);
+                                            s_jr0->outputJobRing, ARRAY_SIZE(s_jr0->outputJobRing) / 2U);
 
-    if (config->jobRingInterface[1])
+    if (config->jobRingInterface[1] != NULL)
     {
         s_jr1 = config->jobRingInterface[1];
-        memset(s_jr1, 0, sizeof(*s_jr1));
+        (void)memset(s_jr1, 0, sizeof(*s_jr1));
         s_jrIndex1 = 0;
         caam_job_ring_set_base_address_and_size(base, kCAAM_JobRing1, s_jr1->inputJobRing,
                                                 ARRAY_SIZE(s_jr1->inputJobRing), s_jr1->outputJobRing,
-                                                ARRAY_SIZE(s_jr1->outputJobRing) / 2);
+                                                ARRAY_SIZE(s_jr1->outputJobRing) / 2U);
     }
 
-    if (config->jobRingInterface[2])
+    if (config->jobRingInterface[2] != NULL)
     {
         s_jr2 = config->jobRingInterface[2];
-        memset(s_jr2, 0, sizeof(*s_jr2));
+        (void)memset(s_jr2, 0, sizeof(*s_jr2));
         s_jrIndex2 = 0;
         caam_job_ring_set_base_address_and_size(base, kCAAM_JobRing2, s_jr2->inputJobRing,
                                                 ARRAY_SIZE(s_jr2->inputJobRing), s_jr2->outputJobRing,
-                                                ARRAY_SIZE(s_jr2->outputJobRing) / 2);
+                                                ARRAY_SIZE(s_jr2->outputJobRing) / 2U);
     }
 
-    if (config->jobRingInterface[3])
+    if (config->jobRingInterface[3] != NULL)
     {
         s_jr3 = config->jobRingInterface[3];
-        memset(s_jr3, 0, sizeof(*s_jr3));
+        (void)memset(s_jr3, 0, sizeof(*s_jr3));
         s_jrIndex3 = 0;
         caam_job_ring_set_base_address_and_size(base, kCAAM_JobRing3, s_jr3->inputJobRing,
                                                 ARRAY_SIZE(s_jr3->inputJobRing), s_jr3->outputJobRing,
-                                                ARRAY_SIZE(s_jr3->outputJobRing) / 2);
+                                                ARRAY_SIZE(s_jr3->outputJobRing) / 2U);
     }
 
     /*
@@ -1635,7 +1755,7 @@ status_t CAAM_Init(CAAM_Type *base, const caam_config_t *config)
      * for example during AES XCBC-MAC context switch (need to store derived key K1 to memory)
      */
     caam_rng_config_t rngConfig;
-    CAAM_RNG_GetDefaultConfig(&rngConfig);
+    (void)CAAM_RNG_GetDefaultConfig(&rngConfig);
 
     /* reset RNG */
     base->RTMCTL = CAAM_RTMCTL_PRGM_MASK | CAAM_RTMCTL_ERR_MASK | CAAM_RTMCTL_RST_DEF_MASK |
@@ -1645,16 +1765,35 @@ status_t CAAM_Init(CAAM_Type *base, const caam_config_t *config)
 
     caam_handle_t handle;
     handle.jobRing = kCAAM_JobRing0;
-    status         = CAAM_RNG_Init(base, &handle, kCAAM_RngStateHandle0, &rngConfig);
-    if (status != kStatus_Success)
+
+    /* Check if Instantiated State Handle 0 or 1 has been instantiated */
+    if ((base->RDSTA & (CAAM_RDSTA_IF0_MASK | CAAM_RDSTA_IF1_MASK)) == 0U)
     {
-        return status;
+        status = CAAM_RNG_Init(base, &handle, kCAAM_RngStateHandle0, &rngConfig);
+        if (status != kStatus_Success)
+        {
+            return status;
+        }
+    }
+    else
+    {
+        status = kStatus_Success;
     }
 
-    status = CAAM_RNG_GenerateSecureKey(base, &handle, NULL);
-    if (status != kStatus_Success)
+    /* Check if JDKEK, TDKEK and TDSK are already generated, generate if not */
+    /* Note: second secure keys generate per one PoR will generate Secure Key error */
+    if ((base->JDKEKR[0U] == 0U) && (base->TDKEKR[0U] == 0U) && (base->TDSKR[0U] == 0U))
     {
-        return status;
+        /* Note: Secure key is cleared only during POR reset */
+        status = CAAM_RNG_GenerateSecureKey(base, &handle, NULL);
+        if (status != kStatus_Success)
+        {
+            return status;
+        }
+    }
+    else
+    {
+        status = kStatus_Success;
     }
 
     /* set RANDDPAR bit for the AESA to reseed its DPA mask using data from kCAAM_RngStateHandle0 */
@@ -1701,7 +1840,7 @@ status_t CAAM_Init(CAAM_Type *base, const caam_config_t *config)
  * return kStatus_Fail the CAAM job has completed with non-zero job termination status word
  * return kStatus_Again In non-blocking mode, the job is not ready in the CAAM Output Ring
  */
-status_t CAAM_Wait(CAAM_Type *base, caam_handle_t *handle, void *descriptor, caam_wait_mode_t mode)
+status_t CAAM_Wait(CAAM_Type *base, caam_handle_t *handle, uint32_t *descriptor, caam_wait_mode_t mode)
 {
     /* poll output ring for the specified job descriptor */
     status_t status;
@@ -1715,9 +1854,10 @@ status_t CAAM_Wait(CAAM_Type *base, caam_handle_t *handle, void *descriptor, caa
     while (wait)
     {
         /* any result available on this job ring? */
-        if (caam_output_ring_get_slots_full(base, handle->jobRing))
+        if ((caam_output_ring_get_slots_full(base, handle->jobRing)) != 0U)
         {
-            status = caam_out_job_ring_test_and_remove(base, handle->jobRing, descriptor, &wait, &found);
+            status = caam_out_job_ring_test_and_remove(base, handle->jobRing,
+                                                       (uint32_t *)ADD_OFFSET((uint32_t)descriptor), &wait, &found);
         }
 
         /* non-blocking mode polls output ring once */
@@ -1760,7 +1900,7 @@ status_t CAAM_Deinit(CAAM_Type *base)
     base->MCFGR              = CAAM_MCFGR_SWRST_MASK | CAAM_MCFGR_DMA_RST_MASK; /* reset DMA */
     base->MCFGR              = 0x00082300u;                                     /* (reset value) */
 
-    while (0 == (base->RTMCTL & CAAM_RTMCTL_TSTOP_OK_MASK))
+    while (0U == (base->RTMCTL & CAAM_RTMCTL_TSTOP_OK_MASK))
     {
     }
 
@@ -1860,12 +2000,18 @@ status_t CAAM_AES_EncryptEcb(CAAM_Type *base,
         status = CAAM_AES_EncryptEcbNonBlocking(base, handle, descBuf, plaintext, ciphertext, size, key, keySize);
     } while (status == kStatus_CAAM_Again);
 
-    if (status)
+    if (status != 0)
     {
         return status;
     }
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)ciphertext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -1898,12 +2044,18 @@ status_t CAAM_AES_DecryptEcb(CAAM_Type *base,
         status = CAAM_AES_DecryptEcbNonBlocking(base, handle, descBuf, ciphertext, plaintext, size, key, keySize);
     } while (status == kStatus_CAAM_Again);
 
-    if (status)
+    if (status != 0)
     {
         return status;
     }
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)plaintext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -1936,12 +2088,18 @@ status_t CAAM_AES_EncryptCbc(CAAM_Type *base,
         status = CAAM_AES_EncryptCbcNonBlocking(base, handle, descBuf, plaintext, ciphertext, size, iv, key, keySize);
     } while (status == kStatus_CAAM_Again);
 
-    if (status)
+    if (status != 0)
     {
         return status;
     }
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)ciphertext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -1974,12 +2132,18 @@ status_t CAAM_AES_DecryptCbc(CAAM_Type *base,
         status = CAAM_AES_DecryptCbcNonBlocking(base, handle, descBuf, ciphertext, plaintext, size, iv, key, keySize);
     } while (status == kStatus_CAAM_Again);
 
-    if (status)
+    if (status != 0)
     {
         return status;
     }
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)plaintext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -2025,12 +2189,24 @@ status_t CAAM_AES_CryptCtr(CAAM_Type *base,
                                               counterlast, szLeft);
     } while (status == kStatus_CAAM_Again);
 
-    if (status)
+    if (status != 0)
     {
         return status;
     }
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)output, size);
+    DCACHE_InvalidateByRange((uint32_t)counter, 16u);
+    DCACHE_InvalidateByRange((uint32_t)szLeft, sizeof(szLeft));
+    if (counterlast != NULL)
+    {
+        DCACHE_InvalidateByRange((uint32_t)counterlast, 16u);
+    }
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -2076,12 +2252,20 @@ status_t CAAM_AES_EncryptTagCcm(CAAM_Type *base,
                                                    aadSize, key, keySize, tag, tagSize);
     } while (status == kStatus_CAAM_Again);
 
-    if (status)
+    if (status != 0)
     {
         return status;
     }
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)ciphertext, size);
+    DCACHE_InvalidateByRange((uint32_t)tag, tagSize);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -2128,11 +2312,17 @@ status_t CAAM_AES_DecryptTagCcm(CAAM_Type *base,
                                                    aadSize, key, keySize, tag, tagSize);
     } while (status == kStatus_CAAM_Again);
 
-    if (status)
+    if (status != 0)
     {
         return status;
     }
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)plaintext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -2179,12 +2369,23 @@ status_t CAAM_AES_EncryptTagGcm(CAAM_Type *base,
                                                    aadSize, key, keySize, tag, tagSize);
     } while (status == kStatus_CAAM_Again);
 
-    if (status)
+    if (status != 0)
     {
         return status;
     }
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)ciphertext, size);
+    if (tag != NULL)
+    {
+        DCACHE_InvalidateByRange((uint32_t)tag, tagSize);
+    }
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -2231,11 +2432,18 @@ status_t CAAM_AES_DecryptTagGcm(CAAM_Type *base,
                                                    aadSize, key, keySize, tag, tagSize);
     } while (status == kStatus_CAAM_Again);
 
-    if (status)
+    if (status != 0)
     {
         return status;
     }
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)plaintext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*******************************************************************************
@@ -2315,30 +2523,31 @@ static uint32_t caam_hash_algo2mode(caam_hash_algo_t algo, uint32_t algState, ui
             break;
         case kCAAM_Sha1:
             modeReg = (uint32_t)kCAAM_AlgorithmSHA1;
-            outSize = kCAAM_OutLenSha1;
+            outSize = (uint32_t)kCAAM_OutLenSha1;
             break;
         case kCAAM_Sha224:
             modeReg = (uint32_t)kCAAM_AlgorithmSHA224;
-            outSize = kCAAM_OutLenSha224;
+            outSize = (uint32_t)kCAAM_OutLenSha224;
             break;
         case kCAAM_Sha256:
             modeReg = (uint32_t)kCAAM_AlgorithmSHA256;
-            outSize = kCAAM_OutLenSha256;
+            outSize = (uint32_t)kCAAM_OutLenSha256;
             break;
         case kCAAM_Sha384:
             modeReg = (uint32_t)kCAAM_AlgorithmSHA384;
-            outSize = kCAAM_OutLenSha384;
+            outSize = (uint32_t)kCAAM_OutLenSha384;
             break;
         case kCAAM_Sha512:
             modeReg = (uint32_t)kCAAM_AlgorithmSHA512;
-            outSize = kCAAM_OutLenSha512;
+            outSize = (uint32_t)kCAAM_OutLenSha512;
             break;
         default:
+            /* All the cases have been listed above, the default clause should not be reached. */
             break;
     }
 
     modeReg |= algState;
-    if (algOutSize)
+    if (algOutSize != NULL)
     {
         *algOutSize = outSize;
     }
@@ -2354,7 +2563,7 @@ static uint32_t caam_hash_algo2ctx_size(caam_hash_algo_t algo, uint32_t how)
     switch (algo)
     {
         case kCAAM_XcbcMac:
-            if (how == 0)
+            if (how == 0U)
             {
                 ctxSize = 48u; /* add K3 and K2 */
             }
@@ -2364,7 +2573,7 @@ static uint32_t caam_hash_algo2ctx_size(caam_hash_algo_t algo, uint32_t how)
             }
             break;
         case kCAAM_Cmac:
-            if (how == 0)
+            if (how == 0U)
             {
                 ctxSize = 32u; /* add L */
             }
@@ -2395,6 +2604,7 @@ static uint32_t caam_hash_algo2ctx_size(caam_hash_algo_t algo, uint32_t how)
             ctxSize = 72u; /* 8 + 64 */
             break;
         default:
+            /* All the cases have been listed above, the default clause should not be reached. */
             break;
     }
     return ctxSize;
@@ -2408,24 +2618,25 @@ static const uint32_t templateHash[] = {
     /* 04 */ 0x00000000u, /* place: context address */
 
     /* 05 */ 0x80000000u, /* OPERATION (place either AES MAC or MDHA SHA) */
-    /* 06 */ 0x21170000u, /* FIFO LOAD Class Message via SGT */
+    /* 06 */ 0x21570000u, /* FIFO LOAD Class Message via SGT and EXT length */
     /* 07 */ 0x00000000u, /* place: SGT address */
-    /* 08 */ 0x50200000u, /* STORE bytes from Class Context Register offset 0 bytes. */
-    /* 09 */ 0x00000000u, /* place: context address */
+    /* 08 */ 0x00000000u, /* place: FIFO LOAD EXT Length size */
+    /* 09 */ 0x50200000u, /* STORE bytes from Class Context Register offset 0 bytes. */
+    /* 10 */ 0x00000000u, /* place: context address */
 
-    /* 10 */ 0x60240000u, /* FIFO STORE from KEY to memory. */
-    /* 11 */ 0x00000000u, /* place: derived key address ECB encrypted */
-    /* 12 */ 0xA0C00000u, /* halt always with status 0 */
+    /* 11 */ 0x60240000u, /* FIFO STORE from KEY to memory. */
+    /* 12 */ 0x00000000u, /* place: derived key address ECB encrypted */
+    /* 13 */ 0xA0C00000u, /* halt always with status 0 */
 
-    /* 13 */ 0x00000000u, /* SGT entry 0 word 0 */
-    /* 14 */ 0x00000000u, /* SGT entry 0 word 1 */
-    /* 15 */ 0x00000000u, /* SGT entry 0 word 2 */
-    /* 16 */ 0x00000000u, /* SGT entry 0 word 3 */
+    /* 14 */ 0x00000000u, /* SGT entry 0 word 0 */
+    /* 15 */ 0x00000000u, /* SGT entry 0 word 1 */
+    /* 16 */ 0x00000000u, /* SGT entry 0 word 2 */
+    /* 17 */ 0x00000000u, /* SGT entry 0 word 3 */
 
-    /* 17 */ 0x00000000u, /* SGT entry 1 word 0 */
-    /* 18 */ 0x00000000u, /* SGT entry 1 word 1 */
-    /* 19 */ 0x00000000u, /* SGT entry 1 word 2 */
-    /* 20 */ 0x00000000u, /* SGT entry 1 word 3 */
+    /* 18 */ 0x00000000u, /* SGT entry 1 word 0 */
+    /* 19 */ 0x00000000u, /* SGT entry 1 word 1 */
+    /* 20 */ 0x00000000u, /* SGT entry 1 word 2 */
+    /* 21 */ 0x00000000u, /* SGT entry 1 word 3 */
 };
 
 /*!
@@ -2459,8 +2670,8 @@ static uint32_t caam_hash_sgt_insert(caam_hash_ctx_internal_t *ctxInternal,
     uint32_t num;
     uint32_t currSgtEntry;
 
-    uint32_t ctxBlksz   = ctxInternal ? ctxInternal->blksz : 0;
-    uint32_t ctxBlkAddr = ctxInternal ? (uint32_t)&ctxInternal->blk.b[0] : 0;
+    uint32_t ctxBlksz   = (ctxInternal != NULL) ? ctxInternal->blksz : 0U;
+    uint32_t ctxBlkAddr = (ctxInternal != NULL) ? (uint32_t)&ctxInternal->blk.b[0] : 0U;
 
     currSgtEntry = 0;
     numBlocks    = (inputSize + ctxBlksz) / CAAM_HASH_BLOCK_SIZE;
@@ -2476,29 +2687,29 @@ static uint32_t caam_hash_sgt_insert(caam_hash_ctx_internal_t *ctxInternal,
         num += remain; /* add also uncomplete bytes from last block in one of FINALIZE states */
         remain = 0;
     }
-    if (numRemain)
+    if (numRemain != NULL)
     {
         *numRemain = remain;
     }
 
-    if (ctxBlksz || (0 == ctxBlksz + inputSize))
+    if ((ctxBlksz != 0U) || (0U == ctxBlksz + inputSize))
     {
-        sgt[currSgtEntry].address_l = ctxBlkAddr;
+        sgt[currSgtEntry].address_l = ADD_OFFSET(ctxBlkAddr);
         sgt[currSgtEntry].length    = ctxBlksz;
-        if ((kCAAM_HashSgtEntryLast == last) && (!inputSize))
+        if ((kCAAM_HashSgtEntryLast == last) && (0U == inputSize))
         {
             sgt[currSgtEntry].length |= 0x40000000u; /* Final SG entry */
         }
         currSgtEntry++;
     }
 
-    if (inputSize)
+    if (inputSize != 0U)
     {
         /* number of bytes for processing
          * only full block multiple in INITIALIZE or UPDATE
          * any size in INITIALIZE/FINALIZE or FINALIZE
          */
-        sgt[currSgtEntry].address_l = (uint32_t)input;
+        sgt[currSgtEntry].address_l = ADD_OFFSET((uint32_t)input);
         sgt[currSgtEntry].length    = inputSize - remain;
         if (kCAAM_HashSgtEntryLast == last)
         {
@@ -2539,18 +2750,18 @@ static status_t caam_hash_schedule_input_data(CAAM_Type *base,
                                               */
     uint32_t caamCtxSz = caam_hash_algo2ctx_size(algo, 0 /* full context */);
 
-    caam_memcpy(descriptor, templateHash, sizeof(templateHash));
+    (void)caam_memcpy(descriptor, templateHash, sizeof(templateHash));
 
     /* MDHA is always Class 2 CHA, AESA configured at build time as Class 1 CHA */
-    uint32_t class = isSha ? 0x04000000u : CAAM_AES_MAC_CLASS;
+    uint32_t hashClass = isSha ? 0x04000000u : CAAM_AES_MAC_CLASS;
 
     /* add class to all commands that need it */
-    descriptor[1] |= class;
-    descriptor[3] |= class;
-    descriptor[5] |= class;
-    descriptor[6] |= class;
-    descriptor[8] |= class;
-    descriptor[10] |= class;
+    descriptor[1] |= hashClass;
+    descriptor[3] |= hashClass;
+    descriptor[5] |= hashClass;
+    descriptor[6] |= hashClass;
+    descriptor[9] |= hashClass;
+    descriptor[11] |= hashClass;
 
     /* add descriptor size */
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
@@ -2561,13 +2772,13 @@ static status_t caam_hash_schedule_input_data(CAAM_Type *base,
         if (isSha)
         {
             /* HEADER can jump directly to MDHA operation */
-            descriptor[0] |= 0x00050000; /* JUMP to descriptor[5] */
+            descriptor[0] |= 0x00050000U; /* JUMP to descriptor[5] */
         }
         else
         {
             /* load KEY, then directly to AESA MAC operation */
             descriptor[1] |= (keySize & DESC_KEY_SIZE_MASK);
-            descriptor[2] = keyAddr;
+            descriptor[2] = ADD_OFFSET(keyAddr);
             descriptor[3] = DESC_JUMP_2; /* JUMP to descriptor[5] */
         }
     }
@@ -2578,27 +2789,27 @@ static status_t caam_hash_schedule_input_data(CAAM_Type *base,
             /* MDHA SHA in Update state skips loading the KEY, as MDHA SHA has no configurable key
              * HEADER can jump directly to context restore
              */
-            descriptor[0] |= 0x00030000;       /* JUMP to descriptor[3] */
+            descriptor[0] |= 0x00030000U;      /* JUMP to descriptor[3] */
             /* descriptor[1] = 0xA0000002u; */ /* JUMP to descriptor[3] */
         }
         else
         {
             /* load KEY */
             descriptor[1] |= (keySize & DESC_KEY_SIZE_MASK);
-            descriptor[2] = keyAddr;
+            descriptor[2] = ADD_OFFSET(keyAddr);
 
             /* XCBC-MAC K1 derived key has been ECB encrypted (black key)
              * so it needs decrypt
              */
             if (kCAAM_XcbcMac == algo)
             {
-                descriptor[1] |= 1u << 22; /* ENC */
+                descriptor[1] |= (uint32_t)1u << 22; /* ENC */
             }
         }
 
         /* context restore */
         descriptor[3] |= caamCtxSz;
-        descriptor[4] = (uint32_t)context;
+        descriptor[4] = ADD_OFFSET((uint32_t)(uint32_t *)context);
     }
 
     /* OPERATION:
@@ -2610,59 +2821,54 @@ static status_t caam_hash_schedule_input_data(CAAM_Type *base,
     descriptor[5] |= caam_hash_algo2mode(algo, (uint32_t)algState << 2, &algOutSize);
 
     /* configure SGT */
-    descriptor[6] |= (0xFFFFu & dataSize);
+    descriptor[8] = dataSize;
     if (kCAAM_HashSgtInternal == sgtType)
     {
-        descriptor[7] = (uint32_t)&descriptor[kCAAM_HashDescriptorSgtIdx]; /* use SGT embedded in the job descriptor */
-        caam_memcpy(&descriptor[kCAAM_HashDescriptorSgtIdx], sgt, sizeof(caam_hash_internal_sgt_t));
+        descriptor[7] = ADD_OFFSET(
+            (uint32_t)&descriptor[(uint32_t)kCAAM_HashDescriptorSgtIdx]); /* use SGT embedded in the job descriptor */
+        (void)caam_memcpy(&descriptor[(uint32_t)kCAAM_HashDescriptorSgtIdx], (const uint32_t *)(uintptr_t)sgt,
+                          sizeof(caam_hash_internal_sgt_t));
     }
     else
     {
-        descriptor[7] = (uint32_t)sgt;
+        descriptor[7] = ADD_OFFSET((uint32_t)sgt);
     }
 
     /* save context: context switch init or running or result */
     if ((kCAAM_AlgStateFinal == algState) || (kCAAM_AlgStateInitFinal == algState))
     {
-        if (outputSize)
+        if (outputSize != NULL)
         {
-            if (algOutSize < *outputSize)
-            {
-                *outputSize = algOutSize;
-            }
-            else
-            {
-                algOutSize = *outputSize;
-            }
+            *outputSize = algOutSize;
         }
         caamCtxSz = algOutSize;
     }
     else
     {
-        uint32_t how = (algState == kCAAM_AlgStateInit) ? 0 : 1; /* context switch needs full, then running */
+        uint32_t how = (algState == kCAAM_AlgStateInit) ? 0U : 1U; /* context switch needs full, then running */
         caamCtxSz    = caam_hash_algo2ctx_size(algo, how);
     }
-    descriptor[8] |= caamCtxSz;
+    descriptor[9] |= caamCtxSz;
     if ((kCAAM_AlgStateFinal == algState) || (kCAAM_AlgStateInitFinal == algState))
     {
         /* final result write to output */
-        descriptor[9] = (uint32_t)output;
+        descriptor[10] = ADD_OFFSET((uint32_t)(uint32_t *)output);
     }
     else
     {
         /* context switch write to ctxInternal */
-        descriptor[9] = (uint32_t)context;
+        descriptor[10] = ADD_OFFSET((uint32_t)(uint32_t *)context);
     }
 
     /* save the derived key K1 in XCBC-MAC. only if context switch. */
     if ((kCAAM_AlgStateInit == algState) && (kCAAM_XcbcMac == algo))
     {
-        descriptor[10] |= (keySize & DESC_KEY_SIZE_MASK);
-        descriptor[11] = keyAddr;
+        descriptor[11] |= (keySize & DESC_KEY_SIZE_MASK);
+        descriptor[12] = ADD_OFFSET((uint32_t)&keyAddr);
     }
     else
     {
-        descriptor[10] = descriptor[12]; /* always halt with status 0x0 (normal) */
+        descriptor[11] = ADD_OFFSET(descriptor[13]); /* always halt with status 0x0 (normal) */
     }
 
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
@@ -2683,13 +2889,17 @@ static status_t caam_hash_append_data(caam_hash_ctx_internal_t *ctxInternal,
                                       size_t *outputSize)
 {
     caam_hash_internal_sgt_t sgt;
-    memset(&sgt, 0, sizeof(sgt));
+    (void)memset(&sgt, 0, sizeof(sgt));
     size_t num = caam_hash_sgt_insert(ctxInternal, input, inputSize, numRemain, algState, sgt, kCAAM_HashSgtEntryLast);
     return caam_hash_schedule_input_data(ctxInternal->base, ctxInternal->handle, ctxInternal->algo, sgt, num,
                                          kCAAM_HashSgtInternal, algState, descriptor, outputSize, output,
                                          &ctxInternal->word[0], (uint32_t)&ctxInternal->word[kCAAM_HashCtxKeyStartIdx],
                                          ctxInternal->word[kCAAM_HashCtxKeySize]);
 }
+
+/*******************************************************************************
+ * HASH Code public
+ ******************************************************************************/
 
 /*!
  * brief Initialize HASH context
@@ -2736,9 +2946,9 @@ status_t CAAM_HASH_Init(CAAM_Type *base,
     }
 
     /* set algorithm in context struct for later use */
-    ctxInternal       = (caam_hash_ctx_internal_t *)ctx;
+    ctxInternal       = (caam_hash_ctx_internal_t *)(uint32_t)ctx;
     ctxInternal->algo = algo;
-    for (i = 0; i < kCAAM_HashCtxNumWords; i++)
+    for (i = 0U; i < (uint32_t)kCAAM_HashCtxNumWords; i++)
     {
         ctxInternal->word[i] = 0u;
     }
@@ -2748,17 +2958,17 @@ status_t CAAM_HASH_Init(CAAM_Type *base,
     {
         /* store input key and key length in context struct for later use */
         ctxInternal->word[kCAAM_HashCtxKeySize] = keySize;
-        caam_memcpy(&ctxInternal->word[kCAAM_HashCtxKeyStartIdx], key, keySize);
+        (void)caam_memcpy(&ctxInternal->word[kCAAM_HashCtxKeyStartIdx], (const uint32_t *)(uintptr_t)key, keySize);
     }
 
     ctxInternal->blksz = 0u;
     for (i = 0; i < ARRAY_SIZE(ctxInternal->blk.w); i++)
     {
-        ctxInternal->blk.w[0] = 0u;
+        ctxInternal->blk.w[i] = 0u;
     }
-    ctxInternal->state  = kCAAM_HashInit;
-    ctxInternal->base   = base;
-    ctxInternal->handle = handle;
+    ctxInternal->fsm_state = kCAAM_HashInit;
+    ctxInternal->base      = base;
+    ctxInternal->handle    = handle;
 
     return kStatus_Success;
 }
@@ -2788,7 +2998,7 @@ status_t CAAM_HASH_Update(caam_hash_ctx_t *ctx, const uint8_t *input, size_t inp
     /* compile time check for the correct structure size */
     BUILD_ASSURE(sizeof(caam_hash_ctx_internal_t) <= sizeof(caam_hash_ctx_t), caam_hash_ctx_internal_t_size);
 
-    if (0 == inputSize)
+    if (0U == inputSize)
     {
         return kStatus_Success;
     }
@@ -2802,7 +3012,7 @@ status_t CAAM_HASH_Update(caam_hash_ctx_t *ctx, const uint8_t *input, size_t inp
      * 4) copy last not-full buffer size data to buffer.
      * 5) save Class 2 context
      */
-    ctxInternal = (caam_hash_ctx_internal_t *)ctx;
+    ctxInternal = (caam_hash_ctx_internal_t *)(uint32_t)ctx;
     status      = caam_hash_check_context(ctxInternal, input);
     if (kStatus_Success != status)
     {
@@ -2812,18 +3022,18 @@ status_t CAAM_HASH_Update(caam_hash_ctx_t *ctx, const uint8_t *input, size_t inp
     /* if we are still less than 64 bytes, keep only in context */
     if ((ctxInternal->blksz + inputSize) <= CAAM_HASH_BLOCK_SIZE)
     {
-        caam_memcpy((&ctxInternal->blk.b[0]) + ctxInternal->blksz, input, inputSize);
+        (void)caam_memcpy((&ctxInternal->blk.b[0]) + ctxInternal->blksz, input, inputSize);
         ctxInternal->blksz += inputSize;
         return status;
     }
     else
     {
-        isUpdateState = ctxInternal->state == kCAAM_HashUpdate;
+        isUpdateState = ctxInternal->fsm_state == kCAAM_HashUpdate;
         if (!isUpdateState)
         {
             /* Step 2: schedule CAAM job in INITIALIZE mode.
              */
-            ctxInternal->state = kCAAM_HashUpdate;
+            ctxInternal->fsm_state = kCAAM_HashUpdate;
             /* skip load context as there is no running context yet. */
             status = caam_hash_append_data(ctxInternal, input, inputSize, kCAAM_AlgStateInit, descBuf, &numRemain, NULL,
                                            NULL);
@@ -2843,13 +3053,27 @@ status_t CAAM_HASH_Update(caam_hash_ctx_t *ctx, const uint8_t *input, size_t inp
         /* process input data and save CAAM context to context structure */
         status =
             caam_hash_append_data(ctxInternal, input, inputSize, kCAAM_AlgStateUpdate, descBuf, &numRemain, NULL, NULL);
+        if (status != kStatus_Success)
+        {
+            return status;
+        }
     }
 
-    /* blocking wait? */
+    /* blocking wait */
     status = CAAM_Wait(ctxInternal->base, ctxInternal->handle, descBuf, kCAAM_Blocking);
+    if (status != kStatus_Success)
+    {
+        return status;
+    }
+
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)&ctxInternal->word[0u], (uint32_t)kCAAM_HashCtxNumWords * sizeof(uint32_t));
+#endif /* CAAM_OUT_INVALIDATE */
 
     /* after job is complete, copy numRemain bytes at the end of the input[] to the context */
-    caam_memcpy((&ctxInternal->blk.b[0]), input + inputSize - numRemain, numRemain);
+    (void)caam_memcpy((&ctxInternal->blk.b[0]), input + inputSize - numRemain, numRemain);
     ctxInternal->blksz = numRemain;
 
     return status;
@@ -2882,13 +3106,13 @@ status_t CAAM_HASH_UpdateNonBlocking(caam_hash_ctx_t *ctx, const uint8_t *input,
 
     caam_hash_ctx_internal_t *ctxInternal;
 
-    if (0 == inputSize)
+    if (0U == inputSize)
     {
         return kStatus_Success;
     }
 
     /* runtime input validity check */
-    ctxInternal = (caam_hash_ctx_internal_t *)ctx;
+    ctxInternal = (caam_hash_ctx_internal_t *)(uint32_t)ctx;
     status      = caam_hash_check_context(ctxInternal, input);
     if (kStatus_Success != status)
     {
@@ -2897,15 +3121,15 @@ status_t CAAM_HASH_UpdateNonBlocking(caam_hash_ctx_t *ctx, const uint8_t *input,
 
     /* Add input data chunk to SGT */
     uint32_t currSgtEntry = ctxInternal->blksz;
-    if (currSgtEntry >= kCAAM_HashSgtMaxCtxEntries)
+    if (currSgtEntry >= (uint32_t)kCAAM_HashSgtMaxCtxEntries)
     {
         return kStatus_InvalidArgument;
     }
 
-    caam_sgt_entry_t *sgt = &((caam_sgt_entry_t *)ctxInternal)[currSgtEntry];
-    caam_hash_sgt_insert(NULL, input, inputSize, NULL, kCAAM_AlgStateInitFinal, sgt,
-                         kCAAM_HashSgtEntryNotLast /* not last. we don't know if this is the last chunk */);
-    if (inputSize)
+    caam_sgt_entry_t *sgt = &((caam_sgt_entry_t *)(uint32_t)ctxInternal)[currSgtEntry];
+    (void)caam_hash_sgt_insert(NULL, input, inputSize, NULL, kCAAM_AlgStateInitFinal, sgt,
+                               kCAAM_HashSgtEntryNotLast /* not last. we don't know if this is the last chunk */);
+    if (inputSize != 0U)
     {
         ctxInternal->blksz++;
     }
@@ -2929,9 +3153,10 @@ status_t CAAM_HASH_Finish(caam_hash_ctx_t *ctx, uint8_t *output, size_t *outputS
     caam_hash_ctx_internal_t *ctxInternal;
     caam_desc_hash_t descBuf;
     caam_algorithm_state_t algState;
+    size_t outputSizeTmp;
 
     /* runtime input validity check */
-    ctxInternal = (caam_hash_ctx_internal_t *)ctx;
+    ctxInternal = (caam_hash_ctx_internal_t *)(uint32_t)ctx;
     status      = caam_hash_check_context(ctxInternal, output);
     if (kStatus_Success != status)
     {
@@ -2944,7 +3169,7 @@ status_t CAAM_HASH_Finish(caam_hash_ctx_t *ctx, uint8_t *output, size_t *outputS
      * will be set to kCAAM_HashUpdate and so we will configure FINALIZE algorithm state.
      * Otherwise there is data only in the ctxInternal that we can process in INITIALIZE/FINALIZE.
      */
-    if (ctxInternal->state == kCAAM_HashInit)
+    if (ctxInternal->fsm_state == kCAAM_HashInit)
     {
         algState = kCAAM_AlgStateInitFinal;
     }
@@ -2955,7 +3180,7 @@ status_t CAAM_HASH_Finish(caam_hash_ctx_t *ctx, uint8_t *output, size_t *outputS
 
     status = caam_hash_append_data(
         ctxInternal, NULL, 0, /* we process only blksz bytes in ctxInternal, so giving NULL and zero size here */
-        algState, descBuf, NULL, output, outputSize);
+        algState, descBuf, NULL, output, &outputSizeTmp);
     if (kStatus_Success != status)
     {
         return status;
@@ -2963,7 +3188,19 @@ status_t CAAM_HASH_Finish(caam_hash_ctx_t *ctx, uint8_t *output, size_t *outputS
 
     /* blocking wait */
     status = CAAM_Wait(ctxInternal->base, ctxInternal->handle, descBuf, kCAAM_Blocking);
-    memset(ctx, 0, sizeof(caam_hash_ctx_t));
+
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)output, outputSizeTmp);
+#endif /* CAAM_OUT_INVALIDATE */
+
+    if (outputSize != NULL)
+    {
+        *outputSize = outputSizeTmp;
+    }
+
+    (void)memset(ctx, 0, sizeof(caam_hash_ctx_t));
     return status;
 }
 
@@ -2993,7 +3230,7 @@ status_t CAAM_HASH_FinishNonBlocking(caam_hash_ctx_t *ctx,
     caam_hash_ctx_internal_t *ctxInternal;
 
     /* runtime input validity check */
-    ctxInternal = (caam_hash_ctx_internal_t *)ctx;
+    ctxInternal = (caam_hash_ctx_internal_t *)(uint32_t)ctx;
     status      = caam_hash_check_context(ctxInternal, output);
     if (kStatus_Success != status)
     {
@@ -3001,15 +3238,15 @@ status_t CAAM_HASH_FinishNonBlocking(caam_hash_ctx_t *ctx,
     }
 
     uint32_t currSgtEntry = ctxInternal->blksz;
-    if (currSgtEntry > kCAAM_HashSgtMaxCtxEntries)
+    if (currSgtEntry > (uint32_t)kCAAM_HashSgtMaxCtxEntries)
     {
         return kStatus_InvalidArgument;
     }
 
-    caam_sgt_entry_t *sgt = &((caam_sgt_entry_t *)ctxInternal)[0];
+    caam_sgt_entry_t *sgt = &((caam_sgt_entry_t *)(uint32_t)ctxInternal)[0];
 
     /* mark currSgtEntry with Final Bit */
-    int i;
+    uint32_t i;
     uint32_t totalLength = 0;
     for (i = 0; i < currSgtEntry; i++)
     {
@@ -3021,7 +3258,7 @@ status_t CAAM_HASH_FinishNonBlocking(caam_hash_ctx_t *ctx,
                                            kCAAM_HashSgtExternal, kCAAM_AlgStateInitFinal, descriptor, outputSize,
                                            output, NULL, (uint32_t)&ctxInternal->word[kCAAM_HashCtxKeyStartIdx],
                                            ctxInternal->word[kCAAM_HashCtxKeySize]);
-    return kStatus_Success;
+    return status;
 }
 
 /*!
@@ -3069,6 +3306,11 @@ status_t CAAM_HASH(CAAM_Type *base,
     }
 
     status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)output, *outputSize);
+#endif /* CAAM_OUT_INVALIDATE */
     return status;
 }
 
@@ -3113,7 +3355,7 @@ status_t CAAM_HASH_NonBlocking(CAAM_Type *base,
     caam_algorithm_state_t algState;
     caam_hash_internal_sgt_t sgt;
 
-    memset(&sgt, 0, sizeof(sgt));
+    (void)memset(&sgt, 0, sizeof(sgt));
 
     algState     = kCAAM_AlgStateInitFinal;
     uint32_t num = caam_hash_sgt_insert(NULL,             /* no ctxInternal data to pre-pend before input data chunk */
@@ -3126,7 +3368,672 @@ status_t CAAM_HASH_NonBlocking(CAAM_Type *base,
                                            outputSize, output, NULL, (uint32_t)key, keySize);
     return status;
 }
+/*******************************************************************************
+ * CRC Code static
+ ******************************************************************************/
+static status_t caam_crc_check_input_alg(caam_crc_algo_t algo)
+{
+    if ((algo != kCAAM_CrcIEEE) && (algo != kCAAM_CrciSCSI) && (algo != kCAAM_CrcCUSTPOLY))
+    {
+        return kStatus_InvalidArgument;
+    }
+    return kStatus_Success;
+}
 
+static inline bool caam_crc_alg_is_customcrc(caam_crc_algo_t algo)
+{
+    return (algo == kCAAM_CrcCUSTPOLY);
+}
+
+static status_t caam_crc_check_input_args(
+    CAAM_Type *base, caam_hash_ctx_t *ctx, caam_crc_algo_t algo, const uint8_t *polynomial, size_t polynomialSize)
+{
+    /* Check validity of input algorithm */
+    if (kStatus_Success != caam_crc_check_input_alg(algo))
+    {
+        return kStatus_InvalidArgument;
+    }
+
+    if ((NULL == ctx) || (NULL == base))
+    {
+        return kStatus_InvalidArgument;
+    }
+
+    if (caam_crc_alg_is_customcrc(algo))
+    {
+        if ((NULL == polynomial) && ((polynomialSize > 4u) || (polynomialSize < 1u)))
+        {
+            return kStatus_InvalidArgument;
+        }
+    }
+
+    return kStatus_Success;
+}
+
+static status_t caam_crc_check_context(caam_crc_ctx_internal_t *ctxInternal, const uint8_t *data)
+{
+    if ((NULL == data) || (NULL == ctxInternal) || (NULL == ctxInternal->base) ||
+        (kStatus_Success != caam_crc_check_input_alg(ctxInternal->algo)))
+    {
+        return kStatus_InvalidArgument;
+    }
+    return kStatus_Success;
+}
+
+static uint32_t caam_crc_algo2mode(caam_crc_algo_t algo, uint32_t crcMode, uint32_t algState)
+{
+    uint32_t modeReg = 0u;
+
+    /* Set CAAM algorithm */
+    switch (algo)
+    {
+        case kCAAM_CrcIEEE:
+            modeReg = (uint32_t)kCAAM_AlgorithmCRC | (uint32_t)kCAAM_CRC_ModeIEEE802;
+            break;
+        case kCAAM_CrciSCSI:
+            modeReg = (uint32_t)kCAAM_AlgorithmCRC | (uint32_t)kCAAM_CRC_ModeIETF3385;
+            break;
+        case kCAAM_CrcCUSTPOLY:
+            modeReg = (uint32_t)kCAAM_AlgorithmCRC | crcMode | (uint32_t)kCAAM_CRC_ModeCUSTPOLY;
+            break;
+        default:
+            /* All the cases have been listed above, the default clause should not be reached. */
+            break;
+    }
+
+    modeReg |= algState;
+
+    return modeReg;
+}
+
+/*!
+ * @brief Add data chunk to SGT table. Append after uncomplete block in ctxInternal if there is any.
+ *
+ * @param ctxInternal uncomplete block in the crc context - to be inserted before new data chunk
+ * @param input new data chunk to insert
+ * @param inputSize size in bytes of new data chunk to insert
+ * @param numRemain number of bytes that remain in the last uncomplete block
+ * @param algState in FINALIZE or INITIALIZE/FINALIZE we add also last uncomplete block bytes
+ * @param sgt address of the SGT
+ * @param last last call to this function adds Final Bit
+ */
+static uint32_t caam_crc_sgt_insert(caam_crc_ctx_internal_t *ctxInternal,
+                                    const uint8_t *input,
+                                    size_t inputSize,
+                                    size_t *numRemain,
+                                    caam_algorithm_state_t algState,
+                                    caam_sgt_entry_t *sgt,
+                                    caam_hash_sgt_entry_type_t last)
+{
+    /* configure SGT
+     * *64 bytes multiple in kCAAM_HashInit or kCAAM_HashUpdate
+     * *arbitrary amount of data in kCAAM_HashInitFinal or kCAAM_HashFinal
+     * min 1 and max 2 SGT entries
+     * 1) if there is any data in the context buffer, use it as one entry
+     * 2) input as one entry
+     */
+    uint32_t numBlocks;
+    uint32_t remain;
+    uint32_t num;
+    uint32_t currSgtEntry;
+
+    uint32_t ctxBlksz   = (ctxInternal != NULL) ? ctxInternal->blksz : 0U;
+    uint32_t ctxBlkAddr = (ctxInternal != NULL) ? (uint32_t)&ctxInternal->blk.b[0] : 0U;
+
+    currSgtEntry = 0;
+    numBlocks    = (inputSize + ctxBlksz) / CAAM_HASH_BLOCK_SIZE;
+    remain       = (inputSize + ctxBlksz) % CAAM_HASH_BLOCK_SIZE;
+
+    /* number of bytes for processing
+     * only full block multiple in INITIALIZE or UPDATE
+     * any size in INITIALIZE/FINALIZE or FINALIZE
+     */
+    num = (CAAM_HASH_BLOCK_SIZE * numBlocks);
+    if ((algState == kCAAM_AlgStateInitFinal) || (algState == kCAAM_AlgStateFinal))
+    {
+        num += remain; /* add also uncomplete bytes from last block in one of FINALIZE states */
+        remain = 0;
+    }
+    if (numRemain != NULL)
+    {
+        *numRemain = remain;
+    }
+
+    if ((ctxBlksz != 0U) || (0U == ctxBlksz + inputSize))
+    {
+        sgt[currSgtEntry].address_l = ADD_OFFSET(ctxBlkAddr);
+        sgt[currSgtEntry].length    = ctxBlksz;
+        if ((kCAAM_HashSgtEntryLast == last) && (0U == inputSize))
+        {
+            sgt[currSgtEntry].length |= 0x40000000u; /* Final SG entry */
+        }
+        currSgtEntry++;
+    }
+
+    if (inputSize != 0U)
+    {
+        /* number of bytes for processing
+         * only full block multiple in INITIALIZE or UPDATE
+         * any size in INITIALIZE/FINALIZE or FINALIZE
+         */
+        sgt[currSgtEntry].address_l = ADD_OFFSET((uint32_t)input);
+        sgt[currSgtEntry].length    = inputSize - remain;
+        if (kCAAM_HashSgtEntryLast == last)
+        {
+            sgt[currSgtEntry].length |= 0x40000000u; /* Final SG entry */
+            sgt[currSgtEntry].offset = 0x80000000u;
+        }
+    }
+    return num; /* no of bytes processed in total by these 1 or 2 SGT entries */
+}
+
+/*!
+ * @brief Create job descriptor for the CRC request and schedule at CAAM job ring
+ *
+ *
+ */
+static status_t caam_crc_schedule_input_data(CAAM_Type *base,
+                                             caam_handle_t *handle,
+                                             caam_crc_algo_t algo,
+                                             caam_aai_crc_alg_t crcMode,
+                                             caam_sgt_entry_t *sgt,
+                                             uint32_t dataSize,
+                                             caam_hash_sgt_type_t sgtType,
+                                             caam_algorithm_state_t algState,
+                                             caam_desc_hash_t descriptor,
+                                             size_t *outputSize,
+                                             void *output,
+                                             void *context,
+                                             uint32_t polynomialAddr,
+                                             uint32_t polynomialSize)
+{
+    BUILD_ASSURE(sizeof(templateHash) <= sizeof(caam_desc_hash_t), caam_desc_hash_t_size);
+    uint32_t descriptorSize = ARRAY_SIZE(templateHash);
+    uint32_t algOutSize     = 4u;
+
+    bool isCustomCRC = caam_crc_alg_is_customcrc(algo);
+
+    /* MDHA use of the Context Register
+        The Context Register stores the current digest and running message length. The running
+        message length will be 8 bytes immediately following the active digest. The digest size is
+        defined as follows:
+ CRC: 4 bytes so caamCtxSz = 8 +4 */
+    uint32_t caamCtxSz = 12u;
+
+    (void)caam_memcpy(descriptor, templateHash, sizeof(templateHash));
+
+    /* CRC is Class 2 CHA */
+
+    /* add class to all commands that need it */
+    descriptor[1] |= 0x04000000u;
+    descriptor[3] |= 0x04000000u;
+    descriptor[5] |= 0x04000000u;
+    descriptor[6] |= 0x04000000u;
+    descriptor[9] |= 0x04000000u;
+    descriptor[11] |= 0x04000000u;
+
+    /* add descriptor size */
+    descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
+
+    /* kCAAM_AlgStateInit or kCAAM_AlgStateInitFinal needs to skip context load as there is no context */
+    if ((algState == kCAAM_AlgStateInit) || (algState == kCAAM_AlgStateInitFinal))
+    {
+        if (!isCustomCRC)
+        {
+            /* HEADER can jump directly to MDHA operation */
+            descriptor[0] |= 0x00050000U; /* JUMP to descriptor[5] */
+        }
+        else
+        {
+            /* load Polynomial, then directly to CRC operation */
+            descriptor[1] |= (polynomialSize & DESC_KEY_SIZE_MASK);
+            descriptor[2] = ADD_OFFSET(polynomialAddr);
+            descriptor[3] = DESC_JUMP_2; /* JUMP to descriptor[5] */
+        }
+    }
+    else
+    {
+        if (!isCustomCRC)
+        {
+            /* CRC without custom polynomial in Update state skips loading the Polynomial
+             * HEADER can jump directly to context restore
+             */
+            descriptor[0] |= 0x00030000U; /* JUMP to descriptor[3] */
+        }
+        else
+        {
+            /* load Polynomial */
+            descriptor[1] |= (polynomialSize & DESC_KEY_SIZE_MASK);
+            descriptor[2] = ADD_OFFSET(polynomialAddr);
+        }
+
+        /* context restore */
+        descriptor[3] |= caamCtxSz;
+        descriptor[4] = ADD_OFFSET((uint32_t)(uint32_t *)context);
+    }
+
+    /* OPERATION:
+     * alg MDHA
+     * mode INITIALIZE or UPDATE or FINALIZE or INITIALIZE/FINALIZE in algState argument
+     */
+
+    /* ALGORITHM OPERATION | CLASS | alg | aai | algState */
+    descriptor[5] |= caam_crc_algo2mode(algo, (uint32_t)crcMode, (uint32_t)algState << 2);
+
+    /* configure SGT */
+    descriptor[8] = dataSize;
+    if (kCAAM_HashSgtInternal == sgtType)
+    {
+        descriptor[7] = ADD_OFFSET(
+            (uint32_t)&descriptor[(uint32_t)kCAAM_HashDescriptorSgtIdx]); /* use SGT embedded in the job descriptor */
+        (void)caam_memcpy(&descriptor[(uint32_t)kCAAM_HashDescriptorSgtIdx], (const uint32_t *)(uintptr_t)sgt,
+                          sizeof(caam_hash_internal_sgt_t));
+    }
+    else
+    {
+        descriptor[7] = ADD_OFFSET((uint32_t)sgt);
+    }
+
+    /* save context: context switch init or running or result */
+    if ((kCAAM_AlgStateFinal == algState) || (kCAAM_AlgStateInitFinal == algState))
+    {
+        if (outputSize != NULL)
+        {
+            if (algOutSize < *outputSize)
+            {
+                *outputSize = algOutSize;
+            }
+            else
+            {
+                algOutSize = *outputSize;
+            }
+        }
+        caamCtxSz = algOutSize;
+    }
+    else
+    {
+        caamCtxSz = 12u;
+    }
+    descriptor[9] |= caamCtxSz;
+    if ((kCAAM_AlgStateFinal == algState) || (kCAAM_AlgStateInitFinal == algState))
+    {
+        /* final result write to output */
+        descriptor[10] = ADD_OFFSET((uint32_t)(uint32_t *)output);
+    }
+    else
+    {
+        /* context switch write to ctxInternal */
+        descriptor[10] = ADD_OFFSET((uint32_t)(uint32_t *)context);
+    }
+
+    descriptor[11] = ADD_OFFSET(descriptor[13]); /* always halt with status 0x0 (normal) */
+
+    return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
+}
+
+/*!
+ * @brief Add uncomplete block (ctxInternal), then append new data (to current crc calculation).
+ *
+ *
+ */
+static status_t caam_crc_append_data(caam_crc_ctx_internal_t *ctxInternal,
+                                     const uint8_t *input,
+                                     size_t inputSize,
+                                     caam_algorithm_state_t algState,
+                                     caam_desc_hash_t descriptor,
+                                     size_t *numRemain,
+                                     void *output,
+                                     size_t *outputSize)
+{
+    caam_hash_internal_sgt_t sgt;
+    (void)memset(&sgt, 0, sizeof(sgt));
+    size_t num = caam_crc_sgt_insert(ctxInternal, input, inputSize, numRemain, algState, sgt, kCAAM_HashSgtEntryLast);
+    return caam_crc_schedule_input_data(ctxInternal->base, ctxInternal->handle, ctxInternal->algo, ctxInternal->crcmode,
+                                        sgt, num, kCAAM_HashSgtInternal, algState, descriptor, outputSize, output,
+                                        &ctxInternal->word[0], (uint32_t)&ctxInternal->word[kCAAM_HashCtxKeyStartIdx],
+                                        ctxInternal->word[kCAAM_HashCtxKeySize]);
+}
+
+/*******************************************************************************
+ * CRC Code public
+ ******************************************************************************/
+
+/*!
+ * brief Initialize CRC context
+ *
+ * This function initializes the CRC context.
+ * polynomial shall be supplied if the underlaying algoritm is kCAAM_CrcCUSTPOLY.
+ * polynomial shall be NULL if the underlaying algoritm is kCAAM_CrcIEEE or kCAAM_CrciSCSI.
+ *
+ * This functions is used to initialize the context for CAAM_CRC API
+ *
+ * param base CAAM peripheral base address
+ * param handle Handle used for this request.
+ * param[out] ctx Output crc context
+ * param algo Underlaying algorithm to use for CRC computation
+ * param polynomial CRC polynomial (NULL if underlaying algorithm is kCAAM_CrcIEEE or kCAAM_CrciSCSI)
+ * param polynomialSize Size of polynomial in bytes (0u if underlaying algorithm is kCAAM_CrcIEEE or kCAAM_CrciSCSI)
+ * param mode Specify how CRC engine manipulates its input and output data
+ * return Status of initialization
+ */
+status_t CAAM_CRC_Init(CAAM_Type *base,
+                       caam_handle_t *handle,
+                       caam_crc_ctx_t *ctx,
+                       caam_crc_algo_t algo,
+                       const uint8_t *polynomial,
+                       size_t polynomialSize,
+                       caam_aai_crc_alg_t mode)
+{
+    status_t ret = kStatus_Fail;
+    caam_crc_ctx_internal_t *ctxInternal;
+    uint32_t i;
+
+    ret = caam_crc_check_input_args(base, ctx, algo, polynomial, polynomialSize);
+    if (ret != kStatus_Success)
+    {
+        return ret;
+    }
+
+    /* set algorithm in context struct for later use */
+    ctxInternal          = (caam_crc_ctx_internal_t *)(uint32_t)ctx;
+    ctxInternal->algo    = algo;
+    ctxInternal->crcmode = mode;
+    for (i = 0U; i < (uint32_t)kCAAM_HashCtxNumWords; i++)
+    {
+        ctxInternal->word[i] = 0u;
+    }
+
+    /* Steps required only using CRC engine with custom polynomial */
+    if (caam_crc_alg_is_customcrc(algo))
+    {
+        /* store polynomial and polynomial length in context struct for later use */
+        ctxInternal->word[kCAAM_HashCtxKeySize] = polynomialSize;
+        (void)caam_memcpy(&ctxInternal->word[kCAAM_HashCtxKeyStartIdx], (const uint32_t *)(uintptr_t)polynomial,
+                          polynomialSize);
+    }
+
+    ctxInternal->blksz = 0u;
+    for (i = 0; i < ARRAY_SIZE(ctxInternal->blk.w); i++)
+    {
+        ctxInternal->blk.w[i] = 0u;
+    }
+    ctxInternal->fsm_state = kCAAM_HashInit;
+    ctxInternal->base      = base;
+    ctxInternal->handle    = handle;
+
+    return kStatus_Success;
+}
+
+/*!
+ * brief Add data to current CRC
+ *
+ * Add data to current CRC. This can be called repeatedly. The functions blocks. If it returns kStatus_Success, the
+ * running CRC has been updated (CAAM has processed the input data), so the memory at input pointer can be released back
+ * to system. The context is updated with the running CRC and with all necessary information to support possible context
+ * switch.
+ *
+ * param[in,out] ctx CRC context
+ * param input Input data
+ * param inputSize Size of input data in bytes
+ * return Status of the crc update operation
+ */
+status_t CAAM_CRC_Update(caam_crc_ctx_t *ctx, const uint8_t *input, size_t inputSize)
+{
+    caam_desc_hash_t descBuf;
+    status_t status;
+    caam_crc_ctx_internal_t *ctxInternal;
+    bool isUpdateState;
+    size_t numRemain = 0;
+
+    /* compile time check for the correct structure size */
+    BUILD_ASSURE(sizeof(caam_crc_ctx_internal_t) <= sizeof(caam_crc_ctx_t), caam_crc_ctx_internal_t_size);
+
+    if (0U == inputSize)
+    {
+        return kStatus_Success;
+    }
+
+    /* we do caam_memcpy() input stream, up to buffer size
+     * of 64 bytes. then if I have more I have to
+     * 1) load Class 2 context
+     * 2) schedule CAAM job with INITIALIZE or UPDATE mode (simple if only 64 bytes block is processed. SG table for 2
+     * and more)
+     * 3) in step 2 process all full 64 bytes blocks
+     * 4) copy last not-full buffer size data to buffer.
+     * 5) save Class 2 context
+     */
+    ctxInternal = (caam_crc_ctx_internal_t *)(uint32_t)ctx;
+    status      = caam_crc_check_context(ctxInternal, input);
+    if (kStatus_Success != status)
+    {
+        return status;
+    }
+
+    /* if we are still less than 64 bytes, keep only in context */
+    if ((ctxInternal->blksz + inputSize) <= CAAM_HASH_BLOCK_SIZE)
+    {
+        (void)caam_memcpy((&ctxInternal->blk.b[0]) + ctxInternal->blksz, input, inputSize);
+        ctxInternal->blksz += inputSize;
+        return status;
+    }
+    else
+    {
+        isUpdateState = ctxInternal->fsm_state == kCAAM_HashUpdate;
+        if (!isUpdateState)
+        {
+            /* Step 2: schedule CAAM job in INITIALIZE mode.
+             */
+            ctxInternal->fsm_state = kCAAM_HashUpdate;
+            /* skip load context as there is no running context yet. */
+            status = caam_crc_append_data(ctxInternal, input, inputSize, kCAAM_AlgStateInit, descBuf, &numRemain, NULL,
+                                          NULL);
+        }
+    }
+
+    if (kStatus_Success != status)
+    {
+        return status;
+    }
+
+    if (isUpdateState)
+    {
+        /* Step 2: schedule CAAM job in UPDATE mode.
+         */
+
+        /* process input data and save CAAM context to context structure */
+        status =
+            caam_crc_append_data(ctxInternal, input, inputSize, kCAAM_AlgStateUpdate, descBuf, &numRemain, NULL, NULL);
+        if (status != kStatus_Success)
+        {
+            return status;
+        }
+    }
+
+    /* blocking wait */
+    status = CAAM_Wait(ctxInternal->base, ctxInternal->handle, descBuf, kCAAM_Blocking);
+    if (status != kStatus_Success)
+    {
+        return status;
+    }
+
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)&ctxInternal->word[0u], (uint32_t)kCAAM_HashCtxNumWords * sizeof(uint32_t));
+#endif /* CAAM_OUT_INVALIDATE */
+
+    /* after job is complete, copy numRemain bytes at the end of the input[] to the context */
+    (void)caam_memcpy((&ctxInternal->blk.b[0]), input + inputSize - numRemain, numRemain);
+    ctxInternal->blksz = numRemain;
+
+    return status;
+}
+
+/*!
+ * brief Finalize CRC
+ *
+ * Outputs the final CRC (computed by CAAM_CRC_Update()) and erases the context.
+ *
+ * param[in,out] ctx Input crc context
+ * param[out] output Output crc data
+ * param[out] outputSize Output parameter storing the size of the output crc in bytes
+ * return Status of the crc finish operation
+ */
+status_t CAAM_CRC_Finish(caam_crc_ctx_t *ctx, uint8_t *output, size_t *outputSize)
+{
+    status_t status;
+    caam_crc_ctx_internal_t *ctxInternal;
+    caam_desc_hash_t descBuf;
+    caam_algorithm_state_t algState;
+
+    /* runtime input validity check */
+    ctxInternal = (caam_crc_ctx_internal_t *)(uint32_t)ctx;
+    status      = caam_crc_check_context(ctxInternal, output);
+    if (kStatus_Success != status)
+    {
+        return status;
+    }
+
+    /* determine algorithm state to configure
+     * based on prior processing.
+     * If at least one full block has been processed during HASH_Update() then the state in ctxInternal
+     * will be set to kCAAM_HashUpdate and so we will configure FINALIZE algorithm state.
+     * Otherwise there is data only in the ctxInternal that we can process in INITIALIZE/FINALIZE.
+     */
+    if (ctxInternal->fsm_state == kCAAM_HashInit)
+    {
+        algState = kCAAM_AlgStateInitFinal;
+    }
+    else
+    {
+        algState = kCAAM_AlgStateFinal;
+    }
+
+    status = caam_crc_append_data(ctxInternal, NULL,
+                                  0, /* we process only blksz bytes in ctxInternal, so giving NULL and zero size here */
+                                  algState, descBuf, NULL, output, outputSize);
+    if (kStatus_Success != status)
+    {
+        return status;
+    }
+
+    /* blocking wait */
+    status = CAAM_Wait(ctxInternal->base, ctxInternal->handle, descBuf, kCAAM_Blocking);
+
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)output, 32u);
+#endif /* CAAM_OUT_INVALIDATE */
+
+    (void)memset(ctx, 0, sizeof(caam_crc_ctx_t));
+    return status;
+}
+
+/*!
+ * brief Create CRC on given data
+ *
+ * Perform CRC in one function call.
+ *
+ * Polynomial shall be supplied if underlaying algorithm is kCAAM_CrcCUSTPOLY.
+ * Polynomial shall be NULL if underlaying algorithm is kCAAM_CrcIEEE or kCAAM_CrciSCSI.
+ *
+ *
+ * The function is blocking.
+ *
+ * param base CAAM peripheral base address
+ * param handle Handle used for this request.
+ * param algo Underlaying algorithm to use for crc computation.
+ * param mode Specify how CRC engine manipulates its input and output data.
+ * param input Input data
+ * param inputSize Size of input data in bytes
+ * param polynomial CRC polynomial (NULL if underlaying algorithm is kCAAM_CrcIEEE or kCAAM_CrciSCSI)
+ * param polynomialSize Size of input polynomial in bytes (0U if underlaying algorithm is kCAAM_CrcIEEE or
+ * kCAAM_CrciSCSI) param[out] output Output crc data param[out] outputSize Output parameter storing the size of the
+ * output crc in bytes return Status of the one call crc operation.
+ */
+status_t CAAM_CRC(CAAM_Type *base,
+                  caam_handle_t *handle,
+                  caam_crc_algo_t algo,
+                  caam_aai_crc_alg_t mode,
+                  const uint8_t *input,
+                  size_t inputSize,
+                  const uint8_t *polynomial,
+                  size_t polynomialSize,
+                  uint8_t *output,
+                  size_t *outputSize)
+{
+    status_t status;
+    caam_desc_hash_t descBuf;
+
+    status = CAAM_CRC_NonBlocking(base, handle, descBuf, algo, mode, input, inputSize, polynomial, polynomialSize,
+                                  output, outputSize);
+    if (kStatus_Success != status)
+    {
+        return status;
+    }
+
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)output, *outputSize);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
+}
+
+/*!
+ * brief Create CRC on given data
+ *
+ * Perform CRC in one function call.
+ *
+ * Polynomial shall be supplied if underlaying algorithm is kCAAM_CrcCUSTPOLY.
+ * Polynomial shall be NULL if underlaying algorithm is kCAAM_CrcIEEE or kCAAM_CrciSCSI.
+ *
+ * The function is non-blocking. The request is scheduled at CAAM.
+ *
+ * param base CAAM peripheral base address
+ * param handle Handle used for this request.
+ * param[out] descriptor Memory for the CAAM descriptor.
+ * param algo Underlaying algorithm to use for crc computation.
+ * param mode Specify how CRC engine manipulates its input and output data.
+ * param input Input data
+ * param inputSize Size of input data in bytes
+ * param polynomial CRC polynomial (NULL if underlaying algorithm is kCAAM_CrcIEEE or kCAAM_CrciSCSI)
+ * param polynomialSize Size of polynomial in bytes (0U if underlaying algorithm is kCAAM_CrcIEEE or kCAAM_CrciSCSI)
+ * param[out] output Output crc data
+ * param[out] outputSize Output parameter storing the size of the output crc in bytes
+ * return Status of the one call crc operation.
+ */
+status_t CAAM_CRC_NonBlocking(CAAM_Type *base,
+                              caam_handle_t *handle,
+                              caam_desc_hash_t descriptor,
+                              caam_crc_algo_t algo,
+                              caam_aai_crc_alg_t mode,
+                              const uint8_t *input,
+                              size_t inputSize,
+                              const uint8_t *polynomial,
+                              size_t polynomialSize,
+                              uint8_t *output,
+                              size_t *outputSize)
+{
+    status_t status;
+    caam_algorithm_state_t algState;
+    caam_hash_internal_sgt_t sgt;
+
+    (void)memset(&sgt, 0, sizeof(sgt));
+
+    algState     = kCAAM_AlgStateInitFinal;
+    uint32_t num = caam_hash_sgt_insert(NULL,             /* no ctxInternal data to pre-pend before input data chunk */
+                                        input, inputSize, /* data and size in bytes */
+                                        NULL, /* all data is processed during kCAAM_AlgStateInitFinal, nothing remain */
+                                        algState, sgt, kCAAM_HashSgtEntryLast); /* sgt table, entry 0 word 0 */
+
+    /* schedule the request at CAAM */
+    status = caam_crc_schedule_input_data(base, handle, algo, mode, sgt, num, kCAAM_HashSgtInternal, algState,
+                                          descriptor, outputSize, output, NULL, (uint32_t)polynomial, polynomialSize);
+    return status;
+}
 /*******************************************************************************
  * RNG Code public
  ******************************************************************************/
@@ -3148,7 +4055,7 @@ status_t CAAM_RNG_GetDefaultConfig(caam_rng_config_t *config)
 {
     status_t status;
 
-    if (config)
+    if (config != NULL)
     {
         config->autoReseedInterval = 0; /* zero means hardware default of 10.000.000 will be used */
         config->personalString     = NULL;
@@ -3185,7 +4092,7 @@ status_t CAAM_RNG_Init(CAAM_Type *base,
     caam_desc_rng_t rngInstantiate = {0};
     rngInstantiate[0]              = 0xB0800006u;
     rngInstantiate[1]              = 0x12200020u; /* LOAD 32 bytes of  to Class 1 Context Register. Offset 0 bytes. */
-    rngInstantiate[2]              = (uint32_t)config->personalString;
+    rngInstantiate[2]              = (uint32_t)ADD_OFFSET((uint32_t)config->personalString);
     rngInstantiate[3]              = 0x12820004u; /* LOAD Immediate 4 bytes to Class 1 Data Size Register. */
     rngInstantiate[4]              = config->autoReseedInterval; /* value for the Class 1 Data Size Register */
     rngInstantiate[5]              = 0x82500006u;                /* RNG instantiate state handle:
@@ -3199,15 +4106,15 @@ status_t CAAM_RNG_Init(CAAM_Type *base,
     }
 
     /* default auto reseed interval */
-    if (config->autoReseedInterval == 0)
+    if (config->autoReseedInterval == 0U)
     {
         rngInstantiate[3] = DESC_JUMP_2; /* jump to current index + 2 (=5) */
     }
 
     /* optional personalization string present */
-    if (config->personalString)
+    if ((config->personalString) != NULL)
     {
-        rngInstantiate[5] |= 1u << 10; /* set PS bit in ALG OPERATION (AS=01 Instantiate) */
+        rngInstantiate[5] |= (uint32_t)1u << 10; /* set PS bit in ALG OPERATION (AS=01 Instantiate) */
     }
     else
     {
@@ -3281,13 +4188,13 @@ status_t CAAM_RNG_GenerateSecureKey(CAAM_Type *base, caam_handle_t *handle, caam
     caam_desc_rng_t rngGenSeckey = {0};
     rngGenSeckey[0]              = 0xB0800004u; /* HEADER */
     rngGenSeckey[1]              = 0x12200020u; /* LOAD 32 bytes of  to Class 1 Context Register. Offset 0 bytes. */
-    rngGenSeckey[2]              = (uint32_t)additionalEntropy;
+    rngGenSeckey[2]              = ADD_OFFSET((uint32_t)additionalEntropy);
     rngGenSeckey[3]              = 0x82501000u; /* set SK bit in ALG OPERATION (AS=00 Generate) */
 
     /* optional additional input included */
-    if (additionalEntropy)
+    if ((additionalEntropy) != NULL)
     {
-        rngGenSeckey[3] |= 1u << 11; /* set AI bit in ALG OPERATION */
+        rngGenSeckey[3] |= (uint32_t)1u << 11; /* set AI bit in ALG OPERATION */
     }
     else
     {
@@ -3331,13 +4238,13 @@ status_t CAAM_RNG_Reseed(CAAM_Type *base,
     caam_desc_rng_t rngReseed = {0};
     rngReseed[0]              = 0xB0800004u; /* HEADER */
     rngReseed[1]              = 0x12200020u; /* LOAD 32 bytes of  to Class 1 Context Register. Offset 0 bytes. */
-    rngReseed[2]              = (uint32_t)additionalEntropy;
+    rngReseed[2]              = ADD_OFFSET((uint32_t)additionalEntropy);
     rngReseed[3]              = 0x8250000Au; /* ALG OPERATION: RNG reseed state handle (AS=10 Reseed) */
 
     /* optional additional input included */
-    if (additionalEntropy)
+    if ((additionalEntropy) != NULL)
     {
-        rngReseed[3] |= 1u << 11; /* set AI bit in ALG OPERATION */
+        rngReseed[3] |= (uint32_t)1u << 11; /* set AI bit in ALG OPERATION */
     }
     else
     {
@@ -3379,7 +4286,7 @@ status_t CAAM_RNG_Reseed(CAAM_Type *base,
 status_t CAAM_RNG_GetRandomData(CAAM_Type *base,
                                 caam_handle_t *handle,
                                 caam_rng_state_handle_t stateHandle,
-                                void *data,
+                                uint8_t *data,
                                 size_t dataSize,
                                 caam_rng_random_type_t dataType,
                                 caam_rng_generic256_t additionalEntropy)
@@ -3399,6 +4306,11 @@ status_t CAAM_RNG_GetRandomData(CAAM_Type *base,
     }
 
     status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)data, dataSize);
+#endif /* CAAM_OUT_INVALIDATE */
     return status;
 }
 
@@ -3408,9 +4320,10 @@ static const uint32_t templateRng[] = {
     /* 02 */ 0x00000000u, /* place: additional input address */
     /* 03 */ 0x12820004u, /* LOAD Class 1 Data Size Register by IMM data */
     /* 04 */ 0x00000000u, /* place: data size to generate */
-    /* 05 */ 0x82500002u, /* RNG generate */
-    /* 06 */ 0x60300000u, /* FIFO STORE message */
+    /* 05 */ 0x82500000u, /* RNG generate */
+    /* 06 */ 0x60700000u, /* FIFO STORE message */
     /* 07 */ 0x00000000u, /* place: destination address */
+    /* 08 */ 0x00000000u, /* place: destination size */
 };
 
 /*!
@@ -3443,23 +4356,24 @@ status_t CAAM_RNG_GetRandomDataNonBlocking(CAAM_Type *base,
     BUILD_ASSURE(sizeof(templateRng) <= sizeof(caam_desc_rng_t), caam_desc_rng_t_size);
     uint32_t descriptorSize = ARRAY_SIZE(templateRng);
 
-    caam_memcpy(descriptor, templateRng, sizeof(templateRng));
+    (void)caam_memcpy(descriptor, templateRng, sizeof(templateRng));
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
 
     /* optional additional input included */
-    if (additionalEntropy)
+    if (additionalEntropy != NULL)
     {
-        descriptor[2] = (uint32_t)additionalEntropy;
-        descriptor[5] |= 1u << 11; /* set AI bit in ALG OPERATION */
+        descriptor[2] = ADD_OFFSET((uint32_t)additionalEntropy);
+        descriptor[5] |= (uint32_t)1U << 11; /* set AI bit in ALG OPERATION */
+        descriptor[5] |= (uint32_t)1U << 1;  /* set PR bit in ALG OPERATION (entropy seed) */
     }
     else
     {
-        descriptor[0] |= 3u << 16; /* start at index 3 */
+        descriptor[0] |= (uint32_t)3u << 16; /* start at index 3 */
     }
 
-    descriptor[4] = dataSize;
-    descriptor[6] |= (dataSize & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[7] = (uint32_t)data;
+    descriptor[4] = dataSize; /* Generate OPERATION */
+    descriptor[7] = ADD_OFFSET((uint32_t)(uint32_t *)data);
+    descriptor[8] = dataSize; /* FIFO STORE */
 
     /* select state handle */
     if (kCAAM_RngStateHandle1 == stateHandle)
@@ -3470,17 +4384,426 @@ status_t CAAM_RNG_GetRandomDataNonBlocking(CAAM_Type *base,
     /* configure type of data */
     if (dataType == kCAAM_RngDataNonZero)
     {
-        descriptor[5] |= 1u << 8; /* set NZB bit in ALG OPERATION */
+        descriptor[5] |= (uint32_t)1u << 8; /* set NZB bit in ALG OPERATION */
     }
 
     if (dataType == kCAAM_RngDataOddParity)
     {
-        descriptor[5] |= 1u << 9; /* set OBP bit in ALG OPERATION */
+        descriptor[5] |= (uint32_t)1u << 9; /* set OBP bit in ALG OPERATION */
     }
 
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
 }
 
+/*******************************************************************************
+ * BLACK Code public
+ ******************************************************************************/
+static const uint32_t templateBlack[] = {
+    /* 00 */ 0xB0800000u, /* HEADER */
+    /* 01 */ 0x02000000u, /* KEY command of  to Class 1 Context Register. */
+    /* 02 */ 0x00000000u, /* place: a pointer to the key to be loaded */
+    /* 03 */ 0x62000000u, /* FIFO STORE message */
+    /* 04 */ 0x00000000u, /* place: destination address */
+};
+
+/*!
+ * brief Construct a black key
+ *
+ * This function constructs a job descriptor capable of performing
+ * a key blackening operation on a plaintext secure memory resident object.
+ *
+ * param base CAAM peripheral base address
+ * param handle Handle used for this request. Specifies jobRing.
+ * param data Pointer address used to pointed the plaintext.
+ * param dataSize Size of the buffer pointed by the data parameter
+ * param fifostType Type of AES-CBC or AEC-CCM to encrypt plaintext
+ * param[out] blackdata Pointer address uses to pointed the black key
+ * return Status of the request
+ */
+
+status_t CAAM_BLACK_GetKeyBlacken(CAAM_Type *base,
+                                  caam_handle_t *handle,
+                                  const uint8_t *data,
+                                  size_t dataSize,
+                                  caam_fifost_type_t fifostType,
+                                  uint8_t *blackdata)
+{
+    status_t status = kStatus_Fail;
+
+    caam_desc_key_black_t descriptor;
+
+    /* create job descriptor */
+    BUILD_ASSURE(sizeof(templateBlack) <= sizeof(caam_desc_key_black_t), caam_desc_key_black_t_size);
+    uint32_t descriptorSize = ARRAY_SIZE(templateBlack);
+
+    (void)caam_memcpy(descriptor, templateBlack, sizeof(templateBlack));
+    descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
+    /* optional additional input included */
+    descriptor[1] |= dataSize;
+    descriptor[2] = ADD_OFFSET((uint32_t)data);
+
+    descriptor[3] |= ((uint32_t)fifostType << 16) | (dataSize & DESC_PAYLOAD_SIZE_MASK);
+    descriptor[4] = ADD_OFFSET((uint32_t)blackdata);
+
+    do
+    {
+        status = caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
+    } while (status == kStatus_CAAM_Again);
+
+    if (kStatus_Success != status)
+    {
+        return status;
+    }
+
+    status = CAAM_Wait(base, handle, descriptor, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)blackdata, dataSize);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
+}
+
+/*******************************************************************************
+ * Key blob Code public
+ ******************************************************************************/
+
+static const uint32_t templateBlob[] = {
+    /* 00 */ 0xB0800000u, /* HEADER */
+    /* 01 */ 0x04000000u, /* KEY command to Class 2 Context Register, 64/128bits RNG KEY. */
+    /* 02 */ 0x00000000u, /* place: a pointer to the key to be loaded */
+    /* 03 */ 0xF0000000u, /* SEQ IN PTR command to load plain data or key blob depending on operation */
+    /* 04 */ 0x00000000u, /* place: a pointer to plain data/ key blob to be loaded */
+    /* 05 */ 0xF8000000u, /* SEQ OUT PTR command to store blob datas */
+    /* 06 */ 0x00000000u, /* place: a pointer to blob data or plain data to be stored depending on operation*/
+    /* 07 */ 0x800D0000u, /* OPERATION:Encrypt/Decrypt BLOB  */
+};
+
+/*!
+ * brief Construct a encrypted Red Blob
+ *
+ * This function constructs a job descriptor capable of performing
+ * a encrypted blob operation on a plaintext object.
+ *
+ * param base CAAM peripheral base address
+ * param handle Handle used for this request. Specifies jobRing.
+ * param keyModifier Address of the random key modifier generated by RNG
+ * param keyModifierSize Size of keyModifier buffer in bytes
+ * param data Data adress
+ * param dataSize Size of the buffer pointed by the data parameter
+ * param[out] blob_data Output blob data adress
+ * return Status of the request
+ */
+status_t CAAM_RedBlob_Encapsule(CAAM_Type *base,
+                                caam_handle_t *handle,
+                                const uint8_t *keyModifier,
+                                size_t keyModifierSize,
+                                const uint8_t *data,
+                                size_t dataSize,
+                                uint8_t *blob_data)
+{
+    status_t status = kStatus_Fail;
+
+    caam_desc_gen_enc_blob_t descriptor;
+    size_t blob_size;
+
+    /* output blob will have 32 bytes key blob in beginning and 16 bytes MAC identifier at end of data blob */
+    blob_size = 32u + dataSize + 16u;
+
+    /* Key modifier size must 8 bytes long when used Secure memory or 16bytes long when General memory is used*/
+    if ((keyModifierSize != 8u) && (keyModifierSize != 16u))
+    {
+        return kStatus_InvalidArgument;
+    }
+
+    /* create job descriptor */
+    BUILD_ASSURE(sizeof(templateBlob) <= sizeof(caam_desc_gen_enc_blob_t), caam_desc_gen_enc_blob_t_size);
+    uint32_t descriptorSize = ARRAY_SIZE(templateBlob);
+    (void)caam_memcpy(descriptor, templateBlob, sizeof(templateBlob));
+    descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
+#if defined(KEYBLOB_USE_SECURE_MEMORY)
+    descriptor[1] |= 8u; // KEY command to Class 2 Context Register,  64bits RNG KEY.
+#else
+    descriptor[1] |= 16u;         // KEY command to Class 2 Context Register, 128bits RNG KEY.
+#endif                                                 /* (KEYBLOB_USE_SECURE_MEMORY) */
+    descriptor[2] = ADD_OFFSET((uint32_t)keyModifier); // Key modifier adress
+    descriptor[3] |= dataSize;                         // SEQ IN PTR command to load plain data
+    descriptor[4] = ADD_OFFSET((uint32_t)data);        // Plain data adress
+    descriptor[5] |= blob_size;                        // SEQ OUT PTR Set outputing key blob
+    descriptor[6] = ADD_OFFSET((uint32_t)blob_data);   // Key blob adress
+#if defined(KEYBLOB_USE_SECURE_MEMORY)
+    descriptor[7] |= (7UL << 24) | SEC_MEM; // OPERATION:Encrypt Red Blob in secure memory
+#else
+    descriptor[7] |= (7UL << 24); // OPERATION:Encrypt Red Blob in normal memory
+#endif /* (KEYBLOB_USE_SECURE_MEMORY) */
+
+    // schedule the job and block wait for result
+    do
+    {
+        status = caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
+    } while (status == kStatus_CAAM_Again);
+
+    if (kStatus_Success != status)
+    {
+        return status;
+    }
+
+    status = CAAM_Wait(base, handle, descriptor, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)blob_data, blob_size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
+}
+
+/*! brief Decrypt red blob
+ *
+ * This function constructs a job descriptor capable of performing
+ * decrypting red blob.
+ *
+ * param base CAAM peripheral base address
+ * param handle Handle used for this request. Specifies jobRing.
+ * param keyModifier Address of the random key modifier generated by RNG
+ * param keyModifierSize Size of keyModifier buffer in bytes
+ * param blob_data Address of blob data
+ * param[out] data Output data adress.
+ * param dataSize Size of the buffer pointed by the data parameter in bytes
+ * return Status of the request
+ */
+
+status_t CAAM_RedBlob_Decapsule(CAAM_Type *base,
+                                caam_handle_t *handle,
+                                const uint8_t *keyModifier,
+                                size_t keyModifierSize,
+                                const uint8_t *blob_data,
+                                uint8_t *data,
+                                size_t dataSize)
+{
+    status_t status = kStatus_Fail;
+
+    size_t blob_size;
+    caam_desc_gen_dep_blob_t descriptor;
+
+    /* blob have 32 bytes key blob in beginning and 16 bytes MAC identifier at end of data blob */
+    blob_size = 32u + dataSize + 16u;
+
+    /* Key modifier size must 8 bytes long when used Secure memory or 16bytes long when General memory is used*/
+    if ((keyModifierSize != 8u) && (keyModifierSize != 16u))
+    {
+        return kStatus_InvalidArgument;
+    }
+
+    /* create job descriptor */
+
+    BUILD_ASSURE(sizeof(templateBlob) <= sizeof(caam_desc_gen_dep_blob_t), caam_desc_gen_dep_blob_t_size);
+    uint32_t descriptorSize = ARRAY_SIZE(templateBlob);
+
+    (void)caam_memcpy(descriptor, templateBlob, sizeof(templateBlob));
+    descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
+#if defined(KEYBLOB_USE_SECURE_MEMORY)
+    descriptor[1] |= 8u; // KEY command to Class 2 Context Register, 64bits RNG KEY.
+#else
+    descriptor[1] |= 16u;         // KEY command to Class 2 Context Register, 128bits RNG KEY.
+#endif                                                 /* (KEYBLOB_USE_SECURE_MEMORY) */
+    descriptor[2] = ADD_OFFSET((uint32_t)keyModifier); // Key modifier adress
+    descriptor[3] |= blob_size;                        // SEQ IN PTR command to load blob data
+    descriptor[4] = ADD_OFFSET((uint32_t)blob_data);   // Key blob adress
+    descriptor[5] |= dataSize;                         // SEQ OUT PTR command to load plain data
+    descriptor[6] = ADD_OFFSET((uint32_t)data);        // Plain data adress
+#if defined(KEYBLOB_USE_SECURE_MEMORY)
+    descriptor[7] |= (6UL << 24) | SEC_MEM; // OPERATION:Decrypt red blob in secure memory
+#else
+    descriptor[7] |= (6UL << 24); // OPERATION:Decrypt red blob in normal memory
+#endif /* (KEYBLOB_USE_SECURE_MEMORY) */
+    // schedule the job and block wait for result
+    do
+    {
+        status = caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
+    } while (status == kStatus_CAAM_Again);
+
+    if (kStatus_Success != status)
+    {
+        return status;
+    }
+
+    status = CAAM_Wait(base, handle, descriptor, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)data, dataSize);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
+}
+
+/*!
+ * brief Construct a encrypted  Black Blob
+ *
+ * This function constructs a job descriptor capable of performing
+ * a encrypted blob operation on a plaintext object.
+ *
+ * param base CAAM peripheral base address
+ * param handle Handle used for this request. Specifies jobRing.
+ * param keyModifier Address of the random key modifier generated by RNG
+ * param keyModifierSize Size of keyModifier buffer in bytes
+ * param data Data adress
+ * param dataSize Size of the buffer pointed by the data parameter
+ * param[out] blob_data Output blob data adress
+ * param blackKeyType  Type of black key see enum caam_desc_type_t for more info
+ * return Status of the request
+ */
+status_t CAAM_BlackBlob_Encapsule(CAAM_Type *base,
+                                  caam_handle_t *handle,
+                                  const uint8_t *keyModifier,
+                                  size_t keyModifierSize,
+                                  const uint8_t *data,
+                                  size_t dataSize,
+                                  uint8_t *blob_data,
+                                  caam_desc_type_t blackKeyType)
+{
+    status_t status = kStatus_Fail;
+
+    caam_desc_gen_enc_blob_t descriptor;
+    size_t blob_size;
+
+    /* output blob will have 32 bytes key blob in beginning and 16 bytes MAC identifier at end of data blob */
+    blob_size = 32u + dataSize + 16u;
+
+    /* Key modifier size must 8 bytes long when used Secure memory or 16bytes long when General memory is used*/
+    if ((keyModifierSize != 8u) && (keyModifierSize != 16u))
+    {
+        return kStatus_InvalidArgument;
+    }
+
+    /* create job descriptor */
+    BUILD_ASSURE(sizeof(templateBlob) <= sizeof(caam_desc_gen_enc_blob_t), caam_desc_gen_enc_blob_t);
+    uint32_t descriptorSize = ARRAY_SIZE(templateBlob);
+
+    (void)caam_memcpy(descriptor, templateBlob, sizeof(templateBlob));
+    descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
+#if defined(KEYBLOB_USE_SECURE_MEMORY)
+    descriptor[1] |= 8u; // KEY command to Class 2 Context Register, 64bits RNG KEY.
+#else
+    descriptor[1] |= 16u;         // KEY command to Class 2 Context Register, 128bits RNG KEY.
+#endif                                                 /* (KEYBLOB_USE_SECURE_MEMORY) */
+    descriptor[2] = ADD_OFFSET((uint32_t)keyModifier); // Key modifier adress
+    descriptor[3] |= dataSize;                         // SEQ IN PTR command to load plain data
+    descriptor[4] = ADD_OFFSET((uint32_t)data);        // Plain data adress
+    descriptor[5] |= blob_size;                        // Key blob adress
+    descriptor[6] = ADD_OFFSET((uint32_t)blob_data);   // Key blob adress
+#if defined(KEYBLOB_USE_SECURE_MEMORY)
+    descriptor[7] |= (7UL << 24) | ((uint32_t)blackKeyType << 8) | DESC_BLACKKEY_NOMMEN |
+                     SEC_MEM; // OPERATION:Encrypt black blob in secure memory
+#else
+    descriptor[7] |= (7UL << 24) | ((uint32_t)blackKeyType << 8) |
+                     DESC_BLACKKEY_NOMMEN; // OPERATION:Encrypt black blob in normal memory
+#endif /* (KEYBLOB_USE_SECURE_MEMORY) */
+
+    // schedule the job and block wait for result
+    do
+    {
+        status = caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
+    } while (status == kStatus_CAAM_Again);
+
+    if (kStatus_Success != status)
+    {
+        return status;
+    }
+
+    status = CAAM_Wait(base, handle, descriptor, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)blob_data, blob_size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
+}
+
+/*! brief Construct a decrypted black blob
+ *
+ * This function constructs a job descriptor capable of performing
+ * decrypting black blob.
+ *
+ * param base CAAM peripheral base address
+ * param handle Handle used for this request. Specifies jobRing.
+ * param keyModifier Address of the random key modifier generated by RNG
+ * param keyModifierSize Size of keyModifier buffer in bytes
+ * param blob_data Address of blob data
+ * param[out] data Output data adress.
+ * param dataSize Size of the buffer pointed by the data parameter in bytes
+ * param blackKeyType   Type of black key see enum caam_desc_type_t for more info
+ * return Status of the request
+ */
+
+status_t CAAM_BlackBlob_Decapsule(CAAM_Type *base,
+                                  caam_handle_t *handle,
+                                  const uint8_t *keyModifier,
+                                  size_t keyModifierSize,
+                                  const uint8_t *blob_data,
+                                  uint8_t *data,
+                                  size_t dataSize,
+                                  caam_desc_type_t blackKeyType)
+{
+    status_t status = kStatus_Fail;
+
+    caam_desc_gen_dep_blob_t descriptor;
+    size_t blob_size;
+
+    /* blob have 32 bytes key blob in beginning and 16 bytes MAC identifier at end of data blob */
+    blob_size = 32u + dataSize + 16u;
+
+    /* Key modifier size must 8 bytes long when used Secure memory or 16bytes long when General memory is used*/
+    if ((keyModifierSize != 8u) && (keyModifierSize != 16u))
+    {
+        return kStatus_InvalidArgument;
+    }
+
+    /* create job descriptor */
+    BUILD_ASSURE(sizeof(templateBlob) <= sizeof(caam_desc_gen_dep_blob_t), caam_desc_gen_dep_blob_t_size);
+    uint32_t descriptorSize = ARRAY_SIZE(templateBlob);
+
+    (void)caam_memcpy(descriptor, templateBlob, sizeof(templateBlob));
+    descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
+#if defined(KEYBLOB_USE_SECURE_MEMORY)
+    descriptor[1] |= 8u; // KEY command to Class 2 Context Register, 64bits RNG KEY.
+#else
+    descriptor[1] |= 16u;                  // KEY command to Class 2 Context Register, 128bits RNG KEY.
+#endif                                                 /* (KEYBLOB_USE_SECURE_MEMORY) */
+    descriptor[2] = ADD_OFFSET((uint32_t)keyModifier); // Key modifier adress
+    descriptor[3] |= blob_size;                        // SEQ IN PTR command to load blob data
+    descriptor[4] = ADD_OFFSET((uint32_t)blob_data);   // Key blob adress
+    descriptor[5] |= dataSize;
+    descriptor[6] = ADD_OFFSET((uint32_t)data); // Plain data adress
+#if defined(KEYBLOB_USE_SECURE_MEMORY)
+    descriptor[7] |= (6UL << 24) | ((uint32_t)blackKeyType << 8) | DESC_BLACKKEY_NOMMEN |
+                     SEC_MEM; // OPERATION:Decrypt black blob in secure memory
+#else
+    descriptor[7] |= (6UL << 24) | ((uint32_t)blackKeyType << 8) |
+                     DESC_BLACKKEY_NOMMEN; // OPERATION:Decrypt black blob in normal memory
+#endif /* (KEYBLOB_USE_SECURE_MEMORY) */
+    // schedule the job and block wait for result
+    do
+    {
+        status = caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
+    } while (status == kStatus_CAAM_Again);
+
+    if (kStatus_Success != status)
+    {
+        return status;
+    }
+
+    status = CAAM_Wait(base, handle, descriptor, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)data, dataSize);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
+}
+
+/*******************************************************************************
+ * DES Code public
+ ******************************************************************************/
 static const uint32_t templateCipherDes[] = {
     /* 00 */ 0xB0800000u, /* HEADER */
     /* 01 */ 0x02800000u, /* KEY Class 1 IMM */
@@ -3498,10 +4821,6 @@ static const uint32_t templateCipherDes[] = {
     /* 13 */ 0x00000000u, /* place: destination address */
     /* 14 */ 0x82200000u, /* OPERATION: DES Decrypt, AS = zeroes, AAI = zeroes (CTR) */
 };
-
-/*******************************************************************************
- * DES Code public
- ******************************************************************************/
 
 /*!
  * brief Encrypts DES using ECB block mode.
@@ -3527,11 +4846,17 @@ status_t CAAM_DES_EncryptEcb(CAAM_Type *base,
     status_t status;
 
     status = CAAM_DES_EncryptEcbNonBlocking(base, handle, descBuf, plaintext, ciphertext, size, key);
-    if (status)
+    if (status != 0)
     {
         return status;
     }
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)ciphertext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -3559,15 +4884,24 @@ status_t CAAM_DES_EncryptEcbNonBlocking(CAAM_Type *base,
     BUILD_ASSURE(sizeof(caam_desc_cipher_des_t) >= sizeof(templateCipherDes), caam_desc_cipher_des_t_size);
     uint32_t descriptorSize = ARRAY_SIZE(templateCipherDes);
 
-    caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
+    /* DES do not support EXTENDED lenght in FIFO LOAD/STORE command.
+     * Data lenght limit is 2^16 bytes = 65 536 bytes.
+     * Note: You can still call several times instead
+     */
+    if (size > 0xFFFFUL)
+    {
+        return kStatus_CAAM_DataOverflow;
+    }
+
+    (void)caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
     descriptor[1] |= CAAM_DES_KEY_SIZE;
-    caam_memcpy(&descriptor[2], key, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[2], (const uint32_t *)(uintptr_t)key, CAAM_DES_KEY_SIZE);
     descriptor[4] = DESC_JUMP_6; /* ECB has no context, jump to currIdx+6 = 10 (FIFO LOAD) */
     descriptor[10] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[11] = (uint32_t)plaintext;
+    descriptor[11] = ADD_OFFSET((uint32_t)plaintext);
     descriptor[12] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[13] = (uint32_t)ciphertext;
+    descriptor[13] = ADD_OFFSET((uint32_t)ciphertext);
     descriptor[14] |= 0x201u; /* add ENC bit to specify Encrypt OPERATION, AAI = 20h */
 
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
@@ -3597,11 +4931,17 @@ status_t CAAM_DES_DecryptEcb(CAAM_Type *base,
     status_t status;
 
     status = CAAM_DES_DecryptEcbNonBlocking(base, handle, descBuf, ciphertext, plaintext, size, key);
-    if (status)
+    if (status != 0)
     {
         return status;
     }
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)plaintext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -3628,16 +4968,25 @@ status_t CAAM_DES_DecryptEcbNonBlocking(CAAM_Type *base,
 {
     uint32_t descriptorSize = ARRAY_SIZE(templateCipherDes);
 
-    caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
+    /* DES do not support EXTENDED lenght in FIFO LOAD/STORE command.
+     * Data lenght limit is 2^16 bytes = 65 536 bytes.
+     * Note: You can still call several times instead
+     */
+    if (size > 0xFFFFUL)
+    {
+        return kStatus_CAAM_DataOverflow;
+    }
+
+    (void)caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
     descriptor[1] |= CAAM_DES_KEY_SIZE;
-    caam_memcpy(&descriptor[2], key, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[2], (const uint32_t *)(uintptr_t)key, CAAM_DES_KEY_SIZE);
     descriptor[4] = DESC_JUMP_6; /* ECB has no context, jump to currIdx+6 = 10 (FIFO LOAD) */
     descriptor[10] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[11] = (uint32_t)ciphertext;
+    descriptor[11] = ADD_OFFSET((uint32_t)ciphertext);
     descriptor[12] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[13] = (uint32_t)plaintext;
-    descriptor[14] |= kCAAM_ModeECB; /* AAI = 20h */
+    descriptor[13] = ADD_OFFSET((uint32_t)plaintext);
+    descriptor[14] |= (uint32_t)kCAAM_ModeECB; /* AAI = 20h */
 
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
 }
@@ -3673,7 +5022,13 @@ status_t CAAM_DES_EncryptCbc(CAAM_Type *base,
         status = CAAM_DES_EncryptCbcNonBlocking(base, handle, descBuf, plaintext, ciphertext, size, iv, key);
     } while (status == kStatus_CAAM_Again);
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)ciphertext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -3703,18 +5058,27 @@ status_t CAAM_DES_EncryptCbcNonBlocking(CAAM_Type *base,
 {
     uint32_t descriptorSize = ARRAY_SIZE(templateCipherDes);
 
-    caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
+    /* DES do not support EXTENDED lenght in FIFO LOAD/STORE command.
+     * Data lenght limit is 2^16 bytes = 65 536 bytes.
+     * Note: You can still call several times instead
+     */
+    if (size > 0xFFFFUL)
+    {
+        return kStatus_CAAM_DataOverflow;
+    }
+
+    (void)caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
     descriptor[1] |= CAAM_DES_KEY_SIZE;
-    caam_memcpy(&descriptor[2], key, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[2], (const uint32_t *)(uintptr_t)key, CAAM_DES_KEY_SIZE);
     descriptor[4] = DESC_JUMP_4; /* context, jump to currIdx+4 = 8 (LOAD) */
-    descriptor[9] = (uint32_t)iv;
+    descriptor[9] = ADD_OFFSET((uint32_t)iv);
     descriptor[10] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[11] = (uint32_t)plaintext;
+    descriptor[11] = ADD_OFFSET((uint32_t)plaintext);
     descriptor[12] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[13] = (uint32_t)ciphertext;
-    descriptor[14] |= kCAAM_ModeCBC; /* AAI = 10h */
-    descriptor[14] |= 1u;            /* add ENC bit to specify Encrypt OPERATION */
+    descriptor[13] = ADD_OFFSET((uint32_t)ciphertext);
+    descriptor[14] |= (uint32_t)kCAAM_ModeCBC; /* AAI = 10h */
+    descriptor[14] |= 1u;                      /* add ENC bit to specify Encrypt OPERATION */
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
 }
 
@@ -3749,7 +5113,13 @@ status_t CAAM_DES_DecryptCbc(CAAM_Type *base,
         status = CAAM_DES_DecryptCbcNonBlocking(base, handle, descBuf, ciphertext, plaintext, size, iv, key);
     } while (status == kStatus_CAAM_Again);
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)plaintext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -3779,17 +5149,26 @@ status_t CAAM_DES_DecryptCbcNonBlocking(CAAM_Type *base,
 {
     uint32_t descriptorSize = ARRAY_SIZE(templateCipherDes);
 
-    caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
+    /* DES do not support EXTENDED lenght in FIFO LOAD/STORE command.
+     * Data lenght limit is 2^16 bytes = 65 536 bytes.
+     * Note: You can still call several times instead
+     */
+    if (size > 0xFFFFUL)
+    {
+        return kStatus_CAAM_DataOverflow;
+    }
+
+    (void)caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
     descriptor[1] |= CAAM_DES_KEY_SIZE;
-    caam_memcpy(&descriptor[2], key, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[2], (const uint32_t *)(uintptr_t)key, CAAM_DES_KEY_SIZE);
     descriptor[4] = DESC_JUMP_4; /* context, jump to currIdx+4 = 8 (LOAD) */
-    descriptor[9] = (uint32_t)iv;
+    descriptor[9] = ADD_OFFSET((uint32_t)iv);
     descriptor[10] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[11] = (uint32_t)ciphertext;
+    descriptor[11] = ADD_OFFSET((uint32_t)ciphertext);
     descriptor[12] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[13] = (uint32_t)plaintext;
-    descriptor[14] |= kCAAM_ModeCBC; /* AAI = 10h */
+    descriptor[13] = ADD_OFFSET((uint32_t)plaintext);
+    descriptor[14] |= (uint32_t)kCAAM_ModeCBC; /* AAI = 10h */
 
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
 }
@@ -3824,7 +5203,13 @@ status_t CAAM_DES_EncryptCfb(CAAM_Type *base,
         status = CAAM_DES_EncryptCfbNonBlocking(base, handle, descBuf, plaintext, ciphertext, size, iv, key);
     } while (status == kStatus_CAAM_Again);
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)ciphertext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -3853,18 +5238,27 @@ status_t CAAM_DES_EncryptCfbNonBlocking(CAAM_Type *base,
 {
     uint32_t descriptorSize = ARRAY_SIZE(templateCipherDes);
 
-    caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
+    /* DES do not support EXTENDED lenght in FIFO LOAD/STORE command.
+     * Data lenght limit is 2^16 bytes = 65 536 bytes.
+     * Note: You can still call several times instead
+     */
+    if (size > 0xFFFFUL)
+    {
+        return kStatus_CAAM_DataOverflow;
+    }
+
+    (void)caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
     descriptor[1] |= CAAM_DES_KEY_SIZE;
-    caam_memcpy(&descriptor[2], key, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[2], (const uint32_t *)(uintptr_t)key, CAAM_DES_KEY_SIZE);
     descriptor[4] = DESC_JUMP_4; /* context, jump to currIdx+4 = 8 (LOAD) */
-    descriptor[9] = (uint32_t)iv;
+    descriptor[9] = ADD_OFFSET((uint32_t)iv);
     descriptor[10] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[11] = (uint32_t)plaintext;
+    descriptor[11] = ADD_OFFSET((uint32_t)plaintext);
     descriptor[12] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[13] = (uint32_t)ciphertext;
-    descriptor[14] |= kCAAM_ModeCFB; /* AAI = 30h = CFB */
-    descriptor[14] |= 1u;            /* add ENC bit to specify Encrypt OPERATION */
+    descriptor[13] = ADD_OFFSET((uint32_t)ciphertext);
+    descriptor[14] |= (uint32_t)kCAAM_ModeCFB; /* AAI = 30h = CFB */
+    descriptor[14] |= 1u;                      /* add ENC bit to specify Encrypt OPERATION */
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
 }
 
@@ -3898,7 +5292,13 @@ status_t CAAM_DES_DecryptCfb(CAAM_Type *base,
         status = CAAM_DES_DecryptCfbNonBlocking(base, handle, descBuf, ciphertext, plaintext, size, iv, key);
     } while (status == kStatus_CAAM_Again);
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)plaintext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -3927,17 +5327,26 @@ status_t CAAM_DES_DecryptCfbNonBlocking(CAAM_Type *base,
 {
     uint32_t descriptorSize = ARRAY_SIZE(templateCipherDes);
 
-    caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
+    /* DES do not support EXTENDED lenght in FIFO LOAD/STORE command.
+     * Data lenght limit is 2^16 bytes = 65 536 bytes.
+     * Note: You can still call several times instead
+     */
+    if (size > 0xFFFFUL)
+    {
+        return kStatus_CAAM_DataOverflow;
+    }
+
+    (void)caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
     descriptor[1] |= CAAM_DES_KEY_SIZE;
-    caam_memcpy(&descriptor[2], key, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[2], (const uint32_t *)(uintptr_t)key, CAAM_DES_KEY_SIZE);
     descriptor[4] = DESC_JUMP_4; /* context, jump to currIdx+4 = 8 (LOAD) */
-    descriptor[9] = (uint32_t)iv;
+    descriptor[9] = ADD_OFFSET((uint32_t)iv);
     descriptor[10] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[11] = (uint32_t)ciphertext;
+    descriptor[11] = ADD_OFFSET((uint32_t)ciphertext);
     descriptor[12] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[13] = (uint32_t)plaintext;
-    descriptor[14] |= kCAAM_ModeCFB; /* AAI = 30h = CFB */
+    descriptor[13] = ADD_OFFSET((uint32_t)plaintext);
+    descriptor[14] |= (uint32_t)kCAAM_ModeCFB; /* AAI = 30h = CFB */
 
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
 }
@@ -3973,7 +5382,13 @@ status_t CAAM_DES_EncryptOfb(CAAM_Type *base,
         status = CAAM_DES_EncryptOfbNonBlocking(base, handle, descBuf, plaintext, ciphertext, size, iv, key);
     } while (status == kStatus_CAAM_Again);
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)ciphertext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -4003,18 +5418,27 @@ status_t CAAM_DES_EncryptOfbNonBlocking(CAAM_Type *base,
 {
     uint32_t descriptorSize = ARRAY_SIZE(templateCipherDes);
 
-    caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
+    /* DES do not support EXTENDED lenght in FIFO LOAD/STORE command.
+     * Data lenght limit is 2^16 bytes = 65 536 bytes.
+     * Note: You can still call several times instead
+     */
+    if (size > 0xFFFFUL)
+    {
+        return kStatus_CAAM_DataOverflow;
+    }
+
+    (void)caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
     descriptor[1] |= CAAM_DES_KEY_SIZE;
-    caam_memcpy(&descriptor[2], key, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[2], (const uint32_t *)(uintptr_t)key, CAAM_DES_KEY_SIZE);
     descriptor[4] = DESC_JUMP_4; /* context, jump to currIdx+4 = 8 (LOAD) */
-    descriptor[9] = (uint32_t)iv;
+    descriptor[9] = ADD_OFFSET((uint32_t)iv);
     descriptor[10] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[11] = (uint32_t)plaintext;
+    descriptor[11] = ADD_OFFSET((uint32_t)plaintext);
     descriptor[12] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[13] = (uint32_t)ciphertext;
-    descriptor[14] |= kCAAM_ModeOFB; /* AAI = 40h = OFB */
-    descriptor[14] |= 1u;            /* add ENC bit to specify Encrypt OPERATION */
+    descriptor[13] = ADD_OFFSET((uint32_t)ciphertext);
+    descriptor[14] |= (uint32_t)kCAAM_ModeOFB; /* AAI = 40h = OFB */
+    descriptor[14] |= 1u;                      /* add ENC bit to specify Encrypt OPERATION */
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
 }
 
@@ -4049,7 +5473,13 @@ status_t CAAM_DES_DecryptOfb(CAAM_Type *base,
         status = CAAM_DES_DecryptOfbNonBlocking(base, handle, descBuf, ciphertext, plaintext, size, iv, key);
     } while (status == kStatus_CAAM_Again);
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)plaintext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -4079,17 +5509,26 @@ status_t CAAM_DES_DecryptOfbNonBlocking(CAAM_Type *base,
 {
     uint32_t descriptorSize = ARRAY_SIZE(templateCipherDes);
 
-    caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
+    /* DES do not support EXTENDED lenght in FIFO LOAD/STORE command.
+     * Data lenght limit is 2^16 bytes = 65 536 bytes.
+     * Note: You can still call several times instead
+     */
+    if (size > 0xFFFFUL)
+    {
+        return kStatus_CAAM_DataOverflow;
+    }
+
+    (void)caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
     descriptor[1] |= CAAM_DES_KEY_SIZE;
-    caam_memcpy(&descriptor[2], key, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[2], (const uint32_t *)(uintptr_t)key, CAAM_DES_KEY_SIZE);
     descriptor[4] = DESC_JUMP_4; /* context, jump to currIdx+4 = 8 (LOAD) */
-    descriptor[9] = (uint32_t)iv;
+    descriptor[9] = ADD_OFFSET((uint32_t)iv);
     descriptor[10] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[11] = (uint32_t)ciphertext;
+    descriptor[11] = ADD_OFFSET((uint32_t)ciphertext);
     descriptor[12] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[13] = (uint32_t)plaintext;
-    descriptor[14] |= kCAAM_ModeOFB; /* AAI = 40h = OFB */
+    descriptor[13] = ADD_OFFSET((uint32_t)plaintext);
+    descriptor[14] |= (uint32_t)kCAAM_ModeOFB; /* AAI = 40h = OFB */
 
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
 }
@@ -4120,11 +5559,17 @@ status_t CAAM_DES2_EncryptEcb(CAAM_Type *base,
     status_t status;
 
     status = CAAM_DES2_EncryptEcbNonBlocking(base, handle, descBuf, plaintext, ciphertext, size, key1, key2);
-    if (status)
+    if (status != 0)
     {
         return status;
     }
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)ciphertext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -4153,18 +5598,27 @@ status_t CAAM_DES2_EncryptEcbNonBlocking(CAAM_Type *base,
 {
     uint32_t descriptorSize = ARRAY_SIZE(templateCipherDes);
 
-    caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
+    /* DES do not support EXTENDED lenght in FIFO LOAD/STORE command.
+     * Data lenght limit is 2^16 bytes = 65 536 bytes.
+     * Note: You can still call several times instead
+     */
+    if (size > 0xFFFFUL)
+    {
+        return kStatus_CAAM_DataOverflow;
+    }
+
+    (void)caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
-    descriptor[1] |= 2 * CAAM_DES_KEY_SIZE;
-    caam_memcpy(&descriptor[2], key1, CAAM_DES_KEY_SIZE);
-    caam_memcpy(&descriptor[4], key2, CAAM_DES_KEY_SIZE);
+    descriptor[1] |= 2U * CAAM_DES_KEY_SIZE;
+    (void)caam_memcpy(&descriptor[2], (const uint32_t *)(uintptr_t)key1, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[4], (const uint32_t *)(uintptr_t)key2, CAAM_DES_KEY_SIZE);
     descriptor[6] = DESC_JUMP_4; /* ECB has no context, jump to currIdx+4 = 10 (FIFO LOAD) */
     descriptor[10] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[11] = (uint32_t)plaintext;
+    descriptor[11] = ADD_OFFSET((uint32_t)plaintext);
     descriptor[12] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[13] = (uint32_t)ciphertext;
-    descriptor[14] |= 0x201u;  /* add ENC bit to specify Encrypt OPERATION, AAI = 20h */
-    descriptor[14] |= 0x10000; /* 3DES */
+    descriptor[13] = ADD_OFFSET((uint32_t)ciphertext);
+    descriptor[14] |= 0x201u;   /* add ENC bit to specify Encrypt OPERATION, AAI = 20h */
+    descriptor[14] |= 0x10000U; /* 3DES */
 
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
 }
@@ -4195,11 +5649,17 @@ status_t CAAM_DES2_DecryptEcb(CAAM_Type *base,
     status_t status;
 
     status = CAAM_DES2_DecryptEcbNonBlocking(base, handle, descBuf, ciphertext, plaintext, size, key1, key2);
-    if (status)
+    if (status != 0)
     {
         return status;
     }
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)plaintext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -4228,18 +5688,27 @@ status_t CAAM_DES2_DecryptEcbNonBlocking(CAAM_Type *base,
 {
     uint32_t descriptorSize = ARRAY_SIZE(templateCipherDes);
 
-    caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
+    /* DES do not support EXTENDED lenght in FIFO LOAD/STORE command.
+     * Data lenght limit is 2^16 bytes = 65 536 bytes.
+     * Note: You can still call several times instead
+     */
+    if (size > 0xFFFFUL)
+    {
+        return kStatus_CAAM_DataOverflow;
+    }
+
+    (void)caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
-    descriptor[1] |= 2 * CAAM_DES_KEY_SIZE;
-    caam_memcpy(&descriptor[2], key1, CAAM_DES_KEY_SIZE);
-    caam_memcpy(&descriptor[4], key2, CAAM_DES_KEY_SIZE);
+    descriptor[1] |= 2U * CAAM_DES_KEY_SIZE;
+    (void)caam_memcpy(&descriptor[2], (const uint32_t *)(uintptr_t)key1, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[4], (const uint32_t *)(uintptr_t)key2, CAAM_DES_KEY_SIZE);
     descriptor[6] = DESC_JUMP_4; /* ECB has no context, jump to currIdx+4 = 10 (FIFO LOAD) */
     descriptor[10] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[11] = (uint32_t)ciphertext;
+    descriptor[11] = ADD_OFFSET((uint32_t)ciphertext);
     descriptor[12] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[13] = (uint32_t)plaintext;
-    descriptor[14] |= kCAAM_ModeECB; /* AAI = 20h */
-    descriptor[14] |= 0x10000;       /* 3DES */
+    descriptor[13] = ADD_OFFSET((uint32_t)plaintext);
+    descriptor[14] |= (uint32_t)kCAAM_ModeECB; /* AAI = 20h */
+    descriptor[14] |= 0x10000U;                /* 3DES */
 
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
 }
@@ -4277,7 +5746,13 @@ status_t CAAM_DES2_EncryptCbc(CAAM_Type *base,
         status = CAAM_DES2_EncryptCbcNonBlocking(base, handle, descBuf, plaintext, ciphertext, size, iv, key1, key2);
     } while (status == kStatus_CAAM_Again);
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)ciphertext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -4309,20 +5784,29 @@ status_t CAAM_DES2_EncryptCbcNonBlocking(CAAM_Type *base,
 {
     uint32_t descriptorSize = ARRAY_SIZE(templateCipherDes);
 
-    caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
+    /* DES do not support EXTENDED lenght in FIFO LOAD/STORE command.
+     * Data lenght limit is 2^16 bytes = 65 536 bytes.
+     * Note: You can still call several times instead
+     */
+    if (size > 0xFFFFUL)
+    {
+        return kStatus_CAAM_DataOverflow;
+    }
+
+    (void)caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
-    descriptor[1] |= 2 * CAAM_DES_KEY_SIZE;
-    caam_memcpy(&descriptor[2], key1, CAAM_DES_KEY_SIZE);
-    caam_memcpy(&descriptor[4], key2, CAAM_DES_KEY_SIZE);
+    descriptor[1] |= 2U * CAAM_DES_KEY_SIZE;
+    (void)caam_memcpy(&descriptor[2], (const uint32_t *)(uintptr_t)key1, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[4], (const uint32_t *)(uintptr_t)key2, CAAM_DES_KEY_SIZE);
     descriptor[6] = DESC_JUMP_2; /* context, jump to currIdx+2 = 8 (LOAD) */
-    descriptor[9] = (uint32_t)iv;
+    descriptor[9] = ADD_OFFSET((uint32_t)iv);
     descriptor[10] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[11] = (uint32_t)plaintext;
+    descriptor[11] = ADD_OFFSET((uint32_t)plaintext);
     descriptor[12] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[13] = (uint32_t)ciphertext;
-    descriptor[14] |= kCAAM_ModeCBC; /* AAI = 10h */
-    descriptor[14] |= 1u;            /* add ENC bit to specify Encrypt OPERATION */
-    descriptor[14] |= 0x10000;       /* 3DES */
+    descriptor[13] = ADD_OFFSET((uint32_t)ciphertext);
+    descriptor[14] |= (uint32_t)kCAAM_ModeCBC; /* AAI = 10h */
+    descriptor[14] |= 1u;                      /* add ENC bit to specify Encrypt OPERATION */
+    descriptor[14] |= 0x10000U;                /* 3DES */
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
 }
 
@@ -4359,7 +5843,13 @@ status_t CAAM_DES2_DecryptCbc(CAAM_Type *base,
         status = CAAM_DES2_DecryptCbcNonBlocking(base, handle, descBuf, ciphertext, plaintext, size, iv, key1, key2);
     } while (status == kStatus_CAAM_Again);
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)plaintext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -4391,19 +5881,28 @@ status_t CAAM_DES2_DecryptCbcNonBlocking(CAAM_Type *base,
 {
     uint32_t descriptorSize = ARRAY_SIZE(templateCipherDes);
 
-    caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
+    /* DES do not support EXTENDED lenght in FIFO LOAD/STORE command.
+     * Data lenght limit is 2^16 bytes = 65 536 bytes.
+     * Note: You can still call several times instead
+     */
+    if (size > 0xFFFFUL)
+    {
+        return kStatus_CAAM_DataOverflow;
+    }
+
+    (void)caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
-    descriptor[1] |= 2 * CAAM_DES_KEY_SIZE;
-    caam_memcpy(&descriptor[2], key1, CAAM_DES_KEY_SIZE);
-    caam_memcpy(&descriptor[4], key2, CAAM_DES_KEY_SIZE);
+    descriptor[1] |= 2U * CAAM_DES_KEY_SIZE;
+    (void)caam_memcpy(&descriptor[2], (const uint32_t *)(uintptr_t)key1, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[4], (const uint32_t *)(uintptr_t)key2, CAAM_DES_KEY_SIZE);
     descriptor[6] = DESC_JUMP_2; /* context, jump to currIdx+2 = 8 (LOAD) */
-    descriptor[9] = (uint32_t)iv;
+    descriptor[9] = ADD_OFFSET((uint32_t)iv);
     descriptor[10] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[11] = (uint32_t)ciphertext;
+    descriptor[11] = ADD_OFFSET((uint32_t)ciphertext);
     descriptor[12] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[13] = (uint32_t)plaintext;
-    descriptor[14] |= kCAAM_ModeCBC; /* AAI = 10h */
-    descriptor[14] |= 0x10000;       /* 3DES */
+    descriptor[13] = ADD_OFFSET((uint32_t)plaintext);
+    descriptor[14] |= (uint32_t)kCAAM_ModeCBC; /* AAI = 10h */
+    descriptor[14] |= 0x10000U;                /* 3DES */
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
 }
 
@@ -4439,7 +5938,13 @@ status_t CAAM_DES2_EncryptCfb(CAAM_Type *base,
         status = CAAM_DES2_EncryptCfbNonBlocking(base, handle, descBuf, plaintext, ciphertext, size, iv, key1, key2);
     } while (status == kStatus_CAAM_Again);
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)ciphertext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -4470,20 +5975,29 @@ status_t CAAM_DES2_EncryptCfbNonBlocking(CAAM_Type *base,
 {
     uint32_t descriptorSize = ARRAY_SIZE(templateCipherDes);
 
-    caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
+    /* DES do not support EXTENDED lenght in FIFO LOAD/STORE command.
+     * Data lenght limit is 2^16 bytes = 65 536 bytes.
+     * Note: You can still call several times instead
+     */
+    if (size > 0xFFFFUL)
+    {
+        return kStatus_CAAM_DataOverflow;
+    }
+
+    (void)caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
-    descriptor[1] |= 2 * CAAM_DES_KEY_SIZE;
-    caam_memcpy(&descriptor[2], key1, CAAM_DES_KEY_SIZE);
-    caam_memcpy(&descriptor[4], key2, CAAM_DES_KEY_SIZE);
+    descriptor[1] |= 2U * CAAM_DES_KEY_SIZE;
+    (void)caam_memcpy(&descriptor[2], (const uint32_t *)(uintptr_t)key1, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[4], (const uint32_t *)(uintptr_t)key2, CAAM_DES_KEY_SIZE);
     descriptor[6] = DESC_JUMP_2; /* context, jump to currIdx+2 = 8 (LOAD) */
-    descriptor[9] = (uint32_t)iv;
+    descriptor[9] = ADD_OFFSET((uint32_t)iv);
     descriptor[10] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[11] = (uint32_t)plaintext;
+    descriptor[11] = ADD_OFFSET((uint32_t)plaintext);
     descriptor[12] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[13] = (uint32_t)ciphertext;
-    descriptor[14] |= kCAAM_ModeCFB; /* AAI = 30h = CFB */
-    descriptor[14] |= 1u;            /* add ENC bit to specify Encrypt OPERATION */
-    descriptor[14] |= 0x10000;       /* 3DES */
+    descriptor[13] = ADD_OFFSET((uint32_t)ciphertext);
+    descriptor[14] |= (uint32_t)kCAAM_ModeCFB; /* AAI = 30h = CFB */
+    descriptor[14] |= 1u;                      /* add ENC bit to specify Encrypt OPERATION */
+    descriptor[14] |= 0x10000U;                /* 3DES */
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
 }
 
@@ -4519,7 +6033,13 @@ status_t CAAM_DES2_DecryptCfb(CAAM_Type *base,
         status = CAAM_DES2_DecryptCfbNonBlocking(base, handle, descBuf, ciphertext, plaintext, size, iv, key1, key2);
     } while (status == kStatus_CAAM_Again);
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)plaintext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -4550,19 +6070,28 @@ status_t CAAM_DES2_DecryptCfbNonBlocking(CAAM_Type *base,
 {
     uint32_t descriptorSize = ARRAY_SIZE(templateCipherDes);
 
-    caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
+    /* DES do not support EXTENDED lenght in FIFO LOAD/STORE command.
+     * Data lenght limit is 2^16 bytes = 65 536 bytes.
+     * Note: You can still call several times instead
+     */
+    if (size > 0xFFFFUL)
+    {
+        return kStatus_CAAM_DataOverflow;
+    }
+
+    (void)caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
-    descriptor[1] |= 2 * CAAM_DES_KEY_SIZE;
-    caam_memcpy(&descriptor[2], key1, CAAM_DES_KEY_SIZE);
-    caam_memcpy(&descriptor[4], key2, CAAM_DES_KEY_SIZE);
+    descriptor[1] |= 2U * CAAM_DES_KEY_SIZE;
+    (void)caam_memcpy(&descriptor[2], (const uint32_t *)(uintptr_t)key1, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[4], (const uint32_t *)(uintptr_t)key2, CAAM_DES_KEY_SIZE);
     descriptor[6] = DESC_JUMP_2; /* context, jump to currIdx+2 = 8 (LOAD) */
-    descriptor[9] = (uint32_t)iv;
+    descriptor[9] = ADD_OFFSET((uint32_t)iv);
     descriptor[10] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[11] = (uint32_t)ciphertext;
+    descriptor[11] = ADD_OFFSET((uint32_t)ciphertext);
     descriptor[12] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[13] = (uint32_t)plaintext;
-    descriptor[14] |= kCAAM_ModeCFB; /* AAI = 30h = CFB */
-    descriptor[14] |= 0x10000;       /* 3DES */
+    descriptor[13] = ADD_OFFSET((uint32_t)plaintext);
+    descriptor[14] |= (uint32_t)kCAAM_ModeCFB; /* AAI = 30h = CFB */
+    descriptor[14] |= 0x10000U;                /* 3DES */
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
 }
 
@@ -4599,7 +6128,13 @@ status_t CAAM_DES2_EncryptOfb(CAAM_Type *base,
         status = CAAM_DES2_EncryptOfbNonBlocking(base, handle, descBuf, plaintext, ciphertext, size, iv, key1, key2);
     } while (status == kStatus_CAAM_Again);
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)ciphertext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -4631,20 +6166,29 @@ status_t CAAM_DES2_EncryptOfbNonBlocking(CAAM_Type *base,
 {
     uint32_t descriptorSize = ARRAY_SIZE(templateCipherDes);
 
-    caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
+    /* DES do not support EXTENDED lenght in FIFO LOAD/STORE command.
+     * Data lenght limit is 2^16 bytes = 65 536 bytes.
+     * Note: You can still call several times instead
+     */
+    if (size > 0xFFFFUL)
+    {
+        return kStatus_CAAM_DataOverflow;
+    }
+
+    (void)caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
-    descriptor[1] |= 2 * CAAM_DES_KEY_SIZE;
-    caam_memcpy(&descriptor[2], key1, CAAM_DES_KEY_SIZE);
-    caam_memcpy(&descriptor[4], key2, CAAM_DES_KEY_SIZE);
+    descriptor[1] |= 2U * CAAM_DES_KEY_SIZE;
+    (void)caam_memcpy(&descriptor[2], (const uint32_t *)(uintptr_t)key1, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[4], (const uint32_t *)(uintptr_t)key2, CAAM_DES_KEY_SIZE);
     descriptor[6] = DESC_JUMP_2; /* context, jump to currIdx+2 = 8 (LOAD) */
-    descriptor[9] = (uint32_t)iv;
+    descriptor[9] = ADD_OFFSET((uint32_t)iv);
     descriptor[10] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[11] = (uint32_t)plaintext;
+    descriptor[11] = ADD_OFFSET((uint32_t)plaintext);
     descriptor[12] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[13] = (uint32_t)ciphertext;
-    descriptor[14] |= kCAAM_ModeOFB; /* AAI = 40h = OFB */
-    descriptor[14] |= 1u;            /* add ENC bit to specify Encrypt OPERATION */
-    descriptor[14] |= 0x10000;       /* 3DES */
+    descriptor[13] = ADD_OFFSET((uint32_t)ciphertext);
+    descriptor[14] |= (uint32_t)kCAAM_ModeOFB; /* AAI = 40h = OFB */
+    descriptor[14] |= 1u;                      /* add ENC bit to specify Encrypt OPERATION */
+    descriptor[14] |= 0x10000U;                /* 3DES */
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
 }
 
@@ -4681,7 +6225,13 @@ status_t CAAM_DES2_DecryptOfb(CAAM_Type *base,
         status = CAAM_DES2_DecryptOfbNonBlocking(base, handle, descBuf, ciphertext, plaintext, size, iv, key1, key2);
     } while (status == kStatus_CAAM_Again);
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)plaintext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -4713,19 +6263,28 @@ status_t CAAM_DES2_DecryptOfbNonBlocking(CAAM_Type *base,
 {
     uint32_t descriptorSize = ARRAY_SIZE(templateCipherDes);
 
-    caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
+    /* DES do not support EXTENDED lenght in FIFO LOAD/STORE command.
+     * Data lenght limit is 2^16 bytes = 65 536 bytes.
+     * Note: You can still call several times instead
+     */
+    if (size > 0xFFFFUL)
+    {
+        return kStatus_CAAM_DataOverflow;
+    }
+
+    (void)caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
-    descriptor[1] |= 2 * CAAM_DES_KEY_SIZE;
-    caam_memcpy(&descriptor[2], key1, CAAM_DES_KEY_SIZE);
-    caam_memcpy(&descriptor[4], key2, CAAM_DES_KEY_SIZE);
+    descriptor[1] |= 2U * CAAM_DES_KEY_SIZE;
+    (void)caam_memcpy(&descriptor[2], (const uint32_t *)(uintptr_t)key1, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[4], (const uint32_t *)(uintptr_t)key2, CAAM_DES_KEY_SIZE);
     descriptor[6] = DESC_JUMP_2; /* context, jump to currIdx+2 = 8 (LOAD) */
-    descriptor[9] = (uint32_t)iv;
+    descriptor[9] = ADD_OFFSET((uint32_t)iv);
     descriptor[10] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[11] = (uint32_t)ciphertext;
+    descriptor[11] = ADD_OFFSET((uint32_t)ciphertext);
     descriptor[12] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[13] = (uint32_t)plaintext;
-    descriptor[14] |= kCAAM_ModeOFB; /* AAI = 40h = OFB */
-    descriptor[14] |= 0x10000;       /* 3DES */
+    descriptor[13] = ADD_OFFSET((uint32_t)plaintext);
+    descriptor[14] |= (uint32_t)kCAAM_ModeOFB; /* AAI = 40h = OFB */
+    descriptor[14] |= 0x10000U;                /* 3DES */
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
 }
 
@@ -4757,11 +6316,17 @@ status_t CAAM_DES3_EncryptEcb(CAAM_Type *base,
     status_t status;
 
     status = CAAM_DES3_EncryptEcbNonBlocking(base, handle, descBuf, plaintext, ciphertext, size, key1, key2, key3);
-    if (status)
+    if (status != 0)
     {
         return status;
     }
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)ciphertext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -4792,19 +6357,28 @@ status_t CAAM_DES3_EncryptEcbNonBlocking(CAAM_Type *base,
 {
     uint32_t descriptorSize = ARRAY_SIZE(templateCipherDes);
 
-    caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
+    /* DES do not support EXTENDED lenght in FIFO LOAD/STORE command.
+     * Data lenght limit is 2^16 bytes = 65 536 bytes.
+     * Note: You can still call several times instead
+     */
+    if (size > 0xFFFFUL)
+    {
+        return kStatus_CAAM_DataOverflow;
+    }
+
+    (void)caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
-    descriptor[1] |= 3 * CAAM_DES_KEY_SIZE;
-    caam_memcpy(&descriptor[2], key1, CAAM_DES_KEY_SIZE);
-    caam_memcpy(&descriptor[4], key2, CAAM_DES_KEY_SIZE);
-    caam_memcpy(&descriptor[6], key3, CAAM_DES_KEY_SIZE);
+    descriptor[1] |= 3U * CAAM_DES_KEY_SIZE;
+    (void)caam_memcpy(&descriptor[2], (const uint32_t *)(uintptr_t)key1, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[4], (const uint32_t *)(uintptr_t)key2, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[6], (const uint32_t *)(uintptr_t)key3, CAAM_DES_KEY_SIZE);
     descriptor[8] = DESC_JUMP_2; /* ECB has no context, jump to currIdx+2 = 10 (FIFO LOAD) */
     descriptor[10] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[11] = (uint32_t)plaintext;
+    descriptor[11] = ADD_OFFSET((uint32_t)plaintext);
     descriptor[12] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[13] = (uint32_t)ciphertext;
-    descriptor[14] |= 0x201u;  /* add ENC bit to specify Encrypt OPERATION, AAI = 20h */
-    descriptor[14] |= 0x10000; /* 3DES */
+    descriptor[13] = ADD_OFFSET((uint32_t)ciphertext);
+    descriptor[14] |= 0x201u;   /* add ENC bit to specify Encrypt OPERATION, AAI = 20h */
+    descriptor[14] |= 0x10000U; /* 3DES */
 
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
 }
@@ -4837,11 +6411,17 @@ status_t CAAM_DES3_DecryptEcb(CAAM_Type *base,
     status_t status;
 
     status = CAAM_DES3_DecryptEcbNonBlocking(base, handle, descBuf, ciphertext, plaintext, size, key1, key2, key3);
-    if (status)
+    if (status != 0)
     {
         return status;
     }
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)plaintext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -4872,19 +6452,28 @@ status_t CAAM_DES3_DecryptEcbNonBlocking(CAAM_Type *base,
 {
     uint32_t descriptorSize = ARRAY_SIZE(templateCipherDes);
 
-    caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
+    /* DES do not support EXTENDED lenght in FIFO LOAD/STORE command.
+     * Data lenght limit is 2^16 bytes = 65 536 bytes.
+     * Note: You can still call several times instead
+     */
+    if (size > 0xFFFFUL)
+    {
+        return kStatus_CAAM_DataOverflow;
+    }
+
+    (void)caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
-    descriptor[1] |= 3 * CAAM_DES_KEY_SIZE;
-    caam_memcpy(&descriptor[2], key1, CAAM_DES_KEY_SIZE);
-    caam_memcpy(&descriptor[4], key2, CAAM_DES_KEY_SIZE);
-    caam_memcpy(&descriptor[6], key3, CAAM_DES_KEY_SIZE);
+    descriptor[1] |= 3U * CAAM_DES_KEY_SIZE;
+    (void)caam_memcpy(&descriptor[2], (const uint32_t *)(uintptr_t)key1, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[4], (const uint32_t *)(uintptr_t)key2, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[6], (const uint32_t *)(uintptr_t)key3, CAAM_DES_KEY_SIZE);
     descriptor[8] = DESC_JUMP_2; /* ECB has no context, jump to currIdx+2 = 10 (FIFO LOAD) */
     descriptor[10] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[11] = (uint32_t)ciphertext;
+    descriptor[11] = ADD_OFFSET((uint32_t)ciphertext);
     descriptor[12] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[13] = (uint32_t)plaintext;
-    descriptor[14] |= kCAAM_ModeECB; /* AAI = 20h */
-    descriptor[14] |= 0x10000;       /* 3DES */
+    descriptor[13] = ADD_OFFSET((uint32_t)plaintext);
+    descriptor[14] |= (uint32_t)kCAAM_ModeECB; /* AAI = 20h */
+    descriptor[14] |= 0x10000U;                /* 3DES */
 
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
 }
@@ -4925,7 +6514,13 @@ status_t CAAM_DES3_EncryptCbc(CAAM_Type *base,
             CAAM_DES3_EncryptCbcNonBlocking(base, handle, descBuf, plaintext, ciphertext, size, iv, key1, key2, key3);
     } while (status == kStatus_CAAM_Again);
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)ciphertext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -4959,20 +6554,29 @@ status_t CAAM_DES3_EncryptCbcNonBlocking(CAAM_Type *base,
 {
     uint32_t descriptorSize = ARRAY_SIZE(templateCipherDes);
 
-    caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
+    /* DES do not support EXTENDED lenght in FIFO LOAD/STORE command.
+     * Data lenght limit is 2^16 bytes = 65 536 bytes.
+     * Note: You can still call several times instead
+     */
+    if (size > 0xFFFFUL)
+    {
+        return kStatus_CAAM_DataOverflow;
+    }
+
+    (void)caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
-    descriptor[1] |= 3 * CAAM_DES_KEY_SIZE;
-    caam_memcpy(&descriptor[2], key1, CAAM_DES_KEY_SIZE);
-    caam_memcpy(&descriptor[4], key2, CAAM_DES_KEY_SIZE);
-    caam_memcpy(&descriptor[6], key3, CAAM_DES_KEY_SIZE);
-    descriptor[9] = (uint32_t)iv;
+    descriptor[1] |= 3U * CAAM_DES_KEY_SIZE;
+    (void)caam_memcpy(&descriptor[2], (const uint32_t *)(uintptr_t)key1, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[4], (const uint32_t *)(uintptr_t)key2, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[6], (const uint32_t *)(uintptr_t)key3, CAAM_DES_KEY_SIZE);
+    descriptor[9] = ADD_OFFSET((uint32_t)iv);
     descriptor[10] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[11] = (uint32_t)plaintext;
+    descriptor[11] = ADD_OFFSET((uint32_t)plaintext);
     descriptor[12] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[13] = (uint32_t)ciphertext;
-    descriptor[14] |= kCAAM_ModeCBC; /* AAI = 10h */
-    descriptor[14] |= 1u;            /* add ENC bit to specify Encrypt OPERATION */
-    descriptor[14] |= 0x10000;       /* 3DES */
+    descriptor[13] = ADD_OFFSET((uint32_t)ciphertext);
+    descriptor[14] |= (uint32_t)kCAAM_ModeCBC; /* AAI = 10h */
+    descriptor[14] |= 1u;                      /* add ENC bit to specify Encrypt OPERATION */
+    descriptor[14] |= 0x10000U;                /* 3DES */
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
 }
 
@@ -5012,7 +6616,13 @@ status_t CAAM_DES3_DecryptCbc(CAAM_Type *base,
             CAAM_DES3_DecryptCbcNonBlocking(base, handle, descBuf, ciphertext, plaintext, size, iv, key1, key2, key3);
     } while (status == kStatus_CAAM_Again);
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)plaintext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -5046,19 +6656,28 @@ status_t CAAM_DES3_DecryptCbcNonBlocking(CAAM_Type *base,
 {
     uint32_t descriptorSize = ARRAY_SIZE(templateCipherDes);
 
-    caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
+    /* DES do not support EXTENDED lenght in FIFO LOAD/STORE command.
+     * Data lenght limit is 2^16 bytes = 65 536 bytes.
+     * Note: You can still call several times instead
+     */
+    if (size > 0xFFFFUL)
+    {
+        return kStatus_CAAM_DataOverflow;
+    }
+
+    (void)caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
-    descriptor[1] |= 3 * CAAM_DES_KEY_SIZE;
-    caam_memcpy(&descriptor[2], key1, CAAM_DES_KEY_SIZE);
-    caam_memcpy(&descriptor[4], key2, CAAM_DES_KEY_SIZE);
-    caam_memcpy(&descriptor[6], key3, CAAM_DES_KEY_SIZE);
-    descriptor[9] = (uint32_t)iv;
+    descriptor[1] |= 3U * CAAM_DES_KEY_SIZE;
+    (void)caam_memcpy(&descriptor[2], (const uint32_t *)(uintptr_t)key1, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[4], (const uint32_t *)(uintptr_t)key2, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[6], (const uint32_t *)(uintptr_t)key3, CAAM_DES_KEY_SIZE);
+    descriptor[9] = ADD_OFFSET((uint32_t)iv);
     descriptor[10] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[11] = (uint32_t)ciphertext;
+    descriptor[11] = ADD_OFFSET((uint32_t)ciphertext);
     descriptor[12] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[13] = (uint32_t)plaintext;
-    descriptor[14] |= kCAAM_ModeCBC; /* AAI = 10h */
-    descriptor[14] |= 0x10000;       /* 3DES */
+    descriptor[13] = ADD_OFFSET((uint32_t)plaintext);
+    descriptor[14] |= (uint32_t)kCAAM_ModeCBC; /* AAI = 10h */
+    descriptor[14] |= 0x10000U;                /* 3DES */
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
 }
 
@@ -5096,7 +6715,13 @@ status_t CAAM_DES3_EncryptCfb(CAAM_Type *base,
             CAAM_DES3_EncryptCfbNonBlocking(base, handle, descBuf, plaintext, ciphertext, size, iv, key1, key2, key3);
     } while (status == kStatus_CAAM_Again);
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)ciphertext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -5129,20 +6754,29 @@ status_t CAAM_DES3_EncryptCfbNonBlocking(CAAM_Type *base,
 {
     uint32_t descriptorSize = ARRAY_SIZE(templateCipherDes);
 
-    caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
+    /* DES do not support EXTENDED lenght in FIFO LOAD/STORE command.
+     * Data lenght limit is 2^16 bytes = 65 536 bytes.
+     * Note: You can still call several times instead
+     */
+    if (size > 0xFFFFUL)
+    {
+        return kStatus_CAAM_DataOverflow;
+    }
+
+    (void)caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
-    descriptor[1] |= 3 * CAAM_DES_KEY_SIZE;
-    caam_memcpy(&descriptor[2], key1, CAAM_DES_KEY_SIZE);
-    caam_memcpy(&descriptor[4], key2, CAAM_DES_KEY_SIZE);
-    caam_memcpy(&descriptor[6], key3, CAAM_DES_KEY_SIZE);
-    descriptor[9] = (uint32_t)iv;
+    descriptor[1] |= 3U * CAAM_DES_KEY_SIZE;
+    (void)caam_memcpy(&descriptor[2], (const uint32_t *)(uintptr_t)key1, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[4], (const uint32_t *)(uintptr_t)key2, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[6], (const uint32_t *)(uintptr_t)key3, CAAM_DES_KEY_SIZE);
+    descriptor[9] = ADD_OFFSET((uint32_t)iv);
     descriptor[10] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[11] = (uint32_t)plaintext;
+    descriptor[11] = ADD_OFFSET((uint32_t)plaintext);
     descriptor[12] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[13] = (uint32_t)ciphertext;
-    descriptor[14] |= kCAAM_ModeCFB; /* AAI = 30h = CFB */
-    descriptor[14] |= 1u;            /* add ENC bit to specify Encrypt OPERATION */
-    descriptor[14] |= 0x10000;       /* 3DES */
+    descriptor[13] = ADD_OFFSET((uint32_t)ciphertext);
+    descriptor[14] |= (uint32_t)kCAAM_ModeCFB; /* AAI = 30h = CFB */
+    descriptor[14] |= 1u;                      /* add ENC bit to specify Encrypt OPERATION */
+    descriptor[14] |= 0x10000U;                /* 3DES */
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
 }
 
@@ -5181,7 +6815,13 @@ status_t CAAM_DES3_DecryptCfb(CAAM_Type *base,
             CAAM_DES3_DecryptCfbNonBlocking(base, handle, descBuf, ciphertext, plaintext, size, iv, key1, key2, key3);
     } while (status == kStatus_CAAM_Again);
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)plaintext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -5214,19 +6854,28 @@ status_t CAAM_DES3_DecryptCfbNonBlocking(CAAM_Type *base,
 {
     uint32_t descriptorSize = ARRAY_SIZE(templateCipherDes);
 
-    caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
+    /* DES do not support EXTENDED lenght in FIFO LOAD/STORE command.
+     * Data lenght limit is 2^16 bytes = 65 536 bytes.
+     * Note: You can still call several times instead
+     */
+    if (size > 0xFFFFUL)
+    {
+        return kStatus_CAAM_DataOverflow;
+    }
+
+    (void)caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
-    descriptor[1] |= 3 * CAAM_DES_KEY_SIZE;
-    caam_memcpy(&descriptor[2], key1, CAAM_DES_KEY_SIZE);
-    caam_memcpy(&descriptor[4], key2, CAAM_DES_KEY_SIZE);
-    caam_memcpy(&descriptor[6], key3, CAAM_DES_KEY_SIZE);
-    descriptor[9] = (uint32_t)iv;
+    descriptor[1] |= 3U * CAAM_DES_KEY_SIZE;
+    (void)caam_memcpy(&descriptor[2], (const uint32_t *)(uintptr_t)key1, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[4], (const uint32_t *)(uintptr_t)key2, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[6], (const uint32_t *)(uintptr_t)key3, CAAM_DES_KEY_SIZE);
+    descriptor[9] = ADD_OFFSET((uint32_t)iv);
     descriptor[10] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[11] = (uint32_t)ciphertext;
+    descriptor[11] = ADD_OFFSET((uint32_t)ciphertext);
     descriptor[12] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[13] = (uint32_t)plaintext;
-    descriptor[14] |= kCAAM_ModeCFB; /* AAI = 30h = CFB */
-    descriptor[14] |= 0x10000;       /* 3DES */
+    descriptor[13] = ADD_OFFSET((uint32_t)plaintext);
+    descriptor[14] |= (uint32_t)kCAAM_ModeCFB; /* AAI = 30h = CFB */
+    descriptor[14] |= 0x10000U;                /* 3DES */
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
 }
 
@@ -5265,7 +6914,13 @@ status_t CAAM_DES3_EncryptOfb(CAAM_Type *base,
             CAAM_DES3_EncryptOfbNonBlocking(base, handle, descBuf, plaintext, ciphertext, size, iv, key1, key2, key3);
     } while (status == kStatus_CAAM_Again);
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)ciphertext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -5299,20 +6954,29 @@ status_t CAAM_DES3_EncryptOfbNonBlocking(CAAM_Type *base,
 {
     uint32_t descriptorSize = ARRAY_SIZE(templateCipherDes);
 
-    caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
+    /* DES do not support EXTENDED lenght in FIFO LOAD/STORE command.
+     * Data lenght limit is 2^16 bytes = 65 536 bytes.
+     * Note: You can still call several times instead
+     */
+    if (size > 0xFFFFUL)
+    {
+        return kStatus_CAAM_DataOverflow;
+    }
+
+    (void)caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
-    descriptor[1] |= 3 * CAAM_DES_KEY_SIZE;
-    caam_memcpy(&descriptor[2], key1, CAAM_DES_KEY_SIZE);
-    caam_memcpy(&descriptor[4], key2, CAAM_DES_KEY_SIZE);
-    caam_memcpy(&descriptor[6], key3, CAAM_DES_KEY_SIZE);
-    descriptor[9] = (uint32_t)iv;
+    descriptor[1] |= 3U * CAAM_DES_KEY_SIZE;
+    (void)caam_memcpy(&descriptor[2], (const uint32_t *)(uintptr_t)key1, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[4], (const uint32_t *)(uintptr_t)key2, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[6], (const uint32_t *)(uintptr_t)key3, CAAM_DES_KEY_SIZE);
+    descriptor[9] = ADD_OFFSET((uint32_t)iv);
     descriptor[10] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[11] = (uint32_t)plaintext;
+    descriptor[11] = ADD_OFFSET((uint32_t)plaintext);
     descriptor[12] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[13] = (uint32_t)ciphertext;
-    descriptor[14] |= kCAAM_ModeOFB; /* AAI = 40h = OFB */
-    descriptor[14] |= 1u;            /* add ENC bit to specify Encrypt OPERATION */
-    descriptor[14] |= 0x10000;       /* 3DES */
+    descriptor[13] = ADD_OFFSET((uint32_t)ciphertext);
+    descriptor[14] |= (uint32_t)kCAAM_ModeOFB; /* AAI = 40h = OFB */
+    descriptor[14] |= 1u;                      /* add ENC bit to specify Encrypt OPERATION */
+    descriptor[14] |= 0x10000U;                /* 3DES */
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
 }
 
@@ -5352,7 +7016,13 @@ status_t CAAM_DES3_DecryptOfb(CAAM_Type *base,
             CAAM_DES3_DecryptOfbNonBlocking(base, handle, descBuf, ciphertext, plaintext, size, iv, key1, key2, key3);
     } while (status == kStatus_CAAM_Again);
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)plaintext, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -5386,24 +7056,33 @@ status_t CAAM_DES3_DecryptOfbNonBlocking(CAAM_Type *base,
 {
     uint32_t descriptorSize = ARRAY_SIZE(templateCipherDes);
 
-    caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
+    /* DES do not support EXTENDED lenght in FIFO LOAD/STORE command.
+     * Data lenght limit is 2^16 bytes = 65 536 bytes.
+     * Note: You can still call several times instead
+     */
+    if (size > 0xFFFFUL)
+    {
+        return kStatus_CAAM_DataOverflow;
+    }
+
+    (void)caam_memcpy(descriptor, templateCipherDes, sizeof(templateCipherDes));
     descriptor[0] |= (descriptorSize & DESC_SIZE_MASK);
-    descriptor[1] |= 3 * CAAM_DES_KEY_SIZE;
-    caam_memcpy(&descriptor[2], key1, CAAM_DES_KEY_SIZE);
-    caam_memcpy(&descriptor[4], key2, CAAM_DES_KEY_SIZE);
-    caam_memcpy(&descriptor[6], key3, CAAM_DES_KEY_SIZE);
-    descriptor[9] = (uint32_t)iv;
+    descriptor[1] |= 3U * CAAM_DES_KEY_SIZE;
+    (void)caam_memcpy(&descriptor[2], (const uint32_t *)(uintptr_t)key1, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[4], (const uint32_t *)(uintptr_t)key2, CAAM_DES_KEY_SIZE);
+    (void)caam_memcpy(&descriptor[6], (const uint32_t *)(uintptr_t)key3, CAAM_DES_KEY_SIZE);
+    descriptor[9] = ADD_OFFSET((uint32_t)iv);
     descriptor[10] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[11] = (uint32_t)ciphertext;
+    descriptor[11] = ADD_OFFSET((uint32_t)ciphertext);
     descriptor[12] |= (size & DESC_PAYLOAD_SIZE_MASK);
-    descriptor[13] = (uint32_t)plaintext;
-    descriptor[14] |= kCAAM_ModeOFB; /* AAI = 40h = OFB */
-    descriptor[14] |= 0x10000;       /* 3DES */
+    descriptor[13] = ADD_OFFSET((uint32_t)plaintext);
+    descriptor[14] |= (uint32_t)kCAAM_ModeOFB; /* AAI = 40h = OFB */
+    descriptor[14] |= 0x10000U;                /* 3DES */
     return caam_in_job_ring_add(base, handle->jobRing, &descriptor[0]);
 }
 
 #define DESC_HEADER                           0xB0800000u
-#define DESC_HEADER_ADD_DESCLEN(cmdWord, len) (cmdWord |= len)
+#define DESC_HEADER_ADD_DESCLEN(cmdWord, len) ((cmdWord) |= (len))
 
 #define DESC_FLOADA                  0x220C0000u
 #define DESC_FLOADB                  0x220D0000u
@@ -5411,8 +7090,8 @@ status_t CAAM_DES3_DecryptOfbNonBlocking(CAAM_Type *base,
 #define DESC_KEY_E_                  0x02010000u
 #define DESC_STOREB                  0x600D0000u
 #define DESC_STORE_                  0x52110004u
-#define DESC_ADD_LEN(cmdWord, len)   (cmdWord |= len)
-#define DESC_SET_ADDR(cmdWord, addr) (cmdWord = (uint32_t)(addr))
+#define DESC_ADD_LEN(cmdWord, len)   ((cmdWord) |= (len))
+#define DESC_SET_ADDR(cmdWord, addr) ((cmdWord) = ADD_OFFSET((uint32_t)(addr)))
 
 #define DESC_FLOADA0 0x22000000u
 #define DESC_FLOADA1 0x22010000u
@@ -5524,9 +7203,9 @@ static void caam_pkha_mode_set_src_reg_copy(uint32_t *outMode, caam_pkha_reg_are
 
     do
     {
-        reg = (caam_pkha_reg_area_t)(((uint32_t)reg) >> 1u);
+        reg = (caam_pkha_reg_area_t)(uint32_t)(((uint32_t)reg) >> 1u);
         i++;
-    } while (reg);
+    } while (0U != (uint32_t)reg);
 
     i = 4 - i;
     /* Source register must not be E. */
@@ -5542,9 +7221,9 @@ static void caam_pkha_mode_set_dst_reg_copy(uint32_t *outMode, caam_pkha_reg_are
 
     do
     {
-        reg = (caam_pkha_reg_area_t)(((uint32_t)reg) >> 1u);
+        reg = (caam_pkha_reg_area_t)(uint32_t)(((uint32_t)reg) >> 1u);
         i++;
-    } while (reg);
+    } while (0U != (uint32_t)reg);
 
     i = 4 - i;
     *outMode |= ((uint32_t)i << 10u);
@@ -5623,15 +7302,15 @@ static status_t caam_pkha_algorithm_operation_command(CAAM_Type *base,
     BUILD_ASSURE(sizeof(caam_desc_pkha_t) >= sizeof(templateArithmeticPKHA), caam_desc_pkha_t_size_too_low);
 
     /* initialize descriptor from template */
-    caam_memcpy(descriptor, templateArithmeticPKHA, sizeof(templateArithmeticPKHA));
+    (void)caam_memcpy(descriptor, templateArithmeticPKHA, sizeof(templateArithmeticPKHA));
 
     /* add descriptor lenght in bytes to HEADER descriptor command */
     DESC_HEADER_ADD_DESCLEN(descriptor[0], descriptorSize);
 
     /* input data */
-    if (N && sizeN)
+    if ((N != NULL) && (sizeN != 0U))
     {
-        clearMask |= 1u << 16; /* add Nram bit to PKHA_MODE_MS */
+        clearMask |= (uint32_t)1u << 16; /* add Nram bit to PKHA_MODE_MS */
         DESC_ADD_LEN(descriptor[3], sizeN);
         DESC_SET_ADDR(descriptor[4], N);
     }
@@ -5641,9 +7320,9 @@ static status_t caam_pkha_algorithm_operation_command(CAAM_Type *base,
         descriptor[3] = DESC_JUMP_2; /* jump to current index + 2 (=4) */
     }
 
-    if (A && sizeA)
+    if ((A != NULL) && (sizeA != 0U))
     {
-        clearMask |= 1u << 19; /* add Aram bit to PKHA_MODE_MS */
+        clearMask |= (uint32_t)1u << 19; /* add Aram bit to PKHA_MODE_MS */
         DESC_ADD_LEN(descriptor[5], sizeA);
         DESC_SET_ADDR(descriptor[6], A);
     }
@@ -5653,9 +7332,9 @@ static status_t caam_pkha_algorithm_operation_command(CAAM_Type *base,
         descriptor[5] = DESC_JUMP_2; /* jump to current index + 2 (=6) */
     }
 
-    if (B && sizeB)
+    if ((B != NULL) && (sizeB != 0U))
     {
-        clearMask |= 1u << 18; /* add Bram bit to PKHA_MODE_MS */
+        clearMask |= (uint32_t)1u << 18; /* add Bram bit to PKHA_MODE_MS */
         DESC_ADD_LEN(descriptor[7], sizeB);
         DESC_SET_ADDR(descriptor[8], B);
     }
@@ -5665,9 +7344,9 @@ static status_t caam_pkha_algorithm_operation_command(CAAM_Type *base,
         descriptor[7] = DESC_JUMP_2; /* jump to current index + 2 (=8) */
     }
 
-    if (E && sizeE)
+    if ((E != NULL) && (sizeE != 0U))
     {
-        clearMask |= 1u << 17; /* add Eram bit to PKHA_MODE_MS */
+        clearMask |= (uint32_t)1u << 17; /* add Eram bit to PKHA_MODE_MS */
         DESC_ADD_LEN(descriptor[9], sizeE);
         DESC_SET_ADDR(descriptor[10], E);
     }
@@ -5684,7 +7363,7 @@ static status_t caam_pkha_algorithm_operation_command(CAAM_Type *base,
     descriptor[11] |= caam_pkha_get_mode(params);
 
     /* RESULTS */
-    if (result && resultSize)
+    if ((result != NULL) && (resultSize != NULL))
     {
         /* We don't know the size of result at this point. But, we know it will be <= modulus. */
         DESC_ADD_LEN(descriptor[12], sizeN);
@@ -5698,7 +7377,7 @@ static status_t caam_pkha_algorithm_operation_command(CAAM_Type *base,
         /* conditional HALT, return user-specificed status if condition evaluated is true. this condition checks if (PRM
          * is false). */
         descriptor[12] = 0xA0C12000u;
-        descriptor[12] |= kCAAM_UserSpecifiedStatus_NotPrime;
+        descriptor[12] |= (uint32_t)kCAAM_UserSpecifiedStatus_NotPrime;
 
         descriptor[13] = DESC_HALT; /* always halt with status 0x0 (normal) */
     }
@@ -5756,7 +7435,7 @@ static status_t caam_pkha_ecc_algorithm_operation_command(CAAM_Type *base,
     BUILD_ASSURE(sizeof(caam_desc_pkha_ecc_t) >= sizeof(templateArithmeticECC), caam_desc_pkha_ecc_t_size_too_low);
 
     /* initialize descriptor from template */
-    caam_memcpy(descriptor, templateArithmeticECC, sizeof(templateArithmeticECC));
+    (void)caam_memcpy(descriptor, templateArithmeticECC, sizeof(templateArithmeticECC));
 
     /* add descriptor lenght in bytes to HEADER descriptor command */
     DESC_HEADER_ADD_DESCLEN(descriptor[0], descriptorSize);
@@ -5766,7 +7445,7 @@ static status_t caam_pkha_ecc_algorithm_operation_command(CAAM_Type *base,
     DESC_SET_ADDR(descriptor[4], N);
 
     /* [A0, A1] first point in affine coordinates */
-    if (A)
+    if (A != NULL)
     {
         DESC_ADD_LEN(descriptor[5], size);
         DESC_SET_ADDR(descriptor[6], A->X);
@@ -5788,14 +7467,14 @@ static status_t caam_pkha_ecc_algorithm_operation_command(CAAM_Type *base,
     DESC_SET_ADDR(descriptor[12], bCurveParam);
 
     /* [B1, B2] second point in affine coordinates */
-    if (B)
+    if (B != NULL)
     {
         DESC_ADD_LEN(descriptor[13], size);
         DESC_SET_ADDR(descriptor[14], B->X);
         DESC_ADD_LEN(descriptor[15], size);
         DESC_SET_ADDR(descriptor[16], B->Y);
     }
-    else if (R2modN_B1) /* R2modN for ECC_MOD_MUL goes to B1 */
+    else if (R2modN_B1 != NULL) /* R2modN for ECC_MOD_MUL goes to B1 */
     {
         DESC_ADD_LEN(descriptor[13], size);
         DESC_SET_ADDR(descriptor[14], R2modN_B1);
@@ -5808,7 +7487,7 @@ static status_t caam_pkha_ecc_algorithm_operation_command(CAAM_Type *base,
         descriptor[13] = DESC_JUMP_4; /* jump to current index + 4 (=17) */
     }
 
-    if (R2modN_B3)
+    if (R2modN_B3 != NULL)
     {
         DESC_ADD_LEN(descriptor[17], size);
         DESC_SET_ADDR(descriptor[18], R2modN_B3);
@@ -5819,7 +7498,7 @@ static status_t caam_pkha_ecc_algorithm_operation_command(CAAM_Type *base,
         descriptor[17] = DESC_JUMP_2; /* jump to current index + 2 (=19) */
     }
 
-    if (E && sizeE)
+    if ((E != NULL) && (sizeE != 0U))
     {
         DESC_ADD_LEN(descriptor[19], sizeE);
         DESC_SET_ADDR(descriptor[20], E);
@@ -5853,14 +7532,14 @@ int CAAM_PKHA_CompareBigNum(const uint8_t *a, size_t sizeA, const uint8_t *b, si
     int retval = 0;
 
     /* skip zero msbytes - integer a */
-    while ((sizeA) && (0u == a[0]))
+    while ((sizeA != 0U) && (0u == a[0]))
     {
         sizeA--;
         a++;
     }
 
     /* skip zero msbytes - integer b */
-    while ((sizeB) && (0u == b[0]))
+    while ((sizeB != 0U) && (0u == b[0]))
     {
         sizeB--;
         b++;
@@ -5874,7 +7553,7 @@ int CAAM_PKHA_CompareBigNum(const uint8_t *a, size_t sizeA, const uint8_t *b, si
     {
         retval = -1;
     } /* int b has more non-zero bytes, thus it is bigger than a */
-    else if (sizeA == 0)
+    else if (sizeA == 0U)
     {
         retval = 0;
     } /* sizeA = sizeB = 0 */
@@ -5884,17 +7563,17 @@ int CAAM_PKHA_CompareBigNum(const uint8_t *a, size_t sizeA, const uint8_t *b, si
         uint32_t equal;
         int val;
 
-        n     = sizeA - 1;
+        n     = (int)sizeA - 1;
         equal = 0;
 
         /* compare all bytes - does not leak (in time domain) how many bytes equal */
         /* move from lsbyte to msbyte */
         while (n >= 0)
         {
-            uint32_t chXor = (a[n] ^ b[n]);
+            uint32_t chXor = ((uint32_t)a[n] ^ (uint32_t)b[n]);
 
             equal |= chXor;
-            val = (int)chXor * (a[n] - b[n]);
+            val = (int)chXor * ((int)a[n] - (int)b[n]);
 
             if (val < 0)
             {
@@ -5911,19 +7590,32 @@ int CAAM_PKHA_CompareBigNum(const uint8_t *a, size_t sizeA, const uint8_t *b, si
                 val = 1;
             }
 
-            if (val)
+            if (val != 0)
             {
                 n--;
             }
         }
 
-        if (0 == equal)
+        if (0U == equal)
         {
             retval = 0;
         }
     }
     return (retval);
 }
+
+status_t CAAM_PKHA_ModAddNonBlocking(CAAM_Type *base,
+                                     caam_handle_t *handle,
+                                     caam_desc_pkha_t descriptor,
+                                     const uint8_t *A,
+                                     size_t sizeA,
+                                     const uint8_t *B,
+                                     size_t sizeB,
+                                     const uint8_t *N,
+                                     size_t sizeN,
+                                     uint8_t *result,
+                                     size_t *resultSize,
+                                     caam_pkha_f2m_t arithType);
 
 status_t CAAM_PKHA_ModAddNonBlocking(CAAM_Type *base,
                                      caam_handle_t *handle,
@@ -6008,8 +7700,26 @@ status_t CAAM_PKHA_ModAdd(CAAM_Type *base,
         return status;
     }
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)result, *resultSize);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
+
+status_t CAAM_PKHA_ModSub1NonBlocking(CAAM_Type *base,
+                                      caam_handle_t *handle,
+                                      caam_desc_pkha_t descriptor,
+                                      const uint8_t *A,
+                                      size_t sizeA,
+                                      const uint8_t *B,
+                                      size_t sizeB,
+                                      const uint8_t *N,
+                                      size_t sizeN,
+                                      uint8_t *result,
+                                      size_t *resultSize);
 
 status_t CAAM_PKHA_ModSub1NonBlocking(CAAM_Type *base,
                                       caam_handle_t *handle,
@@ -6085,8 +7795,26 @@ status_t CAAM_PKHA_ModSub1(CAAM_Type *base,
         return status;
     }
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)result, *resultSize);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
+
+status_t CAAM_PKHA_ModSub2NonBlocking(CAAM_Type *base,
+                                      caam_handle_t *handle,
+                                      caam_desc_pkha_t descriptor,
+                                      const uint8_t *A,
+                                      size_t sizeA,
+                                      const uint8_t *B,
+                                      size_t sizeB,
+                                      const uint8_t *N,
+                                      size_t sizeN,
+                                      uint8_t *result,
+                                      size_t *resultSize);
 
 status_t CAAM_PKHA_ModSub2NonBlocking(CAAM_Type *base,
                                       caam_handle_t *handle,
@@ -6152,8 +7880,30 @@ status_t CAAM_PKHA_ModSub2(CAAM_Type *base,
         return status;
     }
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)result, *resultSize);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
+
+status_t CAAM_PKHA_ModMulNonBlocking(CAAM_Type *base,
+                                     caam_handle_t *handle,
+                                     caam_desc_pkha_t descriptor,
+                                     const uint8_t *A,
+                                     size_t sizeA,
+                                     const uint8_t *B,
+                                     size_t sizeB,
+                                     const uint8_t *N,
+                                     size_t sizeN,
+                                     uint8_t *result,
+                                     size_t *resultSize,
+                                     caam_pkha_f2m_t arithType,
+                                     caam_pkha_montgomery_form_t montIn,
+                                     caam_pkha_montgomery_form_t montOut,
+                                     caam_pkha_timing_t equalTime);
 
 status_t CAAM_PKHA_ModMulNonBlocking(CAAM_Type *base,
                                      caam_handle_t *handle,
@@ -6252,8 +8002,23 @@ status_t CAAM_PKHA_ModMul(CAAM_Type *base,
         return status;
     }
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)result, *resultSize);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
+
+status_t CAAM_PKHA_ModR2NonBlocking(CAAM_Type *base,
+                                    caam_handle_t *handle,
+                                    caam_desc_pkha_t descriptor,
+                                    const uint8_t *N,
+                                    size_t sizeN,
+                                    uint8_t *result,
+                                    size_t *resultSize,
+                                    caam_pkha_f2m_t arithType);
 
 status_t CAAM_PKHA_ModR2NonBlocking(CAAM_Type *base,
                                     caam_handle_t *handle,
@@ -6311,8 +8076,29 @@ status_t CAAM_PKHA_ModR2(CAAM_Type *base,
         return status;
     }
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)result, *resultSize);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
+
+status_t CAAM_PKHA_ModExpNonBlocking(CAAM_Type *base,
+                                     caam_handle_t *handle,
+                                     caam_desc_pkha_t descriptor,
+                                     const uint8_t *A,
+                                     size_t sizeA,
+                                     const uint8_t *N,
+                                     size_t sizeN,
+                                     const uint8_t *E,
+                                     size_t sizeE,
+                                     uint8_t *result,
+                                     size_t *resultSize,
+                                     caam_pkha_f2m_t arithType,
+                                     caam_pkha_montgomery_form_t montIn,
+                                     caam_pkha_timing_t equalTime);
 
 status_t CAAM_PKHA_ModExpNonBlocking(CAAM_Type *base,
                                      caam_handle_t *handle,
@@ -6399,8 +8185,25 @@ status_t CAAM_PKHA_ModExp(CAAM_Type *base,
         return status;
     }
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)result, *resultSize);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
+
+status_t CAAM_PKHA_ModRedNonBlocking(CAAM_Type *base,
+                                     caam_handle_t *handle,
+                                     caam_desc_pkha_t descriptor,
+                                     const uint8_t *A,
+                                     size_t sizeA,
+                                     const uint8_t *N,
+                                     size_t sizeN,
+                                     uint8_t *result,
+                                     size_t *resultSize,
+                                     caam_pkha_f2m_t arithType);
 
 status_t CAAM_PKHA_ModRedNonBlocking(CAAM_Type *base,
                                      caam_handle_t *handle,
@@ -6464,8 +8267,25 @@ status_t CAAM_PKHA_ModRed(CAAM_Type *base,
         return status;
     }
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)result, *resultSize);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
+
+status_t CAAM_PKHA_ModInvNonBlocking(CAAM_Type *base,
+                                     caam_handle_t *handle,
+                                     caam_desc_pkha_t descriptor,
+                                     const uint8_t *A,
+                                     size_t sizeA,
+                                     const uint8_t *N,
+                                     size_t sizeN,
+                                     uint8_t *result,
+                                     size_t *resultSize,
+                                     caam_pkha_f2m_t arithType);
 
 status_t CAAM_PKHA_ModInvNonBlocking(CAAM_Type *base,
                                      caam_handle_t *handle,
@@ -6529,8 +8349,25 @@ status_t CAAM_PKHA_ModInv(CAAM_Type *base,
         return status;
     }
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)result, *resultSize);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
+
+status_t CAAM_PKHA_ModGcdNonBlocking(CAAM_Type *base,
+                                     caam_handle_t *handle,
+                                     caam_desc_pkha_t descriptor,
+                                     const uint8_t *A,
+                                     size_t sizeA,
+                                     const uint8_t *N,
+                                     size_t sizeN,
+                                     uint8_t *result,
+                                     size_t *resultSize,
+                                     caam_pkha_f2m_t arithType);
 
 status_t CAAM_PKHA_ModGcdNonBlocking(CAAM_Type *base,
                                      caam_handle_t *handle,
@@ -6594,8 +8431,24 @@ status_t CAAM_PKHA_ModGcd(CAAM_Type *base,
         return status;
     }
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)result, *resultSize);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
+
+status_t CAAM_PKHA_PrimalityTestNonBlocking(CAAM_Type *base,
+                                            caam_handle_t *handle,
+                                            caam_desc_pkha_t descriptor,
+                                            const uint8_t *A,
+                                            size_t sizeA,
+                                            const uint8_t *B,
+                                            size_t sizeB,
+                                            const uint8_t *N,
+                                            size_t sizeN);
 
 status_t CAAM_PKHA_PrimalityTestNonBlocking(CAAM_Type *base,
                                             caam_handle_t *handle,
@@ -6666,7 +8519,7 @@ status_t CAAM_PKHA_PrimalityTest(CAAM_Type *base,
     }
     /* clear DESC INDEX field in the Job termination status word and check if it is our NotPrime user specified status
      */
-    else if (((uint32_t)status & 0xffff00ffu) == kCAAM_StatusNotPrime)
+    else if (((uint32_t)status & 0xffff00ffu) == (uint32_t)kCAAM_StatusNotPrime)
     {
         /* change status to Ok to upper layer caller. this return code means that the candidate is believed to not being
          * prime. */
@@ -6692,6 +8545,19 @@ status_t CAAM_PKHA_ECC_PointAddNonBlocking(CAAM_Type *base,
                                            const uint8_t *bCurveParam,
                                            size_t size,
                                            caam_pkha_f2m_t arithType,
+                                           caam_pkha_ecc_point_t *result);
+
+status_t CAAM_PKHA_ECC_PointAddNonBlocking(CAAM_Type *base,
+                                           caam_handle_t *handle,
+                                           caam_desc_pkha_ecc_t descriptor,
+                                           const caam_pkha_ecc_point_t *A,
+                                           const caam_pkha_ecc_point_t *B,
+                                           const uint8_t *N,
+                                           const uint8_t *R2modN,
+                                           const uint8_t *aCurveParam,
+                                           const uint8_t *bCurveParam,
+                                           size_t size,
+                                           caam_pkha_f2m_t arithType,
                                            caam_pkha_ecc_point_t *result)
 {
     caam_pkha_mode_params_t params;
@@ -6700,7 +8566,7 @@ status_t CAAM_PKHA_ECC_PointAddNonBlocking(CAAM_Type *base,
     caam_pkha_default_parms(&params);
     params.func      = kCAAM_PKHA_ArithEccAdd;
     params.arithType = arithType;
-    params.r2modn    = R2modN ? kCAAM_PKHA_InputR2 : kCAAM_PKHA_CalcR2;
+    params.r2modn    = (R2modN != NULL) ? kCAAM_PKHA_InputR2 : kCAAM_PKHA_CalcR2;
 
     status = caam_pkha_ecc_algorithm_operation_command(base, handle, descriptor, A, B, NULL, 0, N, NULL, R2modN,
                                                        aCurveParam, bCurveParam, size, result, &params);
@@ -6752,8 +8618,26 @@ status_t CAAM_PKHA_ECC_PointAdd(CAAM_Type *base,
         return status;
     }
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)result->X, size);
+    DCACHE_InvalidateByRange((uint32_t)result->Y, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
+
+status_t CAAM_PKHA_ECC_PointDoubleNonBlocking(CAAM_Type *base,
+                                              caam_handle_t *handle,
+                                              caam_desc_pkha_ecc_t descriptor,
+                                              const caam_pkha_ecc_point_t *B,
+                                              const uint8_t *N,
+                                              const uint8_t *aCurveParam,
+                                              const uint8_t *bCurveParam,
+                                              size_t size,
+                                              caam_pkha_f2m_t arithType,
+                                              caam_pkha_ecc_point_t *result);
 
 status_t CAAM_PKHA_ECC_PointDoubleNonBlocking(CAAM_Type *base,
                                               caam_handle_t *handle,
@@ -6818,8 +8702,30 @@ status_t CAAM_PKHA_ECC_PointDouble(CAAM_Type *base,
         return status;
     }
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)result->X, size);
+    DCACHE_InvalidateByRange((uint32_t)result->Y, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
+
+status_t CAAM_PKHA_ECC_PointMulNonBlocking(CAAM_Type *base,
+                                           caam_handle_t *handle,
+                                           caam_desc_pkha_ecc_t descriptor,
+                                           const caam_pkha_ecc_point_t *A,
+                                           const uint8_t *E,
+                                           size_t sizeE,
+                                           const uint8_t *N,
+                                           const uint8_t *R2modN,
+                                           const uint8_t *aCurveParam,
+                                           const uint8_t *bCurveParam,
+                                           size_t size,
+                                           caam_pkha_timing_t equalTime,
+                                           caam_pkha_f2m_t arithType,
+                                           caam_pkha_ecc_point_t *result);
 
 status_t CAAM_PKHA_ECC_PointMulNonBlocking(CAAM_Type *base,
                                            caam_handle_t *handle,
@@ -6843,7 +8749,7 @@ status_t CAAM_PKHA_ECC_PointMulNonBlocking(CAAM_Type *base,
     params.func      = kCAAM_PKHA_ArithEccMul;
     params.equalTime = equalTime;
     params.arithType = arithType;
-    params.r2modn    = R2modN ? kCAAM_PKHA_InputR2 : kCAAM_PKHA_CalcR2;
+    params.r2modn    = (R2modN != NULL) ? kCAAM_PKHA_InputR2 : kCAAM_PKHA_CalcR2;
 
     status = caam_pkha_ecc_algorithm_operation_command(base, handle, descriptor, A, NULL, E, sizeE, N, R2modN, NULL,
                                                        aCurveParam, bCurveParam, size, result, &params);
@@ -6899,7 +8805,14 @@ status_t CAAM_PKHA_ECC_PointMul(CAAM_Type *base,
         return status;
     }
 
-    return CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+    status = CAAM_Wait(base, handle, descBuf, kCAAM_Blocking);
+#if defined(CAAM_OUT_INVALIDATE) && (CAAM_OUT_INVALIDATE > 0u)
+    /* NOTE: DCACHE must be set to write-trough mode to safely invalidate cache!! */
+    /* Invalidate unaligned data can cause memory corruption in write-back mode   */
+    DCACHE_InvalidateByRange((uint32_t)result->X, size);
+    DCACHE_InvalidateByRange((uint32_t)result->Y, size);
+#endif /* CAAM_OUT_INVALIDATE */
+    return status;
 }
 
 /*!
@@ -6938,7 +8851,7 @@ status_t CAAM_PKHA_NormalToMontgomery(CAAM_Type *base,
     status_t status;
 
     /* need to convert our Integer inputs into Montgomery format */
-    if (N && sizeN && R2 && sizeR2)
+    if ((N != NULL) && (sizeN != 0U) && (R2 != NULL) && (sizeR2 != NULL))
     {
         /* 1. R2 = MOD_R2(N) */
         status = CAAM_PKHA_ModR2(base, handle, N, sizeN, R2, sizeR2, arithType);
@@ -6948,7 +8861,7 @@ status_t CAAM_PKHA_NormalToMontgomery(CAAM_Type *base,
         }
 
         /* 2. A(Montgomery) = MOD_MUL_IM_OM(A, R2, N) */
-        if (A && sizeA)
+        if ((A != NULL) && (sizeA != NULL))
         {
             status = CAAM_PKHA_ModMul(base, handle, A, *sizeA, R2, *sizeR2, N, sizeN, A, sizeA, arithType,
                                       kCAAM_PKHA_MontgomeryFormat, kCAAM_PKHA_MontgomeryFormat, equalTime);
@@ -6959,7 +8872,7 @@ status_t CAAM_PKHA_NormalToMontgomery(CAAM_Type *base,
         }
 
         /* 2. B(Montgomery) = MOD_MUL_IM_OM(B, R2, N) */
-        if (B && sizeB)
+        if ((B != NULL) && (sizeB != NULL))
         {
             status = CAAM_PKHA_ModMul(base, handle, B, *sizeB, R2, *sizeR2, N, sizeN, B, sizeB, arithType,
                                       kCAAM_PKHA_MontgomeryFormat, kCAAM_PKHA_MontgomeryFormat, equalTime);
@@ -7010,7 +8923,7 @@ status_t CAAM_PKHA_MontgomeryToNormal(CAAM_Type *base,
     status_t status = kStatus_InvalidArgument;
 
     /* A = MOD_MUL_IM_OM(A(Montgomery), 1, N) */
-    if (A && sizeA)
+    if ((A != NULL) && (sizeA != NULL))
     {
         status = CAAM_PKHA_ModMul(base, handle, A, *sizeA, &one, sizeof(one), N, sizeN, A, sizeA, arithType,
                                   kCAAM_PKHA_MontgomeryFormat, kCAAM_PKHA_MontgomeryFormat, equalTime);
@@ -7021,7 +8934,7 @@ status_t CAAM_PKHA_MontgomeryToNormal(CAAM_Type *base,
     }
 
     /* B = MOD_MUL_IM_OM(B(Montgomery), 1, N) */
-    if (B && sizeB)
+    if ((B != NULL) && (sizeB != NULL))
     {
         status = CAAM_PKHA_ModMul(base, handle, B, *sizeB, &one, sizeof(one), N, sizeN, B, sizeB, arithType,
                                   kCAAM_PKHA_MontgomeryFormat, kCAAM_PKHA_MontgomeryFormat, equalTime);

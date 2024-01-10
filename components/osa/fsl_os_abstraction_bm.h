@@ -54,6 +54,29 @@ typedef uint32_t event_flags_t;
 extern void DefaultISR(void);
 
 /*!
+ * @brief Process OSA tasks
+ *
+ * This function is used to process registered tasks.
+ *
+ * Example below shows how to use this API in baremetal.
+ *
+ * @code
+ *   while(1) {
+ *     OSA_ProcessTasks();
+ *   }
+ * @endcode
+ */
+void OSA_ProcessTasks(void);
+
+/*!
+ * @brief Check OSA Task Should Yield
+ *
+ * This function is used to check task should yield, When this function returns 1, an OSA task has to run.
+ * This function is typically used with Interrupt disabled before executing WFI instruction.
+ *
+ */
+uint8_t OSA_TaskShouldYield(void);
+/*!
  * @name Thread management
  * @{
  */

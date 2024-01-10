@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 NXP
+ * Copyright 2019-2020, 2023 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -37,6 +37,7 @@ static status_t DC_FB_ELCDIF_GetPixelFormat(video_pixel_format_t input, elcdif_p
  * Variables
  ******************************************************************************/
 static const dc_fb_elcdif_pixel_foramt_map_t s_elcdifPixelFormatMap[] = {
+    {kVIDEO_PixelFormatLUT8, kELCDIF_PixelFormatRAW8},
     {kVIDEO_PixelFormatRGB565, kELCDIF_PixelFormatRGB565},
     {
         kVIDEO_PixelFormatXRGB8888,
@@ -215,7 +216,7 @@ status_t DC_FB_ELCDIF_SetFrameBuffer(const dc_fb_t *dc, uint8_t layer, void *fra
      */
     if (!dcHandle->layers[layer].enabled)
     {
-        dcHandle->elcdif->CUR_BUF            = (uint32_t)(uint8_t *)frameBuffer;
+        dcHandle->elcdif->CUR_BUF            = ELCDIF_ADDR_CPU_2_IP((uint32_t)(uint8_t *)frameBuffer);
         dcHandle->layers[layer].activeBuffer = frameBuffer;
     }
     else

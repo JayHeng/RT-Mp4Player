@@ -3,13 +3,13 @@
 *        Solutions for real time microcontroller applications        *
 **********************************************************************
 *                                                                    *
-*        (c) 1996 - 2020  SEGGER Microcontroller GmbH                *
+*        (c) 1996 - 2022  SEGGER Microcontroller GmbH                *
 *                                                                    *
 *        Internet: www.segger.com    Support:  support@segger.com    *
 *                                                                    *
 **********************************************************************
 
-** emWin V6.14 - Graphical user interface for embedded applications **
+** emWin V6.32 - Graphical user interface for embedded applications **
 All  Intellectual Property rights  in the Software belongs to  SEGGER.
 emWin is protected by  international copyright laws.  Knowledge of the
 source code may not be used to write a similar product.  This file may
@@ -34,7 +34,7 @@ License model:            emWin License Agreement, dated August 20th 2011 and Am
 Licensed platform:        NXP's ARM 7/9, Cortex-M0, M3, M4, M7, A7, M33
 ----------------------------------------------------------------------
 Support and Update Agreement (SUA)
-SUA period:               2011-08-19 - 2020-09-02
+SUA period:               2011-08-19 - 2023-09-03
 Contact to extend SUA:    sales@segger.com
 ----------------------------------------------------------------------
 File        : KEYBOARD_Private.h
@@ -109,8 +109,6 @@ typedef struct {
   WIDGET           Widget;
   KEYBOARD_PROPS   Props;
   const GUI_FONT * apFont[2];
-  //const GUI_FONT * pFontCode;
-  //const GUI_FONT * pFontLong;
   //
   // Common
   //
@@ -118,6 +116,7 @@ typedef struct {
   U8           IsPressed;
   WM_HTIMER    hTimer;
   KEYBOARD_KEY kPressed;
+  int          PressedIndex;
   //
   // Code keys
   //
@@ -148,7 +147,7 @@ typedef struct {
 **********************************************************************
 */
 #if GUI_DEBUG_LEVEL >= GUI_DEBUG_LEVEL_CHECK_ALL
-  #define KEYBOARD_INIT_ID(p) (p->Widget.DebugId = KEYBOARD_ID)
+  #define KEYBOARD_INIT_ID(p) (p->Widget.DebugId = WIDGET_TYPE_KEYBOARD)
 #else
   #define KEYBOARD_INIT_ID(p)
 #endif
@@ -157,8 +156,16 @@ typedef struct {
   KEYBOARD_OBJ * KEYBOARD_LockH(KEYBOARD_Handle h);
   #define KEYBOARD_LOCK_H(h) KEYBOARD_LockH(h)
 #else
-  #define KEYBOARD_LOCK_H(h) (KEYBOARD_OBJ *)GUI_LOCK_H(h)
+  #define KEYBOARD_LOCK_H(h) (KEYBOARD_OBJ *)WM_LOCK_H(h)
 #endif
+
+/*********************************************************************
+*
+*       Private functions
+*
+**********************************************************************
+*/
+int KEYBOARD__SetStreamedLayoutEx(KEYBOARD_Handle hObj, const void * pVoid, U32 Size, void (* pFunc)(KEYDEF_KEYBOARD * pKeyboard));
 
 /*********************************************************************
 *

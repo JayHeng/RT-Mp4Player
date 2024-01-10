@@ -3,13 +3,13 @@
 *        Solutions for real time microcontroller applications        *
 **********************************************************************
 *                                                                    *
-*        (c) 1996 - 2020  SEGGER Microcontroller GmbH                *
+*        (c) 1996 - 2022  SEGGER Microcontroller GmbH                *
 *                                                                    *
 *        Internet: www.segger.com    Support:  support@segger.com    *
 *                                                                    *
 **********************************************************************
 
-** emWin V6.14 - Graphical user interface for embedded applications **
+** emWin V6.32 - Graphical user interface for embedded applications **
 All  Intellectual Property rights  in the Software belongs to  SEGGER.
 emWin is protected by  international copyright laws.  Knowledge of the
 source code may not be used to write a similar product.  This file may
@@ -34,7 +34,7 @@ License model:            emWin License Agreement, dated August 20th 2011 and Am
 Licensed platform:        NXP's ARM 7/9, Cortex-M0, M3, M4, M7, A7, M33
 ----------------------------------------------------------------------
 Support and Update Agreement (SUA)
-SUA period:               2011-08-19 - 2020-09-02
+SUA period:               2011-08-19 - 2023-09-03
 Contact to extend SUA:    sales@segger.com
 ----------------------------------------------------------------------
 File        : ROTARY.h
@@ -90,11 +90,13 @@ void ROTARY_Callback(WM_MESSAGE * pMsg);
 */
 void ROTARY_AddValue     (ROTARY_Handle hObj, I32 Delta);
 void ROTARY_AddAngle     (ROTARY_Handle hObj, I32 Delta);
+void ROTARY_EnableLQ     (ROTARY_Handle hObj, int OnOff);
 I32  ROTARY_GetAngle     (ROTARY_Handle hObj);
 int  ROTARY_GetImageSize (ROTARY_Handle hObj, int * pxSize, int * pySize);
 int  ROTARY_GetMarkerSize(ROTARY_Handle hObj, int * pxSize, int * pySize);
 int  ROTARY_GetUserData  (ROTARY_Handle hObj, void * pDest, int NumBytes);
 I32  ROTARY_GetValue     (ROTARY_Handle hObj);
+void ROTARY_SetAlign     (ROTARY_Handle hObj, int Align, int xOff, int yOff);
 void ROTARY_SetAngle     (ROTARY_Handle hObj, I32 Pos);
 void ROTARY_SetBitmap    (ROTARY_Handle hObj, const GUI_BITMAP * pBitmap);
 void ROTARY_SetBitmapObj (ROTARY_Handle hObj, GUI_DRAW_HANDLE hDrawObj);

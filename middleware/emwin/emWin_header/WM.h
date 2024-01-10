@@ -3,13 +3,13 @@
 *        Solutions for real time microcontroller applications        *
 **********************************************************************
 *                                                                    *
-*        (c) 1996 - 2020  SEGGER Microcontroller GmbH                *
+*        (c) 1996 - 2022  SEGGER Microcontroller GmbH                *
 *                                                                    *
 *        Internet: www.segger.com    Support:  support@segger.com    *
 *                                                                    *
 **********************************************************************
 
-** emWin V6.14 - Graphical user interface for embedded applications **
+** emWin V6.32 - Graphical user interface for embedded applications **
 All  Intellectual Property rights  in the Software belongs to  SEGGER.
 emWin is protected by  international copyright laws.  Knowledge of the
 source code may not be used to write a similar product.  This file may
@@ -34,7 +34,7 @@ License model:            emWin License Agreement, dated August 20th 2011 and Am
 Licensed platform:        NXP's ARM 7/9, Cortex-M0, M3, M4, M7, A7, M33
 ----------------------------------------------------------------------
 Support and Update Agreement (SUA)
-SUA period:               2011-08-19 - 2020-09-02
+SUA period:               2011-08-19 - 2023-09-03
 Contact to extend SUA:    sales@segger.com
 ----------------------------------------------------------------------
 File        : WM.h
@@ -124,7 +124,19 @@ extern "C" {     /* Make sure we have C-declarations in C++ programs */
 #define WM_LOCK()   GUI_LOCK()
 #define WM_UNLOCK() GUI_UNLOCK()
 
-#define WM_LOCK_H(hWin) (WM_Obj *)GUI_LOCK_H(hWin)
+/*********************************************************************
+*
+*       Validate window handles
+*/
+#ifndef WM_VALIDATE_HANDLE
+  #define WM_VALIDATE_HANDLE  (0)
+#endif
+
+#if WM_VALIDATE_HANDLE
+  #define WM_LOCK_H(hWin) (WM_Obj *)WM__LockValid(hWin)
+#else
+  #define WM_LOCK_H(hWin) (WM_Obj *)GUI_LOCK_H(hWin)
+#endif
 
 /*********************************************************************
 *
@@ -152,7 +164,7 @@ struct WM_WINDOW_INFO {
 */
 typedef struct {
   int Key;         // The key which has been pressed.
-  int PressedCnt;  // \U{#3E}0 if the key has been pressed, 0 if the key has been released.
+  int PressedCnt;  // >0 if the key has been pressed, 0 if the key has been released.
 } WM_KEY_INFO;
 
 /*********************************************************************
@@ -213,6 +225,7 @@ typedef struct {
   U32             Flags;       // To be used to enable motion support.
   GUI_PID_STATE * pState;
   GUI_HMEM        hContext;
+  int             Dest;
 } WM_MOTION_INFO;
 
 /*********************************************************************
@@ -228,16 +241,16 @@ typedef struct {
 *    to get the exact size of the window in unscaled state.
 */
 typedef struct {
-  I32       FactorMin;   // Minimum factor to be used (<< 16).
-  I32       FactorMax;   // Maximum factor to be used (<< 16).
-  U32       xSize;       // Native xSize of window to be zoomed in pixels.
-  U32       ySize;       // Native ySize of window to be zoomed in pixels.
-  U32       xSizeParent; /* xSize of parent window.                                  */
-  U32       ySizeParent; /* ySize of parent window.                                  */
-  I32       Factor0;     /* Primary factor when starting zoom gesture (<< 16).       */
-  int       xPos0;       /* Primary window position in x when starting the gesture.  */
-  int       yPos0;       /* Primary window position in y when starting the gesture.  */
-  GUI_POINT Center0;     /* Primary center point when starting the gesture.          */
+  I32       FactorMin;    // Minimum factor to be used (<< 16).
+  I32       FactorMax;    // Maximum factor to be used (<< 16).
+  U32       xSize;        // Native xSize of window to be zoomed in pixels.
+  U32       ySize;        // Native ySize of window to be zoomed in pixels.
+  U32       xSizeParent;  /* xSize of parent window.                                  */
+  U32       ySizeParent;  /* ySize of parent window.                                  */
+  I32       Factor0;      /* Primary factor when starting zoom gesture (<< 16).       */
+  int       xPos0;        /* Primary window position in x when starting the gesture.  */
+  int       yPos0;        /* Primary window position in y when starting the gesture.  */
+  GUI_POINT Center0;      /* Primary center point when starting the gesture.          */
 } WM_ZOOM_INFO;
 
 /*********************************************************************
@@ -248,14 +261,14 @@ typedef struct {
 *    Stores the information about a gesture.
 */
 typedef struct {
-  int            Flags;     // Information regarding gesture type. See \ref{MultiTouch gesture flags}.
-  GUI_POINT      Point;     // Relative movement to be processed by the application.
-  GUI_POINT      Center;    // Center point for zooming.
-  I32            Angle;     // Relative angle difference to be processed by the application.
-  I32            Factor;    // When starting a zoom gesture the application has to set the element to the initial value for the gesture. After that during
-                            // the gesture it contains the updated value to be processed by the application.
-  WM_ZOOM_INFO * pZoomInfo; // Pointer to be set to a valid location of a WM_ZOOM_INFO structure. The application should keep sure, that the
-                            // location remains valid during the gesture.
+  int            Flags;      // Information regarding gesture type. See \ref{MultiTouch gesture flags}.
+  GUI_POINT      Point;      // Relative movement to be processed by the application.
+  GUI_POINT      Center;     // Center point for zooming.
+  I32            Angle;      // Relative angle difference to be processed by the application.
+  I32            Factor;     // When starting a zoom gesture the application has to set the element to the initial value for the gesture. After that during
+                             // the gesture it contains the updated value to be processed by the application.
+  WM_ZOOM_INFO * pZoomInfo;  // Pointer to be set to a valid location of a WM_ZOOM_INFO structure. The application should keep sure, that the
+                             // location remains valid during the gesture.
 } WM_GESTURE_INFO;
 
 /*********************************************************************
@@ -277,13 +290,13 @@ typedef struct {
 *   Description
 *     Flags used for processing gesture input.
 */
-#define WM_GF_BEGIN  (1 << 0)    // This flag is set when sending the first message for the gesture.
-#define WM_GF_END    (1 << 1)    // A panning gesture is detected. The element "Point" of WM_GESTURE_INFO contains the relative movement in pixels to be processed by the application.
-#define WM_GF_PAN    (1 << 2)    // Rotation is active. The element "Angle" of WM_GESTURE_INFO contains the relative movement in degrees (<< 16) to be processed by the application.
-                                 // To be able to achieve a smooth rotation the value is passed in 1/65536 degrees. If movement should be considered simultaneously the element "Point" contains also the relative movement.
-#define WM_GF_ZOOM   (1 << 3)    // Zooming is active. When starting a zooming gesture the element "Factor" of WM_GESTURE_INFO has to be set to the initial value to be used by the gesture.
-                                 // During the gesture the same element contains the updated value to be processed by the application. If movement should be considered simultaneously the element "Point" contains also the relative movement.
-#define WM_GF_ROTATE (1 << 4)    // Set when releasing a touch point at the end of a gesture.
+#define WM_GF_BEGIN  (1 << 0)  // This flag is set when sending the first message for the gesture.
+#define WM_GF_END    (1 << 1)  // Set when releasing a touch point at the end of a gesture.
+#define WM_GF_PAN    (1 << 2)  // A panning gesture is detected. The element "Point" of WM_GESTURE_INFO contains the relative movement in pixels to be processed by the application.
+#define WM_GF_ZOOM   (1 << 3)  // Zooming is active. When starting a zooming gesture the element "Factor" of WM_GESTURE_INFO has to be set to the initial value to be used by the gesture.
+                               // During the gesture the same element contains the updated value to be processed by the application. If movement should be considered simultaneously the element "Point" contains also the relative movement.
+#define WM_GF_ROTATE (1 << 4)  // Rotation is active. The element "Angle" of WM_GESTURE_INFO contains the relative movement in degrees (<< 16) to be processed by the application.
+                               // To be able to achieve a smooth rotation the value is passed in 1/65536 degrees. If movement should be considered simultaneously the element "Point" contains also the relative movement.
 #define WM_GF_DTAP   (1 << 5)
 
 /*********************************************************************
@@ -358,6 +371,10 @@ typedef struct {
 #define WM_USER_DATA                52      /* Send immediately after setting user data */
 #define WM_SET_CALLBACK             53      /* Send immediately after setting user data */
 
+#define WM_GET_OFFSET               54      /* Return alignment offset */
+
+#define WM_GET_CONTENT_RECT         55      /* Get content rectangle, e.g. for LISTVIEW: InsideRect minus the HEADER */
+
 #define WM_GESTURE                  0x0119  /* Gesture message */
 
 #define WM_TIMER                    0x0113  /* Timer has expired              (Keep the same as WIN32) */
@@ -382,6 +399,9 @@ typedef struct {
 #define WM_MOTION_MOVE       1   // Sent to a window to achieve custom moving operations.
 #define WM_MOTION_GETPOS     2   // Sent to get the current position of custom moving operations.
 #define WM_MOTION_GETCONTEXT 3
+#define WM_MOTION_GETDEST    4   // Sent to receive the desired position to move to
+#define WM_MOTION_GETSNAP    5   // Sent to receive the nearest snap position
+#define WM_MOTION_SETCONTEXT 6
 
 /*********************************************************************
 *
@@ -391,7 +411,20 @@ typedef struct {
 *    Flags for motion support. The flags are supposed to be OR-combined
 *    with the member \c{Flags} of the WM_MOTION_INFO structure.
 */
-#define WM_MOTION_MANAGE_BY_WINDOW   (1 << 0) // Window movement is managed by window itself.
+#define WM_MOTION_MANAGE_BY_WINDOW   (1 << 0)   // Window movement is managed by window itself.
+
+/*********************************************************************
+*
+*       Motion overlap flags
+*
+*  Description
+*    Flags for setting overlap behavior of widgets. The overlap will
+*    come into effect if a distance has been set.
+*/
+#define WM_MOTION_OVERLAP_TOP        (1 << 4)   // Overlap will be active at the top edge of the widget.
+#define WM_MOTION_OVERLAP_BOTTOM     (1 << 5)   // Overlap will be active at the bottom edge of the widget.
+#define WM_MOTION_OVERLAP_LEFT       (1 << 6)   // Overlap will be active at the left edge of the widget.
+#define WM_MOTION_OVERLAP_RIGHT      (1 << 7)   // Overlap will be active at the right edge of the widget.
 
 /*********************************************************************
 *
@@ -402,26 +435,34 @@ typedef struct {
 *    code is sent with a WM_NOTIFY_PARENT message and can be read with
 *    \c{pMsg->Data.v}.
 */
-#define WM_NOTIFICATION_CLICKED             1      // This notification message will be sent when the window has been clicked.
-#define WM_NOTIFICATION_RELEASED            2      // This notification message will be sent when a clicked widget has been released.
-#define WM_NOTIFICATION_MOVED_OUT           3      // This notification message will be sent when the pointer was moved out of the window while it is clicked.
-#define WM_NOTIFICATION_SEL_CHANGED         4      // This notification message will be sent when the selection of a widget has changed.
-#define WM_NOTIFICATION_VALUE_CHANGED       5      // This notification message will be sent when a widget specific value has changed.
-#define WM_NOTIFICATION_SCROLLBAR_ADDED     6      // This notification message will be sent when a SCROLLBAR widget has been added to the window.
-#define WM_NOTIFICATION_CHILD_DELETED       7      // This notification message will be sent from a window to its parent before it is deleted.
-#define WM_NOTIFICATION_GOT_FOCUS           8      // This notification message will be sent once a window receives and accepts the focus.
-#define WM_NOTIFICATION_LOST_FOCUS          9      // This notification message will be sent when the window has lost the focus.
-#define WM_NOTIFICATION_SCROLL_CHANGED     10      // This notification message will be sent when the scroll position of an attached SCROLLBAR widget has changed.
+#define WM_NOTIFICATION_CLICKED                   1      // This notification message will be sent when the window has been clicked.
+#define WM_NOTIFICATION_RELEASED                  2      // This notification message will be sent when a clicked widget has been released.
+#define WM_NOTIFICATION_MOVED_OUT                 3      // This notification message will be sent when the pointer was moved out of the window while it is clicked.
+#define WM_NOTIFICATION_SEL_CHANGED               4      // This notification message will be sent when the selection of a widget has changed.
+#define WM_NOTIFICATION_VALUE_CHANGED             5      // This notification message will be sent when a widget specific value has changed.
+#define WM_NOTIFICATION_SCROLLBAR_ADDED           6      // This notification message will be sent when a SCROLLBAR widget has been added to the window.
+#define WM_NOTIFICATION_CHILD_DELETED             7      // This notification message will be sent from a window to its parent before it is deleted.
+#define WM_NOTIFICATION_GOT_FOCUS                 8      // This notification message will be sent once a window receives and accepts the focus.
+#define WM_NOTIFICATION_LOST_FOCUS                9      // This notification message will be sent when the window has lost the focus.
+#define WM_NOTIFICATION_SCROLL_CHANGED           10      // This notification message will be sent when the scroll position of an attached SCROLLBAR widget has changed.
+#define WM_NOTIFICATION_SCROLLER_ADDED           16      // This notification message will be sent when a SCROLLER widget has been added to the window.
+#define WM_NOTIFICATION_OVERLAP_TOP_ENTERED      17      // This notification message will be sent when the top overlap area of a widget was entered.
+#define WM_NOTIFICATION_OVERLAP_BOTTOM_ENTERED   18      // This notification message will be sent when the bottom overlap area of a widget was entered.
+#define WM_NOTIFICATION_OVERLAP_LEFT_ENTERED     19      // This notification message will be sent when the left overlap area of a widget was entered.
+#define WM_NOTIFICATION_OVERLAP_RIGHT_ENTERED    20      // This notification message will be sent when the right overlap area of a widget was entered.
+#define WM_NOTIFICATION_OVERLAP_RELEASED         21      // This notification message will be sent when the overlap area of a widget was entered and has been released.
+#define WM_NOTIFICATION_STARTED                  22      // This notification message will be sent when a widget has been started.
+#define WM_NOTIFICATION_STOPPED                  23      // This notification message will be sent when a widget has been stopped.
 
 /* not documented */
-#define WM_NOTIFICATION_MOTION_STOPPED     11
-#define WM_NOTIFICATION_SET                12
-#define WM_NOTIFICATION_CLEAR              13
-#define WM_NOTIFICATION_TEXT_CHANGED       14
-#define WM_NOTIFICATION_ENTER_PRESSED      15
+#define WM_NOTIFICATION_MOTION_STOPPED           11
+#define WM_NOTIFICATION_SET                      12
+#define WM_NOTIFICATION_CLEAR                    13
+#define WM_NOTIFICATION_TEXT_CHANGED             14
+#define WM_NOTIFICATION_ENTER_PRESSED            15
 
-#define WM_NOTIFICATION_WIDGET             20      /* Space for widget defined notifications */
-#define WM_NOTIFICATION_USER               30      /* Space for  application (user) defined notifications */
+#define WM_NOTIFICATION_WIDGET                   30      /* Space for widget defined notifications */
+#define WM_NOTIFICATION_USER                     40      /* Space for  application (user) defined notifications */
 
 /*********************************************************************
 *
@@ -514,7 +555,14 @@ typedef struct {
 
 #define WM_CF_UNTOUCHABLE      (1UL << 22) // A window created with this flag routes its touch input to its parent. This makes a window 'untouchable'.
 
-#define WM_CF_APPWIZARD        (1UL << 23)
+#define WM_CF_APPWIZARD        (1UL << 23) // Window is an AppWizard object
+
+#define WM_CF_MEMDEV_CLIPPING  (1UL << 24) // Reactivates the window manager when drawing into memory devices created via WM_CF_MEMDEV. Otherwise
+                                           // it can happen that invisible windows (e.g. a window covered completely by another window) still draws
+                                           // its content into a memory device but the memory device doesn't get drawn to the LCD. With this flag
+                                           // these unnecessary drawing operations can be avoided. Attention, if there is a non transparent window
+                                           // in the foreground, which is smaller than the window in the back, tiling will be used and multiple paint
+                                           // events into the memory device will be performed!
 
 /*********************************************************************
 *
@@ -598,6 +646,7 @@ void    WM_ClrHasTrans               (WM_HWIN hWin);
 WM_HWIN WM_CreateWindow              (int x0, int y0, int xSize, int ySize, U32 Style, WM_CALLBACK * cb, int NumExtraBytes);
 WM_HWIN WM_CreateWindowAsChild       (int x0, int y0, int xSize, int ySize, WM_HWIN hWinParent, U32 Style, WM_CALLBACK* cb, int NumExtraBytes);
 void    WM_DeleteWindow              (WM_HWIN hWin);
+void    WM_DeleteWindowSecure        (WM_HWIN hWin);
 void    WM_DetachWindow              (WM_HWIN hWin);
 void    WM_EnableGestures            (WM_HWIN hWin, int OnOff);
 int     WM_GetHasTrans               (WM_HWIN hWin);
@@ -614,6 +663,7 @@ int     WM_IsEnabled                 (WM_HWIN hObj);
 char    WM_IsCompletelyCovered       (WM_HWIN hWin);    /* Checks if the window is completely covered by other windows */
 char    WM_IsCompletelyVisible       (WM_HWIN hWin);    /* Is the window completely visible ? */
 int     WM_IsFocusable               (WM_HWIN hWin);
+int     WM_IsUntouchable             (WM_HWIN hWin);
 int     WM_IsVisible                 (WM_HWIN hWin);
 int     WM_IsWindow                  (WM_HWIN hWin);    /* Check validity */
 void    WM_Rect2Screen               (WM_HWIN hWin, GUI_RECT * pRect);
@@ -654,6 +704,8 @@ void     WM_MOTION_SetThreshold    (unsigned Threshold);
 /* Motion support, private interface */
 WM_HMEM WM_MOTION__CreateContext(void);
 void    WM_MOTION__DeleteContext(WM_HMEM hContext);
+WM_HMEM WM_MOTION__GetContext   (WM_HWIN hWin);
+void    WM_MOTION__SetContext   (WM_HWIN hWin, WM_HMEM hContext);
 
 /* Motion support, private function(s) */
 void     WM__SetMotionCallback (void(* cbMotion) (GUI_PID_STATE * pState, void * p));
@@ -776,6 +828,8 @@ WM_CALLBACK * WM_GetCallback(WM_HWIN hWin);
 /* Get size/origin of a window */
 void      WM_GetClientRect           (GUI_RECT * pRect);
 void      WM_GetClientRectEx         (WM_HWIN hWin, GUI_RECT * pRect);
+void      WM_GetContentRect          (GUI_RECT * pRect);
+void      WM_GetContentRectEx        (WM_HWIN hWin, GUI_RECT * pRect);
 void      WM_GetInsideRect           (GUI_RECT * pRect);
 void      WM_GetInsideRectEx         (WM_HWIN hWin, GUI_RECT * pRect);
 void      WM_GetInsideRectExScrollbar(WM_HWIN hWin, GUI_RECT * pRect); /* not to be documented (may change in future version) */
@@ -794,13 +848,16 @@ WM_HWIN   WM_GetPrevSibling          (WM_HWIN hWin);
 int       WM_GetId                   (WM_HWIN hWin);
 WM_HWIN   WM_GetScrollbarV           (WM_HWIN hWin);
 WM_HWIN   WM_GetScrollbarH           (WM_HWIN hWin);
+WM_HWIN   WM_GetScrollerV            (WM_HWIN hWin);
+WM_HWIN   WM_GetScrollerH            (WM_HWIN hWin);
 WM_HWIN   WM_GetScrollPartner        (WM_HWIN hWin);
 WM_HWIN   WM_GetClientWindow         (WM_HWIN hObj);
 GUI_COLOR WM_GetBkColor              (WM_HWIN hObj);
 
 /* Change Z-Order of windows */
 void WM_BringToBottom(WM_HWIN hWin);
-void WM_BringToTop(WM_HWIN hWin);
+void WM_BringToTop   (WM_HWIN hWin);
+void WM_BringBehind  (WM_HWIN hWinFore, WM_HWIN hWinBack);
 
 GUI_COLOR WM_SetDesktopColor  (GUI_COLOR Color);
 GUI_COLOR WM_SetDesktopColorEx(GUI_COLOR Color, unsigned int LayerIndex);
@@ -868,6 +925,7 @@ WM_HWIN   WM_GetDialogItem        (WM_HWIN hWin, int Id);
 void      WM_EnableWindow         (WM_HWIN hWin);
 void      WM_DisableWindow        (WM_HWIN hWin);
 void      WM_GetScrollState       (WM_HWIN hObj, WM_SCROLL_STATE * pScrollState);
+WM_HWIN   WM_GetChild             (WM_HWIN hWin, int Id);
 
 /*********************************************************************
 *
@@ -882,10 +940,11 @@ int       WM__SetUserDataEx(WM_HWIN hWin, const void * pSrc, int NumBytes, int S
 *
 *       Capturing input focus
 */
-int  WM_HasCaptured   (WM_HWIN hWin);
-void WM_SetCapture    (WM_HWIN hObj, int AutoRelease);
-void WM_SetCaptureMove(WM_HWIN hWin, const GUI_PID_STATE * pState, int MinVisibility, int LimitTop); /* Not yet documented */
-void WM_ReleaseCapture(void);
+int     WM_HasCaptured   (WM_HWIN hWin);
+WM_HWIN WM_GetCapture    (int * pAutoRelease);
+void    WM_SetCapture    (WM_HWIN hObj, int AutoRelease);
+void    WM_SetCaptureMove(WM_HWIN hWin, const GUI_PID_STATE * pState, int MinVisibility, int LimitTop); /* Not yet documented */
+void    WM_ReleaseCapture(void);
 
 /*********************************************************************
 *

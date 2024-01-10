@@ -72,7 +72,9 @@ typedef struct _osa_state
 {
 #if (defined(FSL_OSA_TASK_ENABLE) && (FSL_OSA_TASK_ENABLE > 0U))
     list_label_t taskList;
+#if (defined(FSL_OSA_MAIN_FUNC_ENABLE) && (FSL_OSA_MAIN_FUNC_ENABLE > 0U))
     OSA_TASK_HANDLE_DEFINE(mainTaskHandle);
+#endif
 #endif
     uint32_t basePriority;
     int32_t basePriorityNesting;
@@ -216,10 +218,9 @@ osa_task_handle_t OSA_TaskGetCurrentHandle(void)
  *
  *END**************************************************************************/
 #if (defined(FSL_OSA_TASK_ENABLE) && (FSL_OSA_TASK_ENABLE > 0U))
-osa_status_t OSA_TaskYield(void)
+void OSA_TaskYield(void)
 {
     taskYIELD();
-    return KOSA_StatusSuccess;
 }
 #endif
 
@@ -232,9 +233,9 @@ osa_status_t OSA_TaskYield(void)
 #if (defined(FSL_OSA_TASK_ENABLE) && (FSL_OSA_TASK_ENABLE > 0U))
 osa_task_priority_t OSA_TaskGetPriority(osa_task_handle_t taskHandle)
 {
-    assert(taskHandle);
+    assert(NULL != taskHandle);
     osa_freertos_task_t *ptask = (osa_freertos_task_t *)taskHandle;
-    return (osa_task_priority_t)(PRIORITY_RTOS_TO_OSA(uxTaskPriorityGet(ptask->taskHandle)));
+    return (osa_task_priority_t)(PRIORITY_RTOS_TO_OSA((uxTaskPriorityGet(ptask->taskHandle))));
 }
 #endif
 
@@ -247,9 +248,9 @@ osa_task_priority_t OSA_TaskGetPriority(osa_task_handle_t taskHandle)
 #if (defined(FSL_OSA_TASK_ENABLE) && (FSL_OSA_TASK_ENABLE > 0U))
 osa_status_t OSA_TaskSetPriority(osa_task_handle_t taskHandle, osa_task_priority_t taskPriority)
 {
-    assert(taskHandle);
+    assert(NULL != taskHandle);
     osa_freertos_task_t *ptask = (osa_freertos_task_t *)taskHandle;
-    vTaskPrioritySet((task_handler_t)ptask->taskHandle, PRIORITY_OSA_TO_RTOS(taskPriority));
+    vTaskPrioritySet((task_handler_t)ptask->taskHandle, PRIORITY_OSA_TO_RTOS(((uint32_t)taskPriority)));
     return KOSA_StatusSuccess;
 }
 #endif
@@ -266,33 +267,29 @@ osa_status_t OSA_TaskSetPriority(osa_task_handle_t taskHandle, osa_task_priority
 #if (defined(FSL_OSA_TASK_ENABLE) && (FSL_OSA_TASK_ENABLE > 0U))
 osa_status_t OSA_TaskCreate(osa_task_handle_t taskHandle, const osa_task_def_t *thread_def, osa_task_param_t task_param)
 {
-    static uint8_t s_osaTaskListInitialized = 0;
+    osa_status_t status = KOSA_StatusError;
     assert(sizeof(osa_freertos_task_t) == OSA_TASK_HANDLE_SIZE);
-    assert(taskHandle);
+    assert(NULL != taskHandle);
     TaskHandle_t pxCreatedTask;
     osa_freertos_task_t *ptask = (osa_freertos_task_t *)taskHandle;
-
-    if (0u == s_osaTaskListInitialized)
-    {
-        s_osaTaskListInitialized = 1u;
-        LIST_Init((&s_osaState.taskList), 0);
-    }
-
-    if (xTaskCreate((TaskFunction_t)thread_def->pthread, /* pointer to the task */
-                    (char const *)thread_def->tname,     /* task name for kernel awareness debugging */
-                    (configSTACK_DEPTH_TYPE)thread_def->stacksize / sizeof(portSTACK_TYPE), /* task stack size */
-                    (task_param_t)task_param,                    /* optional task startup argument */
-                    PRIORITY_OSA_TO_RTOS(thread_def->tpriority), /* initial priority */
-                    &pxCreatedTask                               /* optional task handle to create */
-                    ) == pdPASS)
+    OSA_InterruptDisable();
+    if (xTaskCreate(
+            (TaskFunction_t)thread_def->pthread, /* pointer to the task */
+            (char const *)thread_def->tname,     /* task name for kernel awareness debugging */
+            (configSTACK_DEPTH_TYPE)((uint16_t)thread_def->stacksize / sizeof(portSTACK_TYPE)), /* task stack size */
+            (task_param_t)task_param,                      /* optional task startup argument */
+            PRIORITY_OSA_TO_RTOS((thread_def->tpriority)), /* initial priority */
+            &pxCreatedTask                                 /* optional task handle to create */
+            ) == pdPASS)
     {
         ptask->taskHandle = pxCreatedTask;
-        OSA_InterruptDisable();
+
         (void)LIST_AddTail(&s_osaState.taskList, (list_element_handle_t) & (ptask->link));
-        OSA_InterruptEnable();
-        return KOSA_StatusSuccess;
+
+        status = KOSA_StatusSuccess;
     }
-    return KOSA_StatusError;
+    OSA_InterruptEnable();
+    return status;
 }
 #endif
 
@@ -307,20 +304,21 @@ osa_status_t OSA_TaskCreate(osa_task_handle_t taskHandle, const osa_task_def_t *
 #if (defined(FSL_OSA_TASK_ENABLE) && (FSL_OSA_TASK_ENABLE > 0U))
 osa_status_t OSA_TaskDestroy(osa_task_handle_t taskHandle)
 {
-    assert(taskHandle);
+    assert(NULL != taskHandle);
     osa_freertos_task_t *ptask = (osa_freertos_task_t *)taskHandle;
     osa_status_t status;
-    uint16_t oldPriority;
+    UBaseType_t oldPriority;
+
     /*Change priority to avoid context switches*/
-    oldPriority = OSA_TaskGetPriority(OSA_TaskGetCurrentHandle());
-    (void)OSA_TaskSetPriority(OSA_TaskGetCurrentHandle(), OSA_PRIORITY_REAL_TIME);
+    oldPriority = uxTaskPriorityGet(xTaskGetCurrentTaskHandle());
+    vTaskPrioritySet(xTaskGetCurrentTaskHandle(), (configMAX_PRIORITIES - 1));
 #if INCLUDE_vTaskDelete /* vTaskDelete() enabled */
     vTaskDelete((task_handler_t)ptask->taskHandle);
     status = KOSA_StatusSuccess;
 #else
     status = KOSA_StatusError; /* vTaskDelete() not available */
 #endif
-    (void)OSA_TaskSetPriority(OSA_TaskGetCurrentHandle(), oldPriority);
+    vTaskPrioritySet(xTaskGetCurrentTaskHandle(), oldPriority);
     OSA_InterruptDisable();
     (void)LIST_RemoveElement(taskHandle);
     OSA_InterruptEnable();
@@ -359,6 +357,22 @@ uint32_t OSA_TimeGetMsec(void)
 
     return TICKS_TO_MSEC(ticks);
 }
+
+/*FUNCTION**********************************************************************
+ *
+ * Function Name : OSA_SemaphorePrecreate
+ * Description   : This function is used to pre-create a semaphore.
+ * Return         : KOSA_StatusSuccess
+ *
+ *END**************************************************************************/
+
+osa_status_t OSA_SemaphorePrecreate(osa_semaphore_handle_t semaphoreHandle, osa_task_ptr_t taskHandler)
+{
+    semaphoreHandle = semaphoreHandle;
+    taskHandler     = taskHandler;
+    return KOSA_StatusSuccess;
+}
+
 /*FUNCTION**********************************************************************
  *
  * Function Name : OSA_SemaphoreCreate
@@ -369,7 +383,7 @@ uint32_t OSA_TimeGetMsec(void)
 osa_status_t OSA_SemaphoreCreate(osa_semaphore_handle_t semaphoreHandle, uint32_t initValue)
 {
     assert(sizeof(osa_semaphore_handle_t) == OSA_SEM_HANDLE_SIZE);
-    assert(semaphoreHandle);
+    assert(NULL != semaphoreHandle);
 
     union
     {
@@ -388,6 +402,33 @@ osa_status_t OSA_SemaphoreCreate(osa_semaphore_handle_t semaphoreHandle, uint32_
 
 /*FUNCTION**********************************************************************
  *
+ * Function Name : OSA_SemaphoreCreateBinary
+ * Description   : This function is used to create a binary semaphore.
+ * Return        : Semaphore handle of the new binary semaphore, or NULL if failed.
+ *
+ *END**************************************************************************/
+osa_status_t OSA_SemaphoreCreateBinary(osa_semaphore_handle_t semaphoreHandle)
+{
+    assert(sizeof(osa_semaphore_handle_t) == OSA_SEM_HANDLE_SIZE);
+    assert(NULL != semaphoreHandle);
+
+    union
+    {
+        QueueHandle_t sem;
+        uint32_t semhandle;
+    } xSemaHandle;
+
+    xSemaHandle.sem = xSemaphoreCreateBinary();
+    if (NULL != xSemaHandle.sem)
+    {
+        *(uint32_t *)semaphoreHandle = xSemaHandle.semhandle;
+        return KOSA_StatusSuccess;
+    }
+    return KOSA_StatusError;
+}
+
+/*FUNCTION**********************************************************************
+ *
  * Function Name : OSA_SemaphoreDestroy
  * Description   : This function is used to destroy a semaphore.
  * Return        : KOSA_StatusSuccess if the semaphore is destroyed successfully, otherwise return KOSA_StatusError.
@@ -395,7 +436,7 @@ osa_status_t OSA_SemaphoreCreate(osa_semaphore_handle_t semaphoreHandle, uint32_
  *END**************************************************************************/
 osa_status_t OSA_SemaphoreDestroy(osa_semaphore_handle_t semaphoreHandle)
 {
-    assert(semaphoreHandle);
+    assert(NULL != semaphoreHandle);
     QueueHandle_t sem = (QueueHandle_t)(void *)(uint32_t *)(*(uint32_t *)semaphoreHandle);
 
     vSemaphoreDelete(sem);
@@ -418,7 +459,7 @@ osa_status_t OSA_SemaphoreDestroy(osa_semaphore_handle_t semaphoreHandle)
 osa_status_t OSA_SemaphoreWait(osa_semaphore_handle_t semaphoreHandle, uint32_t millisec)
 {
     uint32_t timeoutTicks;
-    assert(semaphoreHandle);
+    assert(NULL != semaphoreHandle);
     QueueHandle_t sem = (QueueHandle_t)(void *)(uint32_t *)(*(uint32_t *)semaphoreHandle);
 
     /* Convert timeout from millisecond to tick. */
@@ -431,7 +472,7 @@ osa_status_t OSA_SemaphoreWait(osa_semaphore_handle_t semaphoreHandle, uint32_t 
         timeoutTicks = MSEC_TO_TICK(millisec);
     }
 
-    if (pdFALSE == xSemaphoreTake(sem, timeoutTicks))
+    if (((BaseType_t)0) == (BaseType_t)xSemaphoreTake(sem, timeoutTicks))
     {
         return KOSA_StatusTimeout; /* timeout */
     }
@@ -452,17 +493,17 @@ osa_status_t OSA_SemaphoreWait(osa_semaphore_handle_t semaphoreHandle, uint32_t 
  *END**************************************************************************/
 osa_status_t OSA_SemaphorePost(osa_semaphore_handle_t semaphoreHandle)
 {
-    assert(semaphoreHandle);
+    assert(NULL != semaphoreHandle);
     osa_status_t status = KOSA_StatusError;
     QueueHandle_t sem   = (QueueHandle_t)(void *)(uint32_t *)(*(uint32_t *)semaphoreHandle);
 
     if (0U != __get_IPSR())
     {
-        portBASE_TYPE taskToWake = pdFALSE;
+        portBASE_TYPE taskToWake = (portBASE_TYPE)pdFALSE;
 
-        if (pdTRUE == xSemaphoreGiveFromISR(sem, &taskToWake))
+        if (((BaseType_t)1) == (BaseType_t)xSemaphoreGiveFromISR(sem, &taskToWake))
         {
-            portYIELD_FROM_ISR((taskToWake));
+            portYIELD_FROM_ISR(((bool)(taskToWake)));
             status = KOSA_StatusSuccess;
         }
         else
@@ -472,7 +513,7 @@ osa_status_t OSA_SemaphorePost(osa_semaphore_handle_t semaphoreHandle)
     }
     else
     {
-        if (pdTRUE == xSemaphoreGive(sem))
+        if (((BaseType_t)1) == (BaseType_t)xSemaphoreGive(sem))
         {
             status = KOSA_StatusSuccess; /* sync object given */
         }
@@ -494,7 +535,7 @@ osa_status_t OSA_SemaphorePost(osa_semaphore_handle_t semaphoreHandle)
 osa_status_t OSA_MutexCreate(osa_mutex_handle_t mutexHandle)
 {
     assert(sizeof(osa_mutex_handle_t) == OSA_MUTEX_HANDLE_SIZE);
-    assert(mutexHandle);
+    assert(NULL != mutexHandle);
 
     union
     {
@@ -523,7 +564,7 @@ osa_status_t OSA_MutexCreate(osa_mutex_handle_t mutexHandle)
  *END**************************************************************************/
 osa_status_t OSA_MutexLock(osa_mutex_handle_t mutexHandle, uint32_t millisec)
 {
-    assert(mutexHandle);
+    assert(NULL != mutexHandle);
     uint32_t timeoutTicks;
     QueueHandle_t mutex = (QueueHandle_t)(void *)(uint32_t *)(*(uint32_t *)mutexHandle);
 
@@ -537,7 +578,7 @@ osa_status_t OSA_MutexLock(osa_mutex_handle_t mutexHandle, uint32_t millisec)
         timeoutTicks = MSEC_TO_TICK(millisec);
     }
 
-    if (pdFALSE == xSemaphoreTakeRecursive(mutex, timeoutTicks))
+    if (((BaseType_t)0) == (BaseType_t)xSemaphoreTakeRecursive(mutex, timeoutTicks))
     {
         return KOSA_StatusTimeout; /* timeout */
     }
@@ -555,10 +596,10 @@ osa_status_t OSA_MutexLock(osa_mutex_handle_t mutexHandle, uint32_t millisec)
  *END**************************************************************************/
 osa_status_t OSA_MutexUnlock(osa_mutex_handle_t mutexHandle)
 {
-    assert(mutexHandle);
+    assert(NULL != mutexHandle);
     QueueHandle_t mutex = (QueueHandle_t)(void *)(uint32_t *)(*(uint32_t *)mutexHandle);
 
-    if (pdFALSE == xSemaphoreGiveRecursive(mutex))
+    if (((BaseType_t)0) == (BaseType_t)xSemaphoreGiveRecursive(mutex))
     {
         return KOSA_StatusError;
     }
@@ -577,10 +618,25 @@ osa_status_t OSA_MutexUnlock(osa_mutex_handle_t mutexHandle)
  *END**************************************************************************/
 osa_status_t OSA_MutexDestroy(osa_mutex_handle_t mutexHandle)
 {
-    assert(mutexHandle);
+    assert(NULL != mutexHandle);
     QueueHandle_t mutex = (QueueHandle_t)(void *)(uint32_t *)(*(uint32_t *)mutexHandle);
 
     vSemaphoreDelete(mutex);
+    return KOSA_StatusSuccess;
+}
+
+/*FUNCTION**********************************************************************
+ *
+ * Function Name : OSA_EventPrecreate
+ * Description   : This function is used to pre-create a event.
+ * Return         : KOSA_StatusSuccess
+ *
+ *END**************************************************************************/
+
+osa_status_t OSA_EventPrecreate(osa_event_handle_t eventHandle, osa_task_ptr_t taskHandler)
+{
+    eventHandle = eventHandle;
+    taskHandler = taskHandler;
     return KOSA_StatusSuccess;
 }
 
@@ -593,7 +649,7 @@ osa_status_t OSA_MutexDestroy(osa_mutex_handle_t mutexHandle)
  *END**************************************************************************/
 osa_status_t OSA_EventCreate(osa_event_handle_t eventHandle, uint8_t autoClear)
 {
-    assert(eventHandle);
+    assert(NULL != eventHandle);
     osa_event_struct_t *pEventStruct = (osa_event_struct_t *)eventHandle;
 
     pEventStruct->handle = xEventGroupCreate();
@@ -617,9 +673,9 @@ osa_status_t OSA_EventCreate(osa_event_handle_t eventHandle, uint8_t autoClear)
  *END**************************************************************************/
 osa_status_t OSA_EventSet(osa_event_handle_t eventHandle, osa_event_flags_t flagsToSet)
 {
-    portBASE_TYPE taskToWake = pdFALSE;
+    portBASE_TYPE taskToWake = (portBASE_TYPE)pdFALSE;
     BaseType_t result;
-    assert(eventHandle);
+    assert(NULL != eventHandle);
     osa_event_struct_t *pEventStruct = (osa_event_struct_t *)eventHandle;
 
     if (NULL == pEventStruct->handle)
@@ -628,10 +684,14 @@ osa_status_t OSA_EventSet(osa_event_handle_t eventHandle, osa_event_flags_t flag
     }
     if (0U != __get_IPSR())
     {
+#if (configUSE_TRACE_FACILITY == 1)
         result = xEventGroupSetBitsFromISR(pEventStruct->handle, (event_flags_t)flagsToSet, &taskToWake);
+#else
+        result = xEventGroupSetBitsFromISR((void *)pEventStruct->handle, (event_flags_t)flagsToSet, &taskToWake);
+#endif
         assert(pdPASS == result);
         (void)result;
-        portYIELD_FROM_ISR((taskToWake));
+        portYIELD_FROM_ISR(((bool)(taskToWake)));
     }
     else
     {
@@ -651,7 +711,7 @@ osa_status_t OSA_EventSet(osa_event_handle_t eventHandle, osa_event_flags_t flag
  *END**************************************************************************/
 osa_status_t OSA_EventClear(osa_event_handle_t eventHandle, osa_event_flags_t flagsToClear)
 {
-    assert(eventHandle);
+    assert(NULL != eventHandle);
     osa_event_struct_t *pEventStruct = (osa_event_struct_t *)eventHandle;
 
     if (NULL == pEventStruct->handle)
@@ -661,7 +721,11 @@ osa_status_t OSA_EventClear(osa_event_handle_t eventHandle, osa_event_flags_t fl
 
     if (0U != __get_IPSR())
     {
+#if (configUSE_TRACE_FACILITY == 1)
         (void)xEventGroupClearBitsFromISR(pEventStruct->handle, (event_flags_t)flagsToClear);
+#else
+        (void)xEventGroupClearBitsFromISR((void *)pEventStruct->handle, (event_flags_t)flagsToClear);
+#endif
     }
     else
     {
@@ -681,7 +745,7 @@ osa_status_t OSA_EventClear(osa_event_handle_t eventHandle, osa_event_flags_t fl
  *END**************************************************************************/
 osa_status_t OSA_EventGet(osa_event_handle_t eventHandle, osa_event_flags_t flagsMask, osa_event_flags_t *pFlagsOfEvent)
 {
-    assert(eventHandle);
+    assert(NULL != eventHandle);
     osa_event_struct_t *pEventStruct = (osa_event_struct_t *)eventHandle;
     EventBits_t eventFlags;
 
@@ -730,7 +794,7 @@ osa_status_t OSA_EventWait(osa_event_handle_t eventHandle,
                            uint32_t millisec,
                            osa_event_flags_t *pSetFlags)
 {
-    assert(eventHandle);
+    assert(NULL != eventHandle);
     BaseType_t clearMode;
     uint32_t timeoutTicks;
     event_flags_t flagsSave;
@@ -784,7 +848,7 @@ osa_status_t OSA_EventWait(osa_event_handle_t eventHandle,
  *END**************************************************************************/
 osa_status_t OSA_EventDestroy(osa_event_handle_t eventHandle)
 {
-    assert(eventHandle);
+    assert(NULL != eventHandle);
     osa_event_struct_t *pEventStruct = (osa_event_struct_t *)eventHandle;
 
     if (NULL == pEventStruct->handle)
@@ -806,7 +870,7 @@ osa_status_t OSA_EventDestroy(osa_event_handle_t eventHandle)
 osa_status_t OSA_MsgQCreate(osa_msgq_handle_t msgqHandle, uint32_t msgNo, uint32_t msgSize)
 {
     assert(sizeof(osa_msgq_handle_t) == OSA_MSGQ_HANDLE_SIZE);
-    assert(msgqHandle);
+    assert(NULL != msgqHandle);
 
     union
     {
@@ -834,15 +898,15 @@ osa_status_t OSA_MsgQCreate(osa_msgq_handle_t msgqHandle, uint32_t msgNo, uint32
 osa_status_t OSA_MsgQPut(osa_msgq_handle_t msgqHandle, osa_msg_handle_t pMessage)
 {
     osa_status_t osaStatus;
-    assert(msgqHandle);
-    portBASE_TYPE taskToWake = pdFALSE;
+    assert(NULL != msgqHandle);
+    portBASE_TYPE taskToWake = (portBASE_TYPE)pdFALSE;
     QueueHandle_t handler    = (QueueHandle_t)(void *)(uint32_t *)(*(uint32_t *)msgqHandle);
 
     if (0U != __get_IPSR())
     {
-        if (pdTRUE == xQueueSendToBackFromISR(handler, pMessage, &taskToWake))
+        if (((BaseType_t)1) == (BaseType_t)xQueueSendToBackFromISR(handler, pMessage, &taskToWake))
         {
-            portYIELD_FROM_ISR((taskToWake));
+            portYIELD_FROM_ISR(((bool)(taskToWake)));
             osaStatus = KOSA_StatusSuccess;
         }
         else
@@ -874,7 +938,7 @@ osa_status_t OSA_MsgQPut(osa_msgq_handle_t msgqHandle, osa_msg_handle_t pMessage
 osa_status_t OSA_MsgQGet(osa_msgq_handle_t msgqHandle, osa_msg_handle_t pMessage, uint32_t millisec)
 {
     osa_status_t osaStatus;
-    assert(msgqHandle);
+    assert(NULL != msgqHandle);
     QueueHandle_t handler = (QueueHandle_t)(void *)(uint32_t *)(*(uint32_t *)msgqHandle);
 
     uint32_t timeoutTicks;
@@ -922,7 +986,7 @@ int OSA_MsgQAvailableMsgs(osa_msgq_handle_t msgqHandle)
  *END**************************************************************************/
 osa_status_t OSA_MsgQDestroy(osa_msgq_handle_t msgqHandle)
 {
-    assert(msgqHandle);
+    assert(NULL != msgqHandle);
     QueueHandle_t handler = (QueueHandle_t)(void *)(uint32_t *)(*(uint32_t *)msgqHandle);
 
     vQueueDelete(handler);
@@ -1024,7 +1088,7 @@ void OSA_InstallIntHandler(uint32_t IRQNumber, void (*handler)(void))
     _Pragma("diag_suppress = Pm138")
 #endif
 #if defined(ENABLE_RAM_VECTOR_TABLE)
-        (void) InstallIRQHandler((IRQn_Type)IRQNumber, (uint32_t) * (uint32_t *)&handler);
+        (void) InstallIRQHandler((IRQn_Type)IRQNumber, (uint32_t)handler);
 #endif /* ENABLE_RAM_VECTOR_TABLE. */
 #if defined(__IAR_SYSTEMS_ICC__)
     _Pragma("diag_remark = PM138")
@@ -1040,21 +1104,46 @@ void OSA_InstallIntHandler(uint32_t IRQNumber, void (*handler)(void))
 #if (defined(FSL_OSA_MAIN_FUNC_ENABLE) && (FSL_OSA_MAIN_FUNC_ENABLE > 0U))
 static OSA_TASK_DEFINE(startup_task, gMainThreadPriority_c, 1, gMainThreadStackSize_c, 0);
 
-__WEAK_FUNC int main(void)
+int main(void)
 {
     extern void BOARD_InitHardware(void);
-
+    OSA_Init();
     /* Initialize MCU clock */
     BOARD_InitHardware();
 
-    s_osaState.basePriorityNesting   = 0;
-    s_osaState.interruptDisableCount = 0;
     (void)OSA_TaskCreate((osa_task_handle_t)s_osaState.mainTaskHandle, OSA_TASK(startup_task), NULL);
 
-    vTaskStartScheduler();
+    OSA_Start();
     return 0;
 }
+#endif /*(defined(FSL_OSA_MAIN_FUNC_ENABLE) && (FSL_OSA_MAIN_FUNC_ENABLE > 0U))*/
+#endif /* FSL_OSA_TASK_ENABLE */
 
+/*FUNCTION**********************************************************************
+ *
+ * Function Name : OSA_Init
+ * Description   : This function is used to setup the basic services, it should
+ * be called first in function main.
+ *
+ *END**************************************************************************/
+#if (defined(FSL_OSA_TASK_ENABLE) && (FSL_OSA_TASK_ENABLE > 0U))
+void OSA_Init(void)
+{
+    LIST_Init((&s_osaState.taskList), 0);
+    s_osaState.basePriorityNesting   = 0;
+    s_osaState.interruptDisableCount = 0;
+}
 #endif
 
-#endif /* FSL_OSA_TASK_ENABLE */
+/*FUNCTION**********************************************************************
+ *
+ * Function Name : OSA_Start
+ * Description   : This function is used to start RTOS scheduler.
+ *
+ *END**************************************************************************/
+#if (defined(FSL_OSA_TASK_ENABLE) && (FSL_OSA_TASK_ENABLE > 0U))
+void OSA_Start(void)
+{
+    vTaskStartScheduler();
+}
+#endif

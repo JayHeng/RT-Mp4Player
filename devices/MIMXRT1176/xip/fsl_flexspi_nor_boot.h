@@ -9,13 +9,15 @@
 #define __FLEXSPI_NOR_BOOT_H__
 
 #include <stdint.h>
-#include "board.h"
 #include "fsl_common.h"
+#ifndef BOARD_FLASH_SIZE
+#include "board.h"
+#endif
 
 /*! @name Driver version */
 /*@{*/
-/*! @brief XIP_DEVICE driver version 2.0.2. */
-#define FSL_XIP_DEVICE_DRIVER_VERSION (MAKE_VERSION(2, 0, 2))
+/*! @brief XIP_DEVICE driver version 2.0.5. */
+#define FSL_XIP_DEVICE_DRIVER_VERSION (MAKE_VERSION(2, 0, 5))
 /*@}*/
 
 /*************************************
@@ -70,13 +72,15 @@ extern uint32_t Reset_Handler[];
 #define IMAGE_ENTRY_ADDRESS ((uint32_t)Reset_Handler)
 #define BOOT_IMAGE_BASE     ((uint32_t)FLASH_BASE)
 #define BOOT_IMAGE_SIZE     ((uint32_t)FLASH_SIZE)
-#define BOOT_DATA_ADDRESS   &boot_data
+#define BOOT_DATA_ADDRESS   &g_boot_data
 #define IVT_ADDRESS         &image_vector_table
+#define DCD_DATA_ADDRESS    dcd_data
 #elif defined(__MCUXPRESSO)
 extern uint32_t ResetISR[];
 extern uint32_t __boot_hdr_start__[];
 extern uint32_t __boot_hdr_ivt_loadaddr__[];
 extern uint32_t __boot_hdr_boot_data_loadaddr__[];
+extern uint32_t __boot_hdr_dcd_loadaddr__[];
 extern uint32_t _boot_loadaddr[];
 extern uint32_t _boot_size[];
 #define IMAGE_ENTRY_ADDRESS ((uint32_t)ResetISR)
@@ -84,30 +88,33 @@ extern uint32_t _boot_size[];
 #define BOOT_IMAGE_SIZE     ((uint32_t)_boot_size)
 #define BOOT_DATA_ADDRESS   ((uint32_t)__boot_hdr_boot_data_loadaddr__)
 #define IVT_ADDRESS         ((uint32_t)__boot_hdr_ivt_loadaddr__)
+#define DCD_DATA_ADDRESS    ((uint32_t)__boot_hdr_dcd_loadaddr__)
 #elif defined(__ICCARM__)
 extern uint32_t Reset_Handler[];
 #define IMAGE_ENTRY_ADDRESS ((uint32_t)Reset_Handler)
 #define BOOT_IMAGE_BASE     ((uint32_t)FLASH_BASE)
 #define BOOT_IMAGE_SIZE     ((uint32_t)FLASH_SIZE)
-#define BOOT_DATA_ADDRESS   &boot_data
+#define BOOT_DATA_ADDRESS   &g_boot_data
 #define IVT_ADDRESS         &image_vector_table
+#define DCD_DATA_ADDRESS    dcd_data
 #elif defined(__GNUC__)
 extern uint32_t Reset_Handler[];
 #define IMAGE_ENTRY_ADDRESS ((uint32_t)Reset_Handler)
 #define BOOT_IMAGE_BASE     ((uint32_t)FLASH_BASE)
 #define BOOT_IMAGE_SIZE     ((uint32_t)FLASH_SIZE)
-#define BOOT_DATA_ADDRESS   &boot_data
+#define BOOT_DATA_ADDRESS   &g_boot_data
 #define IVT_ADDRESS         &image_vector_table
+#define DCD_DATA_ADDRESS    dcd_data
 #endif
 #if defined(XIP_BOOT_HEADER_ENABLE) && (XIP_BOOT_HEADER_ENABLE == 1)
 #if defined(XIP_BOOT_HEADER_DCD_ENABLE) && (1 == XIP_BOOT_HEADER_DCD_ENABLE)
-#define DCD_ADDRESS dcd_data
+#define DCD_ADDRESS DCD_DATA_ADDRESS
 #else
 #define DCD_ADDRESS 0
 #endif
 #endif
-#define CSF_ADDRESS       0
-#define IVT_RSVD          (uint32_t)(0x00000000)
+#define CSF_ADDRESS 0
+#define IVT_RSVD    (uint32_t)(0x00000000)
 
 /*************************************
  *  Boot Data
@@ -134,7 +141,7 @@ typedef struct _boot_data_
 #define PLUGIN_FLAG (uint32_t)0
 
 /* External Variables */
-const BOOT_DATA_T boot_data;
+extern const BOOT_DATA_T g_boot_data;
 #if defined(XIP_BOOT_HEADER_DCD_ENABLE) && (1 == XIP_BOOT_HEADER_DCD_ENABLE)
 extern const uint8_t dcd_data[];
 #endif

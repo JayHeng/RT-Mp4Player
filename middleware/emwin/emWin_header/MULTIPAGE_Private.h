@@ -3,13 +3,13 @@
 *        Solutions for real time microcontroller applications        *
 **********************************************************************
 *                                                                    *
-*        (c) 1996 - 2020  SEGGER Microcontroller GmbH                *
+*        (c) 1996 - 2022  SEGGER Microcontroller GmbH                *
 *                                                                    *
 *        Internet: www.segger.com    Support:  support@segger.com    *
 *                                                                    *
 **********************************************************************
 
-** emWin V6.14 - Graphical user interface for embedded applications **
+** emWin V6.32 - Graphical user interface for embedded applications **
 All  Intellectual Property rights  in the Software belongs to  SEGGER.
 emWin is protected by  international copyright laws.  Knowledge of the
 source code may not be used to write a similar product.  This file may
@@ -34,7 +34,7 @@ License model:            emWin License Agreement, dated August 20th 2011 and Am
 Licensed platform:        NXP's ARM 7/9, Cortex-M0, M3, M4, M7, A7, M33
 ----------------------------------------------------------------------
 Support and Update Agreement (SUA)
-SUA period:               2011-08-19 - 2020-09-02
+SUA period:               2011-08-19 - 2023-09-03
 Contact to extend SUA:    sales@segger.com
 ----------------------------------------------------------------------
 File        : MULTIPAGE_Private.h
@@ -130,7 +130,7 @@ struct MULTIPAGE_Obj {
 **********************************************************************
 */
 #if GUI_DEBUG_LEVEL >= GUI_DEBUG_LEVEL_CHECK_ALL
-  #define MULTIPAGE_INIT_ID(p) (p->Widget.DebugId = MULTIPAGE_ID)
+  #define MULTIPAGE_INIT_ID(p) (p->Widget.DebugId = WIDGET_TYPE_MULTIPAGE)
 #else
   #define MULTIPAGE_INIT_ID(p)
 #endif
@@ -139,7 +139,7 @@ struct MULTIPAGE_Obj {
   MULTIPAGE_Obj * MULTIPAGE_LockH(MULTIPAGE_Handle h);
   #define MULTIPAGE_LOCK_H(h)   MULTIPAGE_LockH(h)
 #else
-  #define MULTIPAGE_LOCK_H(h)   (MULTIPAGE_Obj *)GUI_LOCK_H(h)
+  #define MULTIPAGE_LOCK_H(h)   (MULTIPAGE_Obj *)WM_LOCK_H(h)
 #endif
 
 /*********************************************************************

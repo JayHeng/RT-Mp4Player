@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2013-2016 ARM Limited. All rights reserved.
  * Copyright (c) 2016, Freescale Semiconductor, Inc. Not a Contribution.
- * Copyright 2016-2020 NXP. Not a Contribution.
+ * Copyright 2016-2022 NXP. Not a Contribution.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -19,7 +19,6 @@
  */
 
 #include "fsl_enet_phy_cmsis.h"
-#include "fsl_phy.h"
 #include "fsl_enet.h"
 
 #define ARM_ETH_PHY_DRV_VERSION ARM_DRIVER_VERSION_MAJOR_MINOR(2, 1)
@@ -27,13 +26,6 @@
 #ifndef PHY_AUTONEGO_DELAY_COUNT
 #define PHY_AUTONEGO_DELAY_COUNT (800000U)
 #endif
-
-typedef const struct _cmsis_enet_phy_resource
-{
-    ENET_Type *base;           /*!< ENET peripheral base address. */
-    uint32_t (*GetFreq)(void); /*!< Function to get frequency. */
-    uint32_t phyAddr;          /*!< ENET PHY physical address. */
-} cmsis_enet_phy_resource_t;
 
 typedef struct _cmsis_enet_phy_state
 {
@@ -43,8 +35,6 @@ typedef struct _cmsis_enet_phy_state
 
 static const ARM_DRIVER_VERSION s_phyDriverVersion = {ARM_ETH_PHY_API_VERSION, ARM_ETH_PHY_DRV_VERSION};
 
-extern phy_handle_t phyHandle;
-
 static ARM_DRIVER_VERSION PHYx_GetVersion(void)
 {
     return s_phyDriverVersion;
@@ -53,16 +43,7 @@ static ARM_DRIVER_VERSION PHYx_GetVersion(void)
 static int32_t PHY_SetForcedSpeedDuplexMode(cmsis_enet_phy_state_t *ethPhy, uint32_t mode)
 {
     int32_t result;
-    uint32_t bsctlReg;
-    uint32_t freq;
-
-/* This API is used to set forced speed duplex mode. */
-/* Set SMI first. */
-#if !(defined(FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL) && FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL)
-    CLOCK_EnableClock(s_enetClock[ENET_GetInstance(ethPhy->resource->base)]);
-#endif
-    freq = ethPhy->resource->GetFreq();
-    ENET_SetSMI(ethPhy->resource->base, freq, false);
+    uint16_t bsctlReg;
 
     /* Reset PHY. */
     result = PHY_Write(&phyHandle, PHY_BASICCONTROL_REG, PHY_BCTL_RESET_MASK);
@@ -91,27 +72,18 @@ static int32_t PHY_SetForcedSpeedDuplexMode(cmsis_enet_phy_state_t *ethPhy, uint
 
 static void PHY_SetPowerDown(cmsis_enet_phy_resource_t *enet, bool down)
 {
-    uint32_t instance = ENET_GetInstance(enet->base);
-    uint32_t data;
-    uint32_t freq;
-
-#if !(defined(FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL) && FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL)
-    /* Set SMI first. */
-    CLOCK_EnableClock(s_enetClock[instance]);
-#endif /* FSL_SDK_DISABLE_DRIVER_CLOCK_CONTROL */
-    freq = enet->GetFreq();
-    ENET_SetSMI(enet->base, freq, false);
+    uint16_t data;
 
     if (down)
     {
         (void)PHY_Read(&phyHandle, PHY_BASICCONTROL_REG, &data);
-        data |= (1UL << 11);
+        data |= (uint16_t)(1UL << 11);
         (void)PHY_Write(&phyHandle, PHY_BASICCONTROL_REG, data);
     }
     else
     {
         (void)PHY_Read(&phyHandle, PHY_BASICCONTROL_REG, &data);
-        data &= ~(1UL << 11);
+        data &= ~(uint16_t)(1UL << 11);
         (void)PHY_Write(&phyHandle, PHY_BASICCONTROL_REG, data);
         (void)PHY_Read(&phyHandle, PHY_BASICCONTROL_REG, &data);
     }
@@ -119,21 +91,8 @@ static void PHY_SetPowerDown(cmsis_enet_phy_resource_t *enet, bool down)
 
 #if RTE_ENET
 
-/* User needs to provide the implementation for ENET_GetFreq
-in the application for enabling according instance. */
-extern uint32_t ENET0_GetFreq(void);
+extern cmsis_enet_phy_resource_t ENETPHY0_Resource;
 
-#if (defined(ENET) && defined(ENET_1G))
-static cmsis_enet_phy_resource_t ENETPHY0_Resource = {ENET_1G, ENET0_GetFreq, RTE_ENET_PHY_ADDRESS};
-#elif defined(ENET)
-static cmsis_enet_phy_resource_t ENETPHY0_Resource = {ENET, ENET0_GetFreq, RTE_ENET_PHY_ADDRESS};
-#elif defined(ENET0)
-static cmsis_enet_phy_resource_t ENETPHY0_Resource = {ENET0, ENET0_GetFreq, RTE_ENET_PHY_ADDRESS};
-#elif defined(ENET1)
-static cmsis_enet_phy_resource_t ENETPHY0_Resource = {ENET1, ENET0_GetFreq, RTE_ENET_PHY_ADDRESS};
-#else
-static cmsis_enet_phy_resource_t ENETPHY0_Resource = {CONNECTIVITY__ENET0, ENET0_GetFreq, RTE_ENET_PHY_ADDRESS};
-#endif
 static cmsis_enet_phy_state_t ENETPHY0_State = {&ENETPHY0_Resource, ARM_ETH_PHY_AUTO_NEGOTIATE};
 
 static int32_t PHY0_Initialize(ARM_ETH_PHY_Read_t fn_read, ARM_ETH_PHY_Write_t fn_write)
@@ -149,17 +108,19 @@ static int32_t PHY0_UnInitialize(void)
 static int32_t PHY0_PowerControl(ARM_POWER_STATE state)
 {
     int32_t status;
-    phy_config_t phyConfig;
-    bool autonego = false;
+    phy_config_t phyConfig = {0};
+    bool autonego          = false;
     uint32_t count;
 
     switch (state)
     {
         case ARM_POWER_FULL:
         {
-            phyConfig.phyAddr = ENETPHY0_State.resource->phyAddr;
-            phyConfig.autoNeg = true;
-            status            = PHY_Init(&phyHandle, &phyConfig);
+            phyConfig.phyAddr  = ENETPHY0_State.resource->phyAddr;
+            phyConfig.ops      = ENETPHY0_State.resource->ops;
+            phyConfig.resource = ENETPHY0_State.resource->opsResource;
+            phyConfig.autoNeg  = true;
+            status             = PHY_Init(&phyHandle, &phyConfig);
             if (status == kStatus_Success)
             {
                 count = PHY_AUTONEGO_DELAY_COUNT;
@@ -210,10 +171,10 @@ static int32_t PHY0_SetInterface(uint32_t interface)
 
 static int32_t PHY0_SetMode(uint32_t mode)
 {
-    int32_t status = ARM_DRIVER_OK;
-    phy_config_t phyConfig;
+    int32_t status         = ARM_DRIVER_OK;
+    phy_config_t phyConfig = {0};
+    bool autonego          = false;
     uint32_t count;
-    bool autonego = false;
 
     /*!< Check input mode. */
     if ((mode == (uint32_t)ARM_ETH_PHY_SPEED_1G) || (mode == ARM_ETH_PHY_ISOLATE))
@@ -227,9 +188,11 @@ static int32_t PHY0_SetMode(uint32_t mode)
     }
     else if (mode == ARM_ETH_PHY_AUTO_NEGOTIATE)
     {
-        phyConfig.phyAddr = ENETPHY0_State.resource->phyAddr;
-        phyConfig.autoNeg = true;
-        status            = PHY_Init(&phyHandle, &phyConfig);
+        phyConfig.phyAddr  = ENETPHY0_State.resource->phyAddr;
+        phyConfig.ops      = ENETPHY0_State.resource->ops;
+        phyConfig.resource = &ENETPHY0_State.resource->opsResource;
+        phyConfig.autoNeg  = true;
+        status             = PHY_Init(&phyHandle, &phyConfig);
         if (status == kStatus_Success)
         {
             count = PHY_AUTONEGO_DELAY_COUNT;

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 NXP
+ * Copyright 2019-2023 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -87,7 +87,7 @@ static void ANATOP_PllSetPower(anatop_ai_itf_t itf, bool enable);
 static void ANATOP_PllBypass(anatop_ai_itf_t itf, bool bypass);
 static void ANATOP_PllEnablePllReg(anatop_ai_itf_t itf, bool enable);
 static void ANATOP_PllHoldRingOff(anatop_ai_itf_t itf, bool off);
-static void ANATOP_PllToggleHoldRingOff(anatop_ai_itf_t itf, uint32_t delay_us);
+static void ANATOP_PllToggleHoldRingOff(anatop_ai_itf_t itf, uint32_t delayUsValue);
 static void ANATOP_PllEnableClk(anatop_ai_itf_t itf, bool enable);
 static void ANATOP_PllConfigure(anatop_ai_itf_t itf,
                                 uint8_t div,
@@ -104,6 +104,7 @@ static void ANATOP_SysPll1Div2En(bool enable);
 static void ANATOP_SysPll1Div5En(bool enable);
 static void ANATOP_SysPll1SwEnClk(bool enable);
 static void ANATOP_SysPll1WaitStable(void);
+static void ANATOP_PllEnableSs(anatop_ai_itf_t itf, bool enable);
 #ifndef GET_FREQ_FROM_OBS
 static uint32_t CLOCK_GetAvPllFreq(clock_pll_t pll);
 #endif
@@ -121,11 +122,11 @@ void CLOCK_InitArmPll(const clock_arm_pll_config_t *config)
 
     uint32_t reg;
 
-    if (((ANADIG_PLL->ARM_PLL_CTRL & (ANADIG_PLL_ARM_PLL_CTRL_POWERUP_MASK)) != 0UL) &&
-        ((ANADIG_PLL->ARM_PLL_CTRL & (ANADIG_PLL_ARM_PLL_CTRL_DIV_SELECT(config->loopDivider))) ==
-         (ANADIG_PLL_ARM_PLL_CTRL_DIV_SELECT(config->loopDivider))) &&
-        ((ANADIG_PLL->ARM_PLL_CTRL & (ANADIG_PLL_ARM_PLL_CTRL_POST_DIV_SEL(config->postDivider))) ==
-         (ANADIG_PLL_ARM_PLL_CTRL_POST_DIV_SEL(config->postDivider))))
+    if (((ANADIG_PLL->ARM_PLL_CTRL & ANADIG_PLL_ARM_PLL_CTRL_POWERUP_MASK) != 0UL) &&
+        ((ANADIG_PLL->ARM_PLL_CTRL & ANADIG_PLL_ARM_PLL_CTRL_DIV_SELECT_MASK) ==
+         ANADIG_PLL_ARM_PLL_CTRL_DIV_SELECT(config->loopDivider)) &&
+        ((ANADIG_PLL->ARM_PLL_CTRL & ANADIG_PLL_ARM_PLL_CTRL_POST_DIV_SEL_MASK) ==
+         ANADIG_PLL_ARM_PLL_CTRL_POST_DIV_SEL(config->postDivider)))
     {
         /* no need to reconfigure the PLL if all the configuration is the same */
         if ((ANADIG_PLL->ARM_PLL_CTRL & ANADIG_PLL_ARM_PLL_CTRL_ENABLE_CLK_MASK) == 0UL)
@@ -154,12 +155,15 @@ void CLOCK_InitArmPll(const clock_arm_pll_config_t *config)
     reg &= ~(ANADIG_PLL_ARM_PLL_CTRL_DIV_SELECT_MASK | ANADIG_PLL_ARM_PLL_CTRL_POST_DIV_SEL_MASK);
     reg |= (ANADIG_PLL_ARM_PLL_CTRL_DIV_SELECT(config->loopDivider) |
             ANADIG_PLL_ARM_PLL_CTRL_POST_DIV_SEL(config->postDivider)) |
-           ANADIG_PLL_ARM_PLL_CTRL_ARM_PLL_GATE_MASK | ANADIG_PLL_ARM_PLL_CTRL_POWERUP_MASK;
+           ANADIG_PLL_ARM_PLL_CTRL_ARM_PLL_GATE_MASK | ANADIG_PLL_ARM_PLL_CTRL_POWERUP_MASK |
+           ANADIG_PLL_ARM_PLL_CTRL_HOLD_RING_OFF_MASK;
     ANADIG_PLL->ARM_PLL_CTRL = reg;
     __DSB();
     __ISB();
     SDK_DelayAtLeastUs(30, SDK_DEVICE_MAXIMUM_CPU_CLOCK_FREQUENCY);
 
+    reg &= ~ANADIG_PLL_SYS_PLL2_CTRL_HOLD_RING_OFF_MASK;
+    ANADIG_PLL->ARM_PLL_CTRL = reg;
     /* Wait for the PLL stable, */
     while (0U == (ANADIG_PLL->ARM_PLL_CTRL & ANADIG_PLL_ARM_PLL_CTRL_ARM_PLL_STABLE_MASK))
     {
@@ -184,8 +188,8 @@ void CLOCK_CalcPllSpreadSpectrum(uint32_t factor, uint32_t range, uint32_t mod, 
 {
     assert(ss != NULL);
 
-    ss->stop = factor * range / XTAL_FREQ;
-    ss->step = (mod << 1) * ss->stop / XTAL_FREQ;
+    ss->stop = (uint16_t)(factor * range / XTAL_FREQ);
+    ss->step = (uint16_t)((mod << 1UL) * (uint32_t)(ss->stop) / XTAL_FREQ);
 }
 
 /* 528PLL */
@@ -193,7 +197,7 @@ void CLOCK_InitSysPll2(const clock_sys_pll2_config_t *config)
 {
     uint32_t reg;
 
-    if ((ANADIG_PLL->SYS_PLL2_CTRL & ANADIG_PLL_SYS_PLL2_CTRL_POWERUP_MASK))
+    if ((ANADIG_PLL->SYS_PLL2_CTRL & ANADIG_PLL_SYS_PLL2_CTRL_POWERUP_MASK) != 0UL)
     {
         if ((config == NULL) ||
             ((0UL == (ANADIG_PLL->SYS_PLL2_SS & ANADIG_PLL_SYS_PLL2_SS_ENABLE_MASK)) && (!config->ssEnable)) ||
@@ -206,7 +210,7 @@ void CLOCK_InitSysPll2(const clock_sys_pll2_config_t *config)
                 ANADIG_PLL->SYS_PLL2_CTRL |= ANADIG_PLL_SYS_PLL2_CTRL_ENABLE_CLK_MASK;
             }
 
-            if ((ANADIG_PLL->SYS_PLL2_CTRL & ANADIG_PLL_SYS_PLL2_CTRL_SYS_PLL2_GATE_MASK))
+            if ((ANADIG_PLL->SYS_PLL2_CTRL & ANADIG_PLL_SYS_PLL2_CTRL_SYS_PLL2_GATE_MASK) != 0UL)
             {
                 ANADIG_PLL->SYS_PLL2_CTRL &= ~ANADIG_PLL_SYS_PLL2_CTRL_SYS_PLL2_GATE_MASK;
             }
@@ -238,12 +242,14 @@ void CLOCK_InitSysPll2(const clock_sys_pll2_config_t *config)
     }
 
     /* REG_EN = 1, GATE = 1, DIV_SEL = 0, POWERUP = 0 */
-    reg                       = ANADIG_PLL_SYS_PLL2_CTRL_PLL_REG_EN(1) | ANADIG_PLL_SYS_PLL2_CTRL_SYS_PLL2_GATE(1);
+    reg &= ~(ANADIG_PLL_SYS_PLL2_CTRL_PLL_REG_EN_MASK | ANADIG_PLL_SYS_PLL2_CTRL_SYS_PLL2_GATE_MASK);
+    reg |= ANADIG_PLL_SYS_PLL2_CTRL_PLL_REG_EN(1) | ANADIG_PLL_SYS_PLL2_CTRL_SYS_PLL2_GATE(1);
     ANADIG_PLL->SYS_PLL2_CTRL = reg;
     /* Wait until LDO is stable */
     SDK_DelayAtLeastUs(30, SDK_DEVICE_MAXIMUM_CPU_CLOCK_FREQUENCY);
 
     /* REG_EN = 1, GATE = 1, DIV_SEL = 0, POWERUP = 1, HOLDRING_OFF = 1 */
+    reg &= ~(ANADIG_PLL_SYS_PLL2_CTRL_POWERUP_MASK);
     reg |= ANADIG_PLL_SYS_PLL2_CTRL_POWERUP(1) | ANADIG_PLL_SYS_PLL2_CTRL_HOLD_RING_OFF_MASK;
     ANADIG_PLL->SYS_PLL2_CTRL = reg;
     SDK_DelayAtLeastUs(250, SDK_DEVICE_MAXIMUM_CPU_CLOCK_FREQUENCY);
@@ -282,13 +288,31 @@ void CLOCK_DeinitSysPll2(void)
     ANADIG_PLL->SYS_PLL2_SS &= ~ANADIG_PLL_SYS_PLL2_SS_ENABLE_MASK;
 }
 
+/*!
+ * brief Check if Sys PLL2 PFD is enabled
+ *
+ * param pfd PFD control name
+ * return PFD bypass status.
+ *         - true: power on.
+ *         - false: power off.
+ * note Only useful in software control mode.
+ */
+bool CLOCK_IsSysPll2PfdEnabled(clock_pfd_t pfd)
+{
+    return ((ANADIG_PLL->SYS_PLL2_PFD & (uint32_t)ANADIG_PLL_SYS_PLL2_PFD_PFD0_DIV1_CLKGATE_MASK
+                                            << (8UL * (uint8_t)pfd)) == 0U);
+}
+
 #define PFD_FRAC_MIN 12U
 #define PFD_FRAC_MAX 35U
 void CLOCK_InitPfd(clock_pll_t pll, clock_pfd_t pfd, uint8_t frac)
 {
     volatile uint32_t *pfdCtrl = NULL, *pfdUpdate = NULL, stable;
+    uint32_t regFracVal;
+    bool pfdGated;
 
-    assert(frac <= (uint8_t)PFD_FRAC_MAX && frac >= (uint8_t)PFD_FRAC_MIN);
+    assert(frac <= (uint8_t)PFD_FRAC_MAX);
+    assert(frac >= (uint8_t)PFD_FRAC_MIN);
 
     switch (pll)
     {
@@ -301,9 +325,20 @@ void CLOCK_InitPfd(clock_pll_t pll, clock_pfd_t pfd, uint8_t frac)
             pfdUpdate = &ANADIG_PLL->SYS_PLL3_UPDATE;
             break;
         default:
+            /* Wrong input parameter pll. */
             assert(false);
             break;
     }
+    regFracVal = ((*pfdCtrl) & ((uint32_t)ANADIG_PLL_SYS_PLL2_PFD_PFD0_FRAC_MASK << (8UL * (uint32_t)pfd))) >>
+                 (8UL * (uint32_t)pfd);
+    pfdGated =
+        (bool)(((*pfdCtrl) & ((uint32_t)ANADIG_PLL_SYS_PLL2_PFD_PFD0_DIV1_CLKGATE_MASK << (8UL * (uint32_t)pfd))) >>
+               (8UL >> (uint32_t)pfd));
+    if ((regFracVal == (uint32_t)frac) && (!pfdGated))
+    {
+        return;
+    }
+
     stable = *pfdCtrl & ((uint32_t)ANADIG_PLL_SYS_PLL2_PFD_PFD0_STABLE_MASK << (8UL * (uint32_t)pfd));
     *pfdCtrl |= ((uint32_t)ANADIG_PLL_SYS_PLL2_PFD_PFD0_DIV1_CLKGATE_MASK << (8UL * (uint32_t)pfd));
 
@@ -319,10 +354,44 @@ void CLOCK_InitPfd(clock_pll_t pll, clock_pfd_t pfd, uint8_t frac)
     }
 }
 
+/*!
+ * brief De-initialize selected PLL PFD.
+ *
+ * param pll Which PLL of targeting PFD to be operated.
+ * param pfd Which PFD clock to enable.
+ */
+void CLOCK_DeinitPfd(clock_pll_t pll, clock_pfd_t pfd)
+{
+    volatile uint32_t *pfdCtrl = NULL;
+
+    switch (pll)
+    {
+        case kCLOCK_PllSys2:
+        {
+            pfdCtrl = &ANADIG_PLL->SYS_PLL2_PFD;
+            break;
+        }
+        case kCLOCK_PllSys3:
+        {
+            pfdCtrl = &ANADIG_PLL->SYS_PLL3_PFD;
+            break;
+        }
+        default:
+        {
+            /* Wrong input parameter pll. */
+            assert(false);
+            break;
+        }
+    }
+
+    /* Clock gate the selected pfd. */
+    *pfdCtrl |= ((uint32_t)ANADIG_PLL_SYS_PLL2_PFD_PFD0_DIV1_CLKGATE_MASK << (8UL * (uint32_t)pfd));
+}
+
 #ifndef GET_FREQ_FROM_OBS
 uint32_t CLOCK_GetPfdFreq(clock_pll_t pll, clock_pfd_t pfd)
 {
-    uint32_t pllFreq = 0, frac = 0;
+    uint32_t pllFreq = 0UL, frac = 0UL;
     assert((pll == kCLOCK_PllSys2) || (pll == kCLOCK_PllSys3));
 
     switch (pll)
@@ -338,12 +407,14 @@ uint32_t CLOCK_GetPfdFreq(clock_pll_t pll, clock_pfd_t pfd)
             pllFreq = (uint32_t)SYS_PLL3_FREQ;
             break;
         default:
+            /* Wrong input parameter pll. */
             assert(false);
             break;
     }
 
     frac = frac >> (8UL * (uint32_t)pfd);
-    assert((frac >= (uint32_t)PFD_FRAC_MIN) && (frac <= (uint32_t)PFD_FRAC_MAX));
+    assert(frac >= (uint32_t)PFD_FRAC_MIN);
+    assert(frac <= (uint32_t)PFD_FRAC_MAX);
     return ((frac != 0UL) ? (pllFreq / frac * 18UL) : 0UL);
 }
 #else
@@ -372,8 +443,6 @@ uint32_t CLOCK_GetPfdFreq(clock_pll_t pll, clock_pfd_t pfd)
 /* 480PLL */
 void CLOCK_InitSysPll3(void)
 {
-    uint32_t reg;
-
     if (0UL != (ANADIG_PLL->SYS_PLL3_CTRL & ANADIG_PLL_SYS_PLL3_CTRL_POWERUP_MASK))
     {
         /* no need to reconfigure the PLL if all the configuration is the same */
@@ -398,22 +467,19 @@ void CLOCK_InitSysPll3(void)
     /*
      * 1. configure PLL registres
      * 2. Enable internal LDO
-     * 3. Wati LDO stable
+     * 3. Wait LDO stable
      * 4. Power up PLL, assert hold_ring_off (only needed for avpll)
      * 5. At half lock time, de-asserted hold_ring_off (only needed for avpll)
      * 6. Wait PLL lock
      * 7. Enable clock output, release pfd_gate
      */
-    reg                       = ANADIG_PLL_SYS_PLL3_CTRL_PLL_REG_EN(1) | ANADIG_PLL_SYS_PLL3_CTRL_SYS_PLL3_GATE(1);
-    ANADIG_PLL->SYS_PLL3_CTRL = reg;
+    ANADIG_PLL->SYS_PLL3_CTRL |= ANADIG_PLL_SYS_PLL3_CTRL_PLL_REG_EN(1) | ANADIG_PLL_SYS_PLL3_CTRL_SYS_PLL3_GATE(1);
     SDK_DelayAtLeastUs(30, SDK_DEVICE_MAXIMUM_CPU_CLOCK_FREQUENCY);
 
-    reg |= ANADIG_PLL_SYS_PLL3_CTRL_POWERUP(1) | ANADIG_PLL_SYS_PLL3_CTRL_HOLD_RING_OFF_MASK;
-    ANADIG_PLL->SYS_PLL3_CTRL = reg;
+    ANADIG_PLL->SYS_PLL3_CTRL |= ANADIG_PLL_SYS_PLL3_CTRL_POWERUP(1) | ANADIG_PLL_SYS_PLL3_CTRL_HOLD_RING_OFF_MASK;
     SDK_DelayAtLeastUs(30, SDK_DEVICE_MAXIMUM_CPU_CLOCK_FREQUENCY);
 
-    reg &= ~ANADIG_PLL_SYS_PLL3_CTRL_HOLD_RING_OFF_MASK;
-    ANADIG_PLL->SYS_PLL3_CTRL = reg;
+    ANADIG_PLL->SYS_PLL3_CTRL &= ~ANADIG_PLL_SYS_PLL3_CTRL_HOLD_RING_OFF_MASK;
 
     /* Wait for PLL stable */
     while (ANADIG_PLL_SYS_PLL3_CTRL_SYS_PLL3_STABLE_MASK !=
@@ -421,11 +487,9 @@ void CLOCK_InitSysPll3(void)
     {
     }
 
-    reg |= ANADIG_PLL_SYS_PLL3_CTRL_ENABLE_CLK(1) | ANADIG_PLL_SYS_PLL3_CTRL_SYS_PLL3_DIV2(1);
-    ANADIG_PLL->SYS_PLL3_CTRL = reg;
+    ANADIG_PLL->SYS_PLL3_CTRL |= ANADIG_PLL_SYS_PLL3_CTRL_ENABLE_CLK(1) | ANADIG_PLL_SYS_PLL3_CTRL_SYS_PLL3_DIV2(1);
 
-    reg &= ~ANADIG_PLL_SYS_PLL3_CTRL_SYS_PLL3_GATE_MASK;
-    ANADIG_PLL->SYS_PLL3_CTRL = reg;
+    ANADIG_PLL->SYS_PLL3_CTRL &= ~ANADIG_PLL_SYS_PLL3_CTRL_SYS_PLL3_GATE_MASK;
 }
 
 void CLOCK_DeinitSysPll3(void)
@@ -437,6 +501,21 @@ void CLOCK_DeinitSysPll3(void)
     ANADIG_PLL->SYS_PLL3_CTRL |= ANADIG_PLL_SYS_PLL3_CTRL_SYS_PLL3_GATE_MASK;
     ANADIG_PLL->SYS_PLL3_CTRL &= ~(ANADIG_PLL_SYS_PLL3_CTRL_ENABLE_CLK_MASK | ANADIG_PLL_SYS_PLL3_CTRL_POWERUP_MASK |
                                    ANADIG_PLL_SYS_PLL3_CTRL_PLL_REG_EN_MASK);
+}
+
+/*!
+ * brief Check if Sys PLL3 PFD is enabled
+ *
+ * param pfd PFD control name
+ * return PFD bypass status.
+ *         - true: power on.
+ *         - false: power off.
+ * note Only useful in software control mode.
+ */
+bool CLOCK_IsSysPll3PfdEnabled(clock_pfd_t pfd)
+{
+    return ((ANADIG_PLL->SYS_PLL3_PFD & (uint32_t)ANADIG_PLL_SYS_PLL3_PFD_PFD0_DIV1_CLKGATE_MASK
+                                            << (8UL * (uint8_t)pfd)) == 0U);
 }
 
 void CLOCK_SetPllBypass(clock_pll_t pll, bool bypass)
@@ -465,7 +544,7 @@ void CLOCK_SetPllBypass(clock_pll_t pll, bool bypass)
             ANATOP_PllBypass(kAI_Itf_Video, bypass);
             break;
         default:
-            assert(0);
+            assert(false);
             break;
     }
 }
@@ -491,31 +570,31 @@ static void ANATOP_PllHoldRingOff(anatop_ai_itf_t itf, bool off)
     ANATOP_AI_Write(itf, off ? PLL_AI_CTRL0_SET_REG : PLL_AI_CTRL0_CLR_REG, PLL_AI_CTRL0_HOLD_RING_OFF_MASK);
 }
 
-static void ANATOP_PllToggleHoldRingOff(anatop_ai_itf_t itf, uint32_t delay_us)
+static void ANATOP_PllToggleHoldRingOff(anatop_ai_itf_t itf, uint32_t delayUsValue)
 {
     ANATOP_PllHoldRingOff(itf, true);
-    SDK_DelayAtLeastUs(delay_us, SDK_DEVICE_MAXIMUM_CPU_CLOCK_FREQUENCY);
+    SDK_DelayAtLeastUs(delayUsValue, SDK_DEVICE_MAXIMUM_CPU_CLOCK_FREQUENCY);
     ANATOP_PllHoldRingOff(itf, false);
 }
 
-void ANATOP_PllEnableSs(anatop_ai_itf_t itf, bool enable)
+static void ANATOP_PllEnableSs(anatop_ai_itf_t itf, bool enable)
 {
     ANATOP_AI_Write(itf, enable ? PLL_AI_CTRL0_SET_REG : PLL_AI_CTRL0_CLR_REG, PLL_AI_CTRL0_ENABLE_MASK);
 }
 
-void ANATOP_PllEnableClk(anatop_ai_itf_t itf, bool enable)
+static void ANATOP_PllEnableClk(anatop_ai_itf_t itf, bool enable)
 {
     ANATOP_AI_Write(itf, enable ? PLL_AI_CTRL0_SET_REG : PLL_AI_CTRL0_CLR_REG, PLL_AI_CTRL0_ENABLE_MASK);
 }
 
-void ANATOP_PllConfigure(
+static void ANATOP_PllConfigure(
     anatop_ai_itf_t itf, uint8_t div, uint32_t numer, uint8_t post_div, uint32_t denom, const clock_pll_ss_config_t *ss)
 {
     if (itf != kAI_Itf_1g)
     {
         ANATOP_PllSetPower(itf, false);
     }
-    if (ss)
+    if (ss != NULL)
     {
         ANATOP_AI_Write(itf, PLL_AI_CTRL1_REG,
                         AUDIO_PLL_SPREAD_SPECTRUM_STEP(ss->step) | AUDIO_PLL_SPREAD_SPECTRUM_STOP(ss->stop) |
@@ -606,7 +685,7 @@ void CLOCK_InitAudioPll(const clock_audio_pll_config_t *config)
     ANATOP_AudioPllSwEnClk(true);
     /* configure pll */
     ANATOP_PllConfigure(kAI_Itf_Audio, config->loopDivider, config->numerator, config->postDivider, config->denominator,
-                        (config->ssEnable && config->ss) ? config->ss : NULL);
+                        (config->ssEnable && (config->ss != NULL)) ? config->ss : NULL);
 
     /* toggle hold ring off */
     ANATOP_PllToggleHoldRingOff(kAI_Itf_Audio, 225);
@@ -855,7 +934,7 @@ void CLOCK_InitVideoPll(const clock_video_pll_config_t *config)
     ANATOP_VideoPllSwEnClk(true);
     /* configure pll */
     ANATOP_PllConfigure(kAI_Itf_Video, config->loopDivider, config->numerator, config->postDivider, config->denominator,
-                        (config->ssEnable && config->ss) ? config->ss : NULL);
+                        (config->ssEnable && (config->ss != NULL)) ? config->ss : NULL);
 
     /* toggle hold ring off */
     ANATOP_PllToggleHoldRingOff(kAI_Itf_Video, 225);
@@ -964,8 +1043,8 @@ static void ANATOP_SysPll1WaitStable(void)
 /* 1GPLL */
 void CLOCK_InitSysPll1(const clock_sys_pll1_config_t *config)
 {
-    uint32_t div, numerator, denominator;
-    bool err = false;
+    uint8_t div;
+    uint32_t numerator, denominator;
 
     PMU_StaticEnablePllLdo(ANADIG_PMU);
     /* bypass pll */
@@ -975,30 +1054,12 @@ void CLOCK_InitSysPll1(const clock_sys_pll1_config_t *config)
     ANATOP_SysPll1SwEnClk(true);
 
     denominator = 0x0FFFFFFF;
-    switch ((uint32_t)(XTAL_FREQ / 100000UL))
-    {
-        case 240UL:
-            div       = 41UL;
-            numerator = 178956970UL;
-            break;
-        case 192UL:
-            div       = 52UL;
-            numerator = 22369621UL;
-            break;
-        default:
-            assert(false);
-            err = true;
-            break;
-    }
-
-    if (err || (config->ssEnable && !config->ss))
-    {
-        return;
-    }
+    div         = 41U;
+    numerator   = 178956970UL;
 
     /* configure pll */
-    ANATOP_PllConfigure(kAI_Itf_1g, div, numerator, 0, denominator,
-                        (config->ssEnable && config->ss) ? config->ss : NULL);
+    ANATOP_PllConfigure(kAI_Itf_1g, div, numerator, 0U, denominator,
+                        (config->ssEnable && (config->ss != NULL)) ? config->ss : NULL);
 
     /* toggle hold ring off */
     ANATOP_PllToggleHoldRingOff(kAI_Itf_1g, 225);
@@ -1052,7 +1113,7 @@ void CLOCK_OSC_EnableOsc24M(void)
 {
     if (0UL == (ANADIG_OSC->OSC_24M_CTRL & ANADIG_OSC_OSC_24M_CTRL_OSC_EN_MASK))
     {
-        ANADIG_OSC->OSC_24M_CTRL = ANADIG_OSC_OSC_24M_CTRL_OSC_EN_MASK | ANADIG_OSC_OSC_24M_CTRL_LP_EN_MASK;
+        ANADIG_OSC->OSC_24M_CTRL |= ANADIG_OSC_OSC_24M_CTRL_OSC_EN_MASK;
         while (ANADIG_OSC_OSC_24M_CTRL_OSC_24M_STABLE_MASK !=
                (ANADIG_OSC->OSC_24M_CTRL & ANADIG_OSC_OSC_24M_CTRL_OSC_24M_STABLE_MASK))
         {
@@ -1314,7 +1375,7 @@ uint16_t CLOCK_OSC_GetCurrentOscRc400MFastClockCount(void)
 
     tmp32 = ANATOP_AI_Read(kAI_Itf_400m, kAI_RCOSC400M_STAT1);
 
-    return ((tmp32 & AI_RCOSC400M_STAT1_CURR_COUNT_VAL_MASK) >> AI_RCOSC400M_STAT1_CURR_COUNT_VAL_SHIFT);
+    return (uint16_t)((tmp32 & AI_RCOSC400M_STAT1_CURR_COUNT_VAL_MASK) >> AI_RCOSC400M_STAT1_CURR_COUNT_VAL_SHIFT);
 }
 
 /*!
@@ -1328,7 +1389,7 @@ uint8_t CLOCK_OSC_GetCurrentOscRc400MTuneValue(void)
 
     tmp32 = ANATOP_AI_Read(kAI_Itf_400m, kAI_RCOSC400M_STAT2);
 
-    return ((tmp32 & AI_RCOSC400M_STAT2_CURR_OSC_TUNE_VAL_MASK) >> AI_RCOSC400M_STAT2_CURR_OSC_TUNE_VAL_SHIFT);
+    return (uint8_t)((tmp32 & AI_RCOSC400M_STAT2_CURR_OSC_TUNE_VAL_MASK) >> AI_RCOSC400M_STAT2_CURR_OSC_TUNE_VAL_SHIFT);
 }
 
 #ifndef GET_FREQ_FROM_OBS
@@ -1349,7 +1410,7 @@ static uint32_t CLOCK_GetAvPllFreq(clock_pll_t pll)
     denom = (double)ANATOP_AI_Read(pll == kCLOCK_PllAudio ? kAI_Itf_Audio : kAI_Itf_Video, PLL_AI_CTRL3_REG);
     numer = (double)ANATOP_AI_Read(pll == kCLOCK_PllAudio ? kAI_Itf_Audio : kAI_Itf_Video, PLL_AI_CTRL2_REG);
 
-    tmpDouble = ((double)XTAL_FREQ * ((double)div + (numer / denom)) / (double)(1UL << post_div));
+    tmpDouble = ((double)XTAL_FREQ * ((double)div + (numer / denom)) / (double)(uint32_t)(1UL << post_div));
     freq      = (uint32_t)tmpDouble;
 
     return freq;
@@ -1371,8 +1432,15 @@ uint32_t CLOCK_GetPllFreq(clock_pll_t pll)
                         ANADIG_PLL_ARM_PLL_CTRL_DIV_SELECT_SHIFT;
             postDiv = (ANADIG_PLL->ARM_PLL_CTRL & ANADIG_PLL_ARM_PLL_CTRL_POST_DIV_SEL_MASK) >>
                       ANADIG_PLL_ARM_PLL_CTRL_POST_DIV_SEL_SHIFT;
-            postDiv = (1UL << (postDiv + 1UL));
-            freq    = XTAL_FREQ / (2UL * postDiv);
+            if (postDiv == (uint32_t)kCLOCK_PllPostDiv1)
+            {
+                postDiv = 1UL;
+            }
+            else
+            {
+                postDiv = (1UL << (postDiv + 1UL));
+            }
+            freq = XTAL_FREQ / (2UL * postDiv);
             freq *= divSelect;
 #else
             freq = CLOCK_GetFreqFromObs(CCM_OBS_ARM_PLL_OUT);
@@ -1414,10 +1482,11 @@ uint32_t CLOCK_GetPllFreq(clock_pll_t pll)
 #endif
             break;
         default:
+            /* Wrong input parameter pll. */
             assert(false);
             break;
     }
-    assert(freq);
+    assert(freq != 0UL);
     return freq;
 }
 
@@ -1486,6 +1555,9 @@ uint32_t CLOCK_GetFreq(clock_name_t name)
         case kCLOCK_SysPll3:
             freq = CLOCK_GetPllFreq(kCLOCK_PllSys3);
             break;
+        case kCLOCK_SysPll3Div2:
+            freq = (CLOCK_GetPllFreq(kCLOCK_PllSys3) / 2UL);
+            break;
         case kCLOCK_SysPll3Pfd0:
             freq = CLOCK_GetPfdFreq(kCLOCK_PllSys3, kCLOCK_Pfd0);
             break;
@@ -1521,10 +1593,11 @@ uint32_t CLOCK_GetFreq(clock_name_t name)
             freq = CLOCK_GetCpuClkFreq();
             break;
         default:
+            /* Wrong input parameter name. */
             assert(false);
             break;
     }
-    assert(freq);
+    assert(freq != 0UL);
     return freq;
 }
 
@@ -1532,8 +1605,8 @@ void CLOCK_SetGroupConfig(clock_group_t group, const clock_group_config_t *confi
 {
     assert(group < kCLOCK_Group_Last);
 
-    CCM->CLOCK_GROUP[group].CONTROL = ((config->clockOff ? CCM_CLOCK_GROUP_CONTROL_OFF_MASK : 0U) |
-                                       (config->resetDiv << CCM_CLOCK_GROUP_CONTROL_RSTDIV_SHIFT) |
+    CCM->CLOCK_GROUP[group].CONTROL = ((config->clockOff ? CCM_CLOCK_GROUP_CONTROL_OFF_MASK : 0UL) |
+                                       ((uint32_t)config->resetDiv << CCM_CLOCK_GROUP_CONTROL_RSTDIV_SHIFT) |
                                        (config->div0 << CCM_CLOCK_GROUP_CONTROL_DIV0_SHIFT));
 }
 
@@ -1541,11 +1614,11 @@ void CLOCK_OSC_TrimOscRc400M(bool enable, bool bypass, uint16_t trim)
 {
     if (enable)
     {
-        ANADIG_MISC->VDDLPSR_AI400M_CTRL  = 0x20;
-        ANADIG_MISC->VDDLPSR_AI400M_WDATA = (bypass << 10) | (trim << 24);
-        ANADIG_MISC->VDDLPSR_AI400M_CTRL |= 0x100;
+        ANADIG_MISC->VDDLPSR_AI400M_CTRL  = 0x20UL;
+        ANADIG_MISC->VDDLPSR_AI400M_WDATA = ((uint32_t)bypass << 10UL) | ((uint32_t)trim << 24UL);
+        ANADIG_MISC->VDDLPSR_AI400M_CTRL |= 0x100UL;
         SDK_DelayAtLeastUs(1, SDK_DEVICE_MAXIMUM_CPU_CLOCK_FREQUENCY);
-        ANADIG_MISC->VDDLPSR_AI400M_CTRL &= ~0x100;
+        ANADIG_MISC->VDDLPSR_AI400M_CTRL &= ~0x100UL;
     }
 }
 
@@ -1673,7 +1746,6 @@ bool CLOCK_EnableUsbhs0PhyPllClock(clock_usb_phy_src_t src, uint32_t freq)
     USBPHY1->PLL_SIC_SET = (USBPHY_PLL_SIC_PLL_EN_USB_CLKS_MASK);
 
     USBPHY1->CTRL_CLR = USBPHY_CTRL_CLR_CLKGATE_MASK;
-    USBPHY1->PWD_SET  = 0x0;
 
     while (0UL == (USBPHY1->PLL_SIC & USBPHY_PLL_SIC_PLL_LOCK_MASK))
     {
@@ -1779,7 +1851,6 @@ bool CLOCK_EnableUsbhs1PhyPllClock(clock_usb_phy_src_t src, uint32_t freq)
     USBPHY2->PLL_SIC_SET = (USBPHY_PLL_SIC_PLL_EN_USB_CLKS_MASK);
 
     USBPHY2->CTRL_CLR = USBPHY_CTRL_CLR_CLKGATE_MASK;
-    USBPHY2->PWD_SET  = 0x0;
 
     while (0UL == (USBPHY2->PLL_SIC & USBPHY_PLL_SIC_PLL_LOCK_MASK))
     {
@@ -1816,8 +1887,9 @@ void CLOCK_OSCPLL_ControlByCpuLowPowerMode(clock_name_t name,
     CCM->OSCPLL[name].AUTHEN &=
         ~(CCM_OSCPLL_AUTHEN_SETPOINT_MODE_MASK | CCM_OSCPLL_AUTHEN_DOMAIN_MODE_MASK | CCM_OSCPLL_AUTHEN_CPULPM_MASK);
     /* Change clock depend level for each domain in unassigned mode. */
-    CCM->OSCPLL[name].DOMAINr = ((domainId & (1 << 1)) ? CCM_OSCPLL_DOMAIN_LEVEL1(level1) : 0) |
-                                ((domainId & (1 << 0)) ? CCM_OSCPLL_DOMAIN_LEVEL0(level0) : 0);
+    CCM->OSCPLL[name].DOMAINr =
+        ((((uint32_t)domainId & (1UL << 1UL)) != 0UL) ? CCM_OSCPLL_DOMAIN_LEVEL1(level1) : 0UL) |
+        (((domainId & (1UL << 0UL)) != 0UL) ? CCM_OSCPLL_DOMAIN_LEVEL0(level0) : 0UL);
     /* Set control mode to CPU low power mode and update whitelist. */
     CCM->OSCPLL[name].AUTHEN = (CCM->OSCPLL[name].AUTHEN & ~CCM_OSCPLL_AUTHEN_WHITE_LIST_MASK) |
                                CCM_OSCPLL_AUTHEN_CPULPM_MASK | CCM_OSCPLL_AUTHEN_WHITE_LIST(domainId);
@@ -1830,9 +1902,9 @@ void CLOCK_ROOT_ControlBySetPointMode(clock_root_t name, const clock_root_setpoi
     /* Set control mode to unassigned mode. */
     CLOCK_ROOT_ControlByUnassignedMode(name);
     /* Change SetPoint value in unassigned mode. */
-    for (i = 0; i < 16; i++)
+    for (i = 0U; i < 16U; i++)
     {
-        CLOCK_ROOT_ConfigSetPoint(name, i, spTable + i);
+        CLOCK_ROOT_ConfigSetPoint(name, i, &spTable[i]);
     }
     /* Set control mode to SetPoint mode. */
     CLOCK_ROOT_EnableSetPointControl(name);
@@ -1858,8 +1930,8 @@ void CLOCK_LPCG_ControlByCpuLowPowerMode(clock_lpcg_t name,
     CCM->LPCG[name].AUTHEN &=
         ~(CCM_LPCG_AUTHEN_SETPOINT_MODE_MASK | CCM_LPCG_AUTHEN_DOMAIN_MODE_MASK | CCM_LPCG_AUTHEN_CPULPM_MASK);
     /* Change clock depend level for each domain in unassigned mode. */
-    CCM->LPCG[name].DOMAINr = ((domainId & (1 << 1)) ? CCM_LPCG_DOMAIN_LEVEL1(level1) : 0) |
-                              ((domainId & (1 << 0)) ? CCM_LPCG_DOMAIN_LEVEL0(level0) : 0);
+    CCM->LPCG[name].DOMAINr = ((((uint32_t)domainId & (1UL << 1UL)) != 0UL) ? CCM_LPCG_DOMAIN_LEVEL1(level1) : 0UL) |
+                              ((((uint32_t)domainId & (1UL << 0UL)) != 0UL) ? CCM_LPCG_DOMAIN_LEVEL0(level0) : 0UL);
     /* Set control mode to CPU low power mode and update whitelist. */
     CCM->LPCG[name].AUTHEN = (CCM->LPCG[name].AUTHEN & ~CCM_LPCG_AUTHEN_WHITE_LIST_MASK) | CCM_LPCG_AUTHEN_CPULPM_MASK |
                              CCM_LPCG_AUTHEN_WHITE_LIST(domainId);

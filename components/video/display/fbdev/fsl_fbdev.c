@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2020 NXP
+ * Copyright 2019-2021, 2023 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -29,13 +29,13 @@ status_t FBDEV_Open(fbdev_t *fbdev, const dc_fb_t *dc, uint8_t layer)
 {
     status_t status;
 
-    assert(fbdev);
+    assert(NULL != fbdev);
 
     (void)memset(fbdev, 0, sizeof(fbdev_t));
 
     fbdev->dc = dc;
 
-    VIDEO_MEMPOOL_InitEmpty(&fbdev->fbManager);
+    (void)VIDEO_STACK_Init(&fbdev->fbManager, fbdev->buffers, FBDEV_MAX_FRAME_BUFFER);
 
     /* Initialize the display controller. */
     status = dc->ops->init(dc);
@@ -182,10 +182,10 @@ status_t FBDEV_SetFrameBufferInfo(fbdev_t *fbdev, fbdev_fb_info_t *info)
 
     for (uint8_t i = 0; i < info->bufferCount; i++)
     {
-        /* Don't need to disable interrupt for the MEMPOOL operation, because
-           the fbdev is not working, this is the only function to access MEMPOOL.
+        /* Don't need to disable interrupt for the FB stack operation, because
+           the fbdev is not working, this is the only function to access FB stack.
          */
-        VIDEO_MEMPOOL_Put(&fbdev->fbManager, info->buffers[i]);
+        (void)VIDEO_STACK_Push(&fbdev->fbManager, info->buffers[i]);
         (void)xSemaphoreGive(fbdev->semaFbManager);
     }
 
@@ -201,9 +201,9 @@ void *FBDEV_GetFrameBuffer(fbdev_t *fbdev, uint32_t flags)
 
     if (pdTRUE == xSemaphoreTake(fbdev->semaFbManager, tick))
     {
-        /* Disable interrupt to protect the MEMPOOL. */
+        /* Disable interrupt to protect the FB stack. */
         portENTER_CRITICAL();
-        fb = VIDEO_MEMPOOL_Get(&fbdev->fbManager);
+        (void)VIDEO_STACK_Pop(&fbdev->fbManager, &fb);
         portEXIT_CRITICAL();
     }
     else
@@ -237,14 +237,11 @@ static void FBDEV_BufferSwitchOffCallback(void *param, void *switchOffBuffer)
     BaseType_t fbManagerWake    = pdFALSE;
     BaseType_t framePendingWake = pdFALSE;
 
-    /* This function should only be called in ISR, so don't need to protect the MEMPOOL */
-    VIDEO_MEMPOOL_Put(&fbdev->fbManager, switchOffBuffer);
+    /* This function should only be called in ISR, so don't need to protect the FB stack  */
+    (void)VIDEO_STACK_Push(&fbdev->fbManager, switchOffBuffer);
     (void)xSemaphoreGiveFromISR(fbdev->semaFbManager, &fbManagerWake);
 
     (void)xSemaphoreGiveFromISR(fbdev->semaFramePending, &framePendingWake);
 
-    if ((fbManagerWake == pdTRUE) || (framePendingWake == pdTRUE))
-    {
-        portYIELD_FROM_ISR(pdTRUE);
-    }
+    portYIELD_FROM_ISR((fbManagerWake == pdTRUE) || (framePendingWake == pdTRUE));
 }

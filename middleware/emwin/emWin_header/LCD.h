@@ -3,13 +3,13 @@
 *        Solutions for real time microcontroller applications        *
 **********************************************************************
 *                                                                    *
-*        (c) 1996 - 2020  SEGGER Microcontroller GmbH                *
+*        (c) 1996 - 2022  SEGGER Microcontroller GmbH                *
 *                                                                    *
 *        Internet: www.segger.com    Support:  support@segger.com    *
 *                                                                    *
 **********************************************************************
 
-** emWin V6.14 - Graphical user interface for embedded applications **
+** emWin V6.32 - Graphical user interface for embedded applications **
 All  Intellectual Property rights  in the Software belongs to  SEGGER.
 emWin is protected by  international copyright laws.  Knowledge of the
 source code may not be used to write a similar product.  This file may
@@ -34,7 +34,7 @@ License model:            emWin License Agreement, dated August 20th 2011 and Am
 Licensed platform:        NXP's ARM 7/9, Cortex-M0, M3, M4, M7, A7, M33
 ----------------------------------------------------------------------
 Support and Update Agreement (SUA)
-SUA period:               2011-08-19 - 2020-09-02
+SUA period:               2011-08-19 - 2023-09-03
 Contact to extend SUA:    sales@segger.com
 ----------------------------------------------------------------------
 File        : LCD.h
@@ -182,6 +182,7 @@ extern const LCD_API_COLOR_CONV LCD_API_ColorConv_556;
 extern const LCD_API_COLOR_CONV LCD_API_ColorConv_655;
 extern const LCD_API_COLOR_CONV LCD_API_ColorConv_666;
 extern const LCD_API_COLOR_CONV LCD_API_ColorConv_666_9;
+extern const LCD_API_COLOR_CONV LCD_API_ColorConv_666_18;
 extern const LCD_API_COLOR_CONV LCD_API_ColorConv_822216;
 extern const LCD_API_COLOR_CONV LCD_API_ColorConv_84444;
 extern const LCD_API_COLOR_CONV LCD_API_ColorConv_8666;
@@ -189,6 +190,7 @@ extern const LCD_API_COLOR_CONV LCD_API_ColorConv_8666_1;
 extern const LCD_API_COLOR_CONV LCD_API_ColorConv_88666I;
 extern const LCD_API_COLOR_CONV LCD_API_ColorConv_888;
 extern const LCD_API_COLOR_CONV LCD_API_ColorConv_8888;
+extern const LCD_API_COLOR_CONV LCD_API_ColorConv_8888I;
 extern const LCD_API_COLOR_CONV LCD_API_ColorConv_M111;
 extern const LCD_API_COLOR_CONV LCD_API_ColorConv_M1555I;
 extern const LCD_API_COLOR_CONV LCD_API_ColorConv_M222;
@@ -205,6 +207,7 @@ extern const LCD_API_COLOR_CONV LCD_API_ColorConv_M556;
 extern const LCD_API_COLOR_CONV LCD_API_ColorConv_M655;
 extern const LCD_API_COLOR_CONV LCD_API_ColorConv_M666;
 extern const LCD_API_COLOR_CONV LCD_API_ColorConv_M666_9;
+extern const LCD_API_COLOR_CONV LCD_API_ColorConv_M666_18;
 extern const LCD_API_COLOR_CONV LCD_API_ColorConv_M8565;
 extern const LCD_API_COLOR_CONV LCD_API_ColorConv_M888;
 extern const LCD_API_COLOR_CONV LCD_API_ColorConv_M8888;
@@ -240,6 +243,7 @@ extern const LCD_API_COLOR_CONV LCD_API_ColorConv_M8888I;
 #define GUICC_655       &LCD_API_ColorConv_655
 #define GUICC_666       &LCD_API_ColorConv_666
 #define GUICC_666_9     &LCD_API_ColorConv_666_9
+#define GUICC_666_18    &LCD_API_ColorConv_666_18
 #define GUICC_822216    &LCD_API_ColorConv_822216
 #define GUICC_84444     &LCD_API_ColorConv_84444
 #define GUICC_8666      &LCD_API_ColorConv_8666
@@ -247,6 +251,7 @@ extern const LCD_API_COLOR_CONV LCD_API_ColorConv_M8888I;
 #define GUICC_88666I    &LCD_API_ColorConv_88666I
 #define GUICC_888       &LCD_API_ColorConv_888
 #define GUICC_8888      &LCD_API_ColorConv_8888
+#define GUICC_8888I     &LCD_API_ColorConv_8888I
 #define GUICC_M111      &LCD_API_ColorConv_M111
 #define GUICC_M1555I    &LCD_API_ColorConv_M1555I
 #define GUICC_M222      &LCD_API_ColorConv_M222
@@ -262,6 +267,7 @@ extern const LCD_API_COLOR_CONV LCD_API_ColorConv_M8888I;
 #define GUICC_M655      &LCD_API_ColorConv_M655
 #define GUICC_M666      &LCD_API_ColorConv_M666
 #define GUICC_M666_9    &LCD_API_ColorConv_M666_9
+#define GUICC_M666_18   &LCD_API_ColorConv_M666_18
 #define GUICC_M8565     &LCD_API_ColorConv_M8565
 #define GUICC_M888      &LCD_API_ColorConv_M888
 #define GUICC_M8888     &LCD_API_ColorConv_M8888
@@ -379,6 +385,10 @@ typedef void tLCDDEV_DrawBitmap   (int x0, int y0, int xsize, int ysize,
 #define LCD_DEVCAP_MIRROR_Y          0x0D
 #define LCD_DEVCAP_SWAP_XY           0x0E
 #define LCD_DEVCAP_SWAP_RB           0x0F
+#define LCD_DEVCAP_XSIZE_SIM         0x10
+#define LCD_DEVCAP_YSIZE_SIM         0x11
+#define LCD_DEVCAP_VXSIZE_SIM        0x12
+#define LCD_DEVCAP_VYSIZE_SIM        0x13
 
 int LCD_GetXSizeMax(void);
 int LCD_GetYSizeMax(void);
@@ -438,15 +448,24 @@ void (* LCD_GetDevFunc(int LayerIndex, int Item))(void);
 *
 *       Runtime rotation of drivers
 */
-int LCD_ROTATE_AddDriver  (const GUI_DEVICE_API * pDriver);
-int LCD_ROTATE_AddDriverEx(const GUI_DEVICE_API * pDeviceAPI, int LayerIndex);
-int LCD_ROTATE_DecSel     (void);
-int LCD_ROTATE_DecSelEx   (int LayerIndex);
-int LCD_ROTATE_IncSel     (void);
-int LCD_ROTATE_IncSelEx   (int LayerIndex);
-int LCD_ROTATE_SetCallback(void (* pCbOnConfig)(GUI_DEVICE *, int, int), int LayerIndex);
-int LCD_ROTATE_SetSel     (int Index);
-int LCD_ROTATE_SetSelEx   (int Index, int LayerIndex);
+int  LCD_ROTATE_AddDriver             (const GUI_DEVICE_API * pDriver);
+int  LCD_ROTATE_AddDriverEx           (const GUI_DEVICE_API * pDeviceAPI, int LayerIndex);
+int  LCD_ROTATE_AddDriverExOrientation(const GUI_DEVICE_API * pDeviceAPI, int LayerIndex, int Orientation);
+void LCD_ROTATE_Clear                 (void);
+void LCD_ROTATE_ClearEx               (int LayerIndex);
+int  LCD_ROTATE_DecSel                (void);
+int  LCD_ROTATE_DecSelEx              (int LayerIndex);
+int  LCD_ROTATE_GetCurrentIndex       (void);
+int  LCD_ROTATE_GetCurrentIndexEx     (int LayerIndex);
+int  LCD_ROTATE_GetOrientation        (int DriverIndex);
+int  LCD_ROTATE_GetOrientationEx      (int LayerIndex, int DriverIndex);
+int  LCD_ROTATE_GetNumDrivers         (void);
+int  LCD_ROTATE_GetNumDriversEx       (int LayerIndex);
+int  LCD_ROTATE_IncSel                (void);
+int  LCD_ROTATE_IncSelEx              (int LayerIndex);
+int  LCD_ROTATE_SetCallback           (void (* pCbOnConfig)(GUI_DEVICE *, int, int), int LayerIndex);
+int  LCD_ROTATE_SetSel                (int Index);
+int  LCD_ROTATE_SetSelEx              (int Index, int LayerIndex);
 
 /*********************************************************************
 *
@@ -578,6 +597,7 @@ typedef struct {
 #define LCD_X_SETCHROMAMODE  0x0C /* Setting the chroma blending mode */
 #define LCD_X_SETCHROMA      0x0D /* Setting the chroma values */
 #define LCD_X_SHOWBUFFER     0x0E /* Switching to the given buffer */
+#define LCD_X_EXITCONTROLLER 0x0F /* Exiting the display controller */
 
 int  LCD_X_DisplayDriver(unsigned LayerIndex, unsigned Cmd, void * pData);
 void LCD_X_Config(void);
@@ -776,6 +796,7 @@ unsigned char LCD_X_Read00(void);
 unsigned char LCD_X_Read01(void);
 void LCD_X_Write00 (unsigned char c);
 void LCD_X_Write01 (unsigned char c);
+void LCD_X_WriteM00(unsigned char * pData, int NumBytes);
 void LCD_X_WriteM01(unsigned char * pData, int NumBytes);
 
 #if defined(__cplusplus)

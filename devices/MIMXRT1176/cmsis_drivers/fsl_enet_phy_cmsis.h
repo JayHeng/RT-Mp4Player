@@ -1,7 +1,7 @@
 /*
  * Copyright (c) 2013-2016 ARM Limited. All rights reserved.
  * Copyright (c) 2016, Freescale Semiconductor, Inc. Not a Contribution.
- * Copyright 2016-2020 NXP. Not a Contribution.
+ * Copyright 2016-2022 NXP. Not a Contribution.
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -24,6 +24,16 @@
 #include "Driver_ETH_PHY.h"
 #include "RTE_Device.h"
 #include "fsl_common.h"
+#include "fsl_phy.h"
+
+typedef struct _cmsis_enet_phy_resource
+{
+    uint8_t phyAddr;             /*!< ENET PHY physical address. */
+    const phy_operations_t *ops; /*!< ENET PHY operations. */
+    void *opsResource;           /*!< ENET PHY specific hardware operations. */
+} cmsis_enet_phy_resource_t;
+
+extern phy_handle_t phyHandle;
 
 #if RTE_ENET
 extern ARM_DRIVER_ETH_PHY Driver_ETH_PHY0;

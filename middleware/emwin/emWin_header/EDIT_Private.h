@@ -3,13 +3,13 @@
 *        Solutions for real time microcontroller applications        *
 **********************************************************************
 *                                                                    *
-*        (c) 1996 - 2020  SEGGER Microcontroller GmbH                *
+*        (c) 1996 - 2022  SEGGER Microcontroller GmbH                *
 *                                                                    *
 *        Internet: www.segger.com    Support:  support@segger.com    *
 *                                                                    *
 **********************************************************************
 
-** emWin V6.14 - Graphical user interface for embedded applications **
+** emWin V6.32 - Graphical user interface for embedded applications **
 All  Intellectual Property rights  in the Software belongs to  SEGGER.
 emWin is protected by  international copyright laws.  Knowledge of the
 source code may not be used to write a similar product.  This file may
@@ -34,7 +34,7 @@ License model:            emWin License Agreement, dated August 20th 2011 and Am
 Licensed platform:        NXP's ARM 7/9, Cortex-M0, M3, M4, M7, A7, M33
 ----------------------------------------------------------------------
 Support and Update Agreement (SUA)
-SUA period:               2011-08-19 - 2020-09-02
+SUA period:               2011-08-19 - 2023-09-03
 Contact to extend SUA:    sales@segger.com
 ----------------------------------------------------------------------
 File        : EDIT_Private.h
@@ -93,6 +93,7 @@ struct EDIT_Obj_struct {
   U8                   EditMode;        // Insert or overwrite mode
   U8                   XSizeCursor;     // Size of cursor when working in insert mode
   U8                   Flags;
+  U8                   Radius;          // Currently only used by AppWizard
   tEDIT_AddKeyEx     * pfAddKeyEx;      // Handle key input
   tEDIT_UpdateBuffer * pfUpdateBuffer;  // Update textbuffer
   EDIT_PROPS           Props;
@@ -101,6 +102,7 @@ struct EDIT_Obj_struct {
   int                  TimerPeriod;
   int                  ScrollPos;       // Horizontal scrolling position
   U16                  PrevStrLen;      // Previous string length, used for scrolling position calculation.
+  const char         * pDispText;       // Pointer to buffer with the password char.
 };
 
 /*********************************************************************
@@ -110,7 +112,7 @@ struct EDIT_Obj_struct {
 **********************************************************************
 */
 #if GUI_DEBUG_LEVEL >= GUI_DEBUG_LEVEL_CHECK_ALL
-  #define EDIT_INIT_ID(p) (p->Widget.DebugId = EDIT_ID)
+  #define EDIT_INIT_ID(p) (p->Widget.DebugId = WIDGET_TYPE_EDIT)
 #else
   #define EDIT_INIT_ID(p)
 #endif
@@ -119,7 +121,7 @@ struct EDIT_Obj_struct {
   EDIT_Obj * EDIT_LockH(EDIT_Handle h);
   #define EDIT_LOCK_H(h)   EDIT_LockH(h)
 #else
-  #define EDIT_LOCK_H(h)   (EDIT_Obj *)GUI_LOCK_H(h)
+  #define EDIT_LOCK_H(h)   (EDIT_Obj *)WM_LOCK_H(h)
 #endif
 
 /*********************************************************************

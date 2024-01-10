@@ -3,13 +3,13 @@
 *        Solutions for real time microcontroller applications        *
 **********************************************************************
 *                                                                    *
-*        (c) 1996 - 2020  SEGGER Microcontroller GmbH                *
+*        (c) 1996 - 2022  SEGGER Microcontroller GmbH                *
 *                                                                    *
 *        Internet: www.segger.com    Support:  support@segger.com    *
 *                                                                    *
 **********************************************************************
 
-** emWin V6.14 - Graphical user interface for embedded applications **
+** emWin V6.32 - Graphical user interface for embedded applications **
 All  Intellectual Property rights  in the Software belongs to  SEGGER.
 emWin is protected by  international copyright laws.  Knowledge of the
 source code may not be used to write a similar product.  This file may
@@ -34,7 +34,7 @@ License model:            emWin License Agreement, dated August 20th 2011 and Am
 Licensed platform:        NXP's ARM 7/9, Cortex-M0, M3, M4, M7, A7, M33
 ----------------------------------------------------------------------
 Support and Update Agreement (SUA)
-SUA period:               2011-08-19 - 2020-09-02
+SUA period:               2011-08-19 - 2023-09-03
 Contact to extend SUA:    sales@segger.com
 ----------------------------------------------------------------------
 File        : GUI_Private.h
@@ -336,6 +336,7 @@ int  GUI__GetNumChars       (const char * s);
 int  GUI__GetOverlap        (U16 Char);
 int  GUI__GetLineDistX      (const char * s, int Len);
 int  GUI__GetFontSizeY      (void);
+void GUI__GetTextSize       (GUI_SIZE * pSize, const char * s);
 int  GUI__HandleEOLine      (const char ** ps);
 void GUI__InvertRectColors  (int x0, int y0, int x1, int y1);
 void GUI__InvertRectColorsEx(GUI_RECT * pRect);
@@ -344,15 +345,14 @@ void GUI__AddSpaceHex       (U32 v, U8 Len, char ** ps);
 void GUI__CalcTextRect      (const char * pText, const GUI_RECT * pTextRectIn, GUI_RECT * pTextRectOut, int TextAlign);
 int  GUI__IsPointInRect     (GUI_RECT * pRect, int x, int y);
 
-void GUI__DrawNonExistingCharacter(LCD_DRAWMODE DrawMode);
-int  GUI__GetNonExistingCharWidth (void);
+void GUI__DrawNonExistingCharacter(U16 c, LCD_DRAWMODE DrawMode);
+int  GUI__GetNonExistingCharWidth (U16 c, int * pSizeX);
 
 void GUI__ClearTextBackground(int xDist, int yDist);
 
 int  GUI__WrapGetNumCharsDisp       (const char * pText, int xSize, GUI_WRAPMODE WrapMode);
 int  GUI__WrapGetNumCharsToNextLine (const char * pText, int xSize, GUI_WRAPMODE WrapMode);
 int  GUI__WrapGetNumBytesToNextLine (const char * pText, int xSize, GUI_WRAPMODE WrapMode);
-//void GUI__memset    (U8  * p, U8 Fill, int NumBytes);
 void GUI__memset16  (U16 * p, U16 Fill, int NumWords);
 int  GUI__strlen    (const char * s);
 int  GUI__strcmp    (const char * s0, const char * s1);
@@ -479,6 +479,7 @@ int GUI_GetBitsPerPixelEx(int LayerIndex);
 *   THEY HAVE TO CORRESPOND TO THE DEFINITIONS WITHIN THE CODE OF THE BITMAPCONVERTER!
 */
 #define GUI_STREAM_FORMAT_INDEXED    100 /* DO NOT CHANGE */
+#define GUI_STREAM_FORMAT_RLE1       32  /* DO NOT CHANGE */
 #define GUI_STREAM_FORMAT_RLE4       6   /* DO NOT CHANGE */
 #define GUI_STREAM_FORMAT_RLE8       7   /* DO NOT CHANGE */
 #define GUI_STREAM_FORMAT_565        8   /* DO NOT CHANGE */
@@ -682,6 +683,7 @@ extern GUI_DEVICE * GUI__apDevice[GUI_NUM_LAYERS];
 // Function pointer for drawing string characters with EXT fonts
 //
 extern U16 (* GUI__pfDrawCharEXT)(int RemChars, const char ** ps);
+extern int (* GUI__pfGetShiftY)(U16 Code);
 
 //
 // Function pointer for converting a palette containing a color array into an index array
@@ -749,8 +751,8 @@ GUI_EXTERN           WM_tfHandlePID * WM_pfHandlePID;
 GUI_EXTERN   void (* GUI_pfDispCharStyle)(U16 Char);
 GUI_EXTERN   void (* GUI_pfDispCharLine)(int x0);
 
-GUI_EXTERN           int GUI__BufferSize; // Required buffer size in pixels for alpha blending and/or antialiasing
-GUI_EXTERN           int GUI_AA__ClipX0;  // x0-clipping value for AA module
+GUI_EXTERN           int GUI_AA__BufferSize;  // Required buffer size in pixels for alpha blending and/or antialiasing
+GUI_EXTERN           int GUI_AA__ClipX0;      // x0-clipping value for AA module
 
 GUI_EXTERN           I8  GUI__aNumBuffers[GUI_NUM_LAYERS]; // Number of buffers used per layer
 GUI_EXTERN           U8  GUI__PreserveTrans;

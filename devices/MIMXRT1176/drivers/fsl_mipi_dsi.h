@@ -1,5 +1,5 @@
 /*
- * Copyright 2020 NXP
+ * Copyright 2020-2022 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -21,7 +21,7 @@
 
 /*! @name Driver version */
 /*@{*/
-#define FSL_MIPI_DSI_DRIVER_VERSION (MAKE_VERSION(2, 1, 0))
+#define FSL_MIPI_DSI_DRIVER_VERSION (MAKE_VERSION(2, 2, 3))
 /*@}*/
 
 /* The max APB transfer size. */
@@ -40,10 +40,11 @@ typedef struct
 /*! @brief Error codes for the MIPI DSI driver. */
 enum
 {
-    kStatus_DSI_Busy                = MAKE_STATUS(kStatusGroup_MIPI_DSI, 0), /*!< DSI is busy. */
-    kStatus_DSI_RxDataError         = MAKE_STATUS(kStatusGroup_MIPI_DSI, 1), /*!< Read data error. */
-    kStatus_DSI_ErrorReportReceived = MAKE_STATUS(kStatusGroup_MIPI_DSI, 2), /*!< Error report package received. */
-    kStatus_DSI_NotSupported        = MAKE_STATUS(kStatusGroup_MIPI_DSI, 3), /*!< The transfer type not supported. */
+    kStatus_DSI_Busy        = MAKE_STATUS((int32_t)kStatusGroup_MIPI_DSI, 0), /*!< DSI is busy. */
+    kStatus_DSI_RxDataError = MAKE_STATUS((int32_t)kStatusGroup_MIPI_DSI, 1), /*!< Read data error. */
+    kStatus_DSI_ErrorReportReceived =
+        MAKE_STATUS((int32_t)kStatusGroup_MIPI_DSI, 2),                        /*!< Error report package received. */
+    kStatus_DSI_NotSupported = MAKE_STATUS((int32_t)kStatusGroup_MIPI_DSI, 3), /*!< The transfer type not supported. */
 };
 
 /*! @brief MIPI DSI controller configuration. */
@@ -170,92 +171,92 @@ typedef struct _dsi_dphy_config
 /*! @brief _dsi_apb_status Status of APB to packet interface. */
 enum
 {
-    kDSI_ApbNotIdle          = (1U << 0U), /*!< State machine not idle */
-    kDSI_ApbTxDone           = (1U << 1U), /*!< Tx packet done */
-    kDSI_ApbRxControl        = (1U << 2U), /*!< DPHY direction 0 - tx had control, 1 - rx has control */
-    kDSI_ApbTxOverflow       = (1U << 3U), /*!< TX fifo overflow */
-    kDSI_ApbTxUnderflow      = (1U << 4U), /*!< TX fifo underflow */
-    kDSI_ApbRxOverflow       = (1U << 5U), /*!< RX fifo overflow */
-    kDSI_ApbRxUnderflow      = (1U << 6U), /*!< RX fifo underflow */
-    kDSI_ApbRxHeaderReceived = (1U << 7U), /*!< RX packet header has been received */
-    kDSI_ApbRxPacketReceived = (1U << 8U), /*!< All RX packet payload data has been received */
+    kDSI_ApbNotIdle          = (1UL << 0U), /*!< State machine not idle */
+    kDSI_ApbTxDone           = (1UL << 1U), /*!< Tx packet done */
+    kDSI_ApbRxControl        = (1UL << 2U), /*!< DPHY direction 0 - tx had control, 1 - rx has control */
+    kDSI_ApbTxOverflow       = (1UL << 3U), /*!< TX fifo overflow */
+    kDSI_ApbTxUnderflow      = (1UL << 4U), /*!< TX fifo underflow */
+    kDSI_ApbRxOverflow       = (1UL << 5U), /*!< RX fifo overflow */
+    kDSI_ApbRxUnderflow      = (1UL << 6U), /*!< RX fifo underflow */
+    kDSI_ApbRxHeaderReceived = (1UL << 7U), /*!< RX packet header has been received */
+    kDSI_ApbRxPacketReceived = (1UL << 8U), /*!< All RX packet payload data has been received */
 };
 
 /*! @brief _dsi_rx_error_status Host receive error status. */
 enum
 {
-    kDSI_RxErrorEccOneBit   = (1U << 0U), /*!< ECC single bit error detected. */
-    kDSI_RxErrorEccMultiBit = (1U << 1U), /*!< ECC multi bit error detected. */
-    kDSI_RxErrorCrc         = (1U << 7U), /*!< CRC error detected. */
-    kDSI_RxErrorHtxTo       = (1U << 8U), /*!< High Speed forward TX timeout detected. */
-    kDSI_RxErrorLrxTo       = (1U << 9U), /*!< Reverse Low power data receive timeout detected. */
-    kDSI_RxErrorBtaTo       = (1U << 10U) /*!< BTA timeout detected. */
+    kDSI_RxErrorEccOneBit   = (1UL << 0U), /*!< ECC single bit error detected. */
+    kDSI_RxErrorEccMultiBit = (1UL << 1U), /*!< ECC multi bit error detected. */
+    kDSI_RxErrorCrc         = (1UL << 7U), /*!< CRC error detected. */
+    kDSI_RxErrorHtxTo       = (1UL << 8U), /*!< High Speed forward TX timeout detected. */
+    kDSI_RxErrorLrxTo       = (1UL << 9U), /*!< Reverse Low power data receive timeout detected. */
+    kDSI_RxErrorBtaTo       = (1UL << 10U) /*!< BTA timeout detected. */
 };
 
 /*! @brief DSI host controller status (status_out) */
 enum _dsi_host_status
 {
-    kDSI_HostSoTError           = (1U << 0U),  /*!< SoT error from peripheral error report. */
-    kDSI_HostSoTSyncError       = (1U << 1U),  /*!< SoT Sync error from peripheral error report. */
-    kDSI_HostEoTSyncError       = (1U << 2U),  /*!< EoT Sync error from peripheral error report. */
-    kDSI_HostEscEntryCmdError   = (1U << 3U),  /*!< Escape Mode Entry Command Error from peripheral error report. */
-    kDSI_HostLpTxSyncError      = (1U << 4U),  /*!< Low-power transmit Sync Error from peripheral error report. */
-    kDSI_HostPeriphToError      = (1U << 5U),  /*!< Peripheral timeout error from peripheral error report. */
-    kDSI_HostFalseControlError  = (1U << 6U),  /*!< False control error from peripheral error report. */
-    kDSI_HostContentionDetected = (1U << 7U),  /*!< Contention detected from peripheral error report. */
-    kDSI_HostEccErrorOneBit     = (1U << 8U),  /*!< Single bit ECC error (corrected) from peripheral error report. */
-    kDSI_HostEccErrorMultiBit   = (1U << 9U),  /*!< Multi bit ECC error (not corrected) from peripheral error report. */
-    kDSI_HostChecksumError      = (1U << 10U), /*!< Checksum error from peripheral error report. */
-    kDSI_HostInvalidDataType    = (1U << 11U), /*!< DSI data type not recognized. */
-    kDSI_HostInvalidVcId        = (1U << 12U), /*!< DSI VC ID invalid. */
-    kDSI_HostInvalidTxLength    = (1U << 13U), /*!< Invalid transmission length. */
-    kDSI_HostProtocalViolation  = (1U << 15U), /*!< DSI protocal violation. */
-    kDSI_HostResetTriggerReceived = (1U << 16U), /*!< Reset trigger received. */
-    kDSI_HostTearTriggerReceived  = (1U << 17U), /*!< Tear effect trigger receive. */
-    kDSI_HostAckTriggerReceived   = (1U << 18U), /*!< Acknowledge trigger message received. */
+    kDSI_HostSoTError           = (1UL << 0U), /*!< SoT error from peripheral error report. */
+    kDSI_HostSoTSyncError       = (1UL << 1U), /*!< SoT Sync error from peripheral error report. */
+    kDSI_HostEoTSyncError       = (1UL << 2U), /*!< EoT Sync error from peripheral error report. */
+    kDSI_HostEscEntryCmdError   = (1UL << 3U), /*!< Escape Mode Entry Command Error from peripheral error report. */
+    kDSI_HostLpTxSyncError      = (1UL << 4U), /*!< Low-power transmit Sync Error from peripheral error report. */
+    kDSI_HostPeriphToError      = (1UL << 5U), /*!< Peripheral timeout error from peripheral error report. */
+    kDSI_HostFalseControlError  = (1UL << 6U), /*!< False control error from peripheral error report. */
+    kDSI_HostContentionDetected = (1UL << 7U), /*!< Contention detected from peripheral error report. */
+    kDSI_HostEccErrorOneBit     = (1UL << 8U), /*!< Single bit ECC error (corrected) from peripheral error report. */
+    kDSI_HostEccErrorMultiBit   = (1UL << 9U), /*!< Multi bit ECC error (not corrected) from peripheral error report. */
+    kDSI_HostChecksumError      = (1UL << 10U),   /*!< Checksum error from peripheral error report. */
+    kDSI_HostInvalidDataType    = (1UL << 11U),   /*!< DSI data type not recognized. */
+    kDSI_HostInvalidVcId        = (1UL << 12U),   /*!< DSI VC ID invalid. */
+    kDSI_HostInvalidTxLength    = (1UL << 13U),   /*!< Invalid transmission length. */
+    kDSI_HostProtocalViolation  = (1UL << 15U),   /*!< DSI protocal violation. */
+    kDSI_HostResetTriggerReceived = (1UL << 16U), /*!< Reset trigger received. */
+    kDSI_HostTearTriggerReceived  = (1UL << 17U), /*!< Tear effect trigger receive. */
+    kDSI_HostAckTriggerReceived   = (1UL << 18U), /*!< Acknowledge trigger message received. */
 };
 
 /*! @brief _dsi_interrupt DSI interrupt. */
 enum
 {
-    kDSI_InterruptGroup1ApbNotIdle          = (1U << 0U),   /*!< State machine not idle */
-    kDSI_InterruptGroup1ApbTxDone           = (1U << 1U),   /*!< Tx packet done */
-    kDSI_InterruptGroup1ApbRxControl        = (1U << 2U),   /*!< DPHY direction 0 - tx control, 1 - rx control */
-    kDSI_InterruptGroup1ApbTxOverflow       = (1U << 3U),   /*!< TX fifo overflow */
-    kDSI_InterruptGroup1ApbTxUnderflow      = (1U << 4U),   /*!< TX fifo underflow */
-    kDSI_InterruptGroup1ApbRxOverflow       = (1U << 5U),   /*!< RX fifo overflow */
-    kDSI_InterruptGroup1ApbRxUnderflow      = (1U << 6U),   /*!< RX fifo underflow */
-    kDSI_InterruptGroup1ApbRxHeaderReceived = (1U << 7U),   /*!< RX packet header has been received */
-    kDSI_InterruptGroup1ApbRxPacketReceived = (1U << 8U),   /*!< All RX packet payload data has been received */
-    kDSI_InterruptGroup1SoTError            = (1U << 9U),   /*!< SoT error from peripheral error report. */
-    kDSI_InterruptGroup1SoTSyncError        = (1U << 10U),  /*!< SoT Sync error from peripheral error report. */
-    kDSI_InterruptGroup1EoTSyncError        = (1U << 11U),  /*!< EoT Sync error from peripheral error report. */
-    kDSI_InterruptGroup1EscEntryCmdError    = (1U << 12U),  /*!< Escape Mode Entry Command Error
+    kDSI_InterruptGroup1ApbNotIdle          = (1UL << 0U),   /*!< State machine not idle */
+    kDSI_InterruptGroup1ApbTxDone           = (1UL << 1U),   /*!< Tx packet done */
+    kDSI_InterruptGroup1ApbRxControl        = (1UL << 2U),   /*!< DPHY direction 0 - tx control, 1 - rx control */
+    kDSI_InterruptGroup1ApbTxOverflow       = (1UL << 3U),   /*!< TX fifo overflow */
+    kDSI_InterruptGroup1ApbTxUnderflow      = (1UL << 4U),   /*!< TX fifo underflow */
+    kDSI_InterruptGroup1ApbRxOverflow       = (1UL << 5U),   /*!< RX fifo overflow */
+    kDSI_InterruptGroup1ApbRxUnderflow      = (1UL << 6U),   /*!< RX fifo underflow */
+    kDSI_InterruptGroup1ApbRxHeaderReceived = (1UL << 7U),   /*!< RX packet header has been received */
+    kDSI_InterruptGroup1ApbRxPacketReceived = (1UL << 8U),   /*!< All RX packet payload data has been received */
+    kDSI_InterruptGroup1SoTError            = (1UL << 9U),   /*!< SoT error from peripheral error report. */
+    kDSI_InterruptGroup1SoTSyncError        = (1UL << 10U),  /*!< SoT Sync error from peripheral error report. */
+    kDSI_InterruptGroup1EoTSyncError        = (1UL << 11U),  /*!< EoT Sync error from peripheral error report. */
+    kDSI_InterruptGroup1EscEntryCmdError    = (1UL << 12U),  /*!< Escape Mode Entry Command Error
                                                                    from peripheral error report. */
-    kDSI_InterruptGroup1LpTxSyncError = (1U << 13U),        /*!< Low-power transmit Sync Error from
+    kDSI_InterruptGroup1LpTxSyncError = (1UL << 13U),        /*!< Low-power transmit Sync Error from
                                                                    peripheral error report. */
-    kDSI_InterruptGroup1PeriphToError = (1U << 14U),        /*!< Peripheral timeout error from
+    kDSI_InterruptGroup1PeriphToError = (1UL << 14U),        /*!< Peripheral timeout error from
                                                                    peripheral error report. */
-    kDSI_InterruptGroup1FalseControlError  = (1U << 15U),   /*!< False control error from peripheral error report. */
-    kDSI_InterruptGroup1ContentionDetected = (1U << 16U),   /*!< Contention detected from peripheral error report. */
-    kDSI_InterruptGroup1EccErrorOneBit     = (1U << 17U),   /*!< Single bit ECC error (corrected) from
+    kDSI_InterruptGroup1FalseControlError  = (1UL << 15U),   /*!< False control error from peripheral error report. */
+    kDSI_InterruptGroup1ContentionDetected = (1UL << 16U),   /*!< Contention detected from peripheral error report. */
+    kDSI_InterruptGroup1EccErrorOneBit     = (1UL << 17U),   /*!< Single bit ECC error (corrected) from
                                                                    peripheral error report. */
-    kDSI_InterruptGroup1EccErrorMultiBit = (1U << 18U),     /*!< Multi bit ECC error (not corrected) from
+    kDSI_InterruptGroup1EccErrorMultiBit = (1UL << 18U),     /*!< Multi bit ECC error (not corrected) from
                                                                peripheral error report. */
-    kDSI_InterruptGroup1ChecksumError        = (1U << 19U), /*!< Checksum error from peripheral error report. */
-    kDSI_InterruptGroup1InvalidDataType      = (1U << 20U), /*!< DSI data type not recognized. */
-    kDSI_InterruptGroup1InvalidVcId          = (1U << 21U), /*!< DSI VC ID invalid. */
-    kDSI_InterruptGroup1InvalidTxLength      = (1U << 22U), /*!< Invalid transmission length. */
-    kDSI_InterruptGroup1ProtocalViolation    = (1U << 24U), /*!< DSI protocal violation. */
-    kDSI_InterruptGroup1ResetTriggerReceived = (1U << 25U), /*!< Reset trigger received. */
-    kDSI_InterruptGroup1TearTriggerReceived  = (1U << 26U), /*!< Tear effect trigger receive. */
-    kDSI_InterruptGroup1AckTriggerReceived   = (1U << 27U), /*!< Acknowledge trigger message received. */
-    kDSI_InterruptGroup1HtxTo                = (1U << 29U), /*!< High speed TX timeout. */
-    kDSI_InterruptGroup1LrxTo                = (1U << 30U), /*!< Low power RX timeout. */
-    kDSI_InterruptGroup1BtaTo                = (1U << 31U), /*!< Host BTA timeout. */
-    kDSI_InterruptGroup2EccOneBit            = (1U << 0U),  /*!< Sinle bit ECC error. */
-    kDSI_InterruptGroup2EccMultiBit          = (1U << 1U),  /*!< Multi bit ECC error. */
-    kDSI_InterruptGroup2CrcError             = (1U << 2U),  /*!< CRC error. */
+    kDSI_InterruptGroup1ChecksumError        = (1UL << 19U), /*!< Checksum error from peripheral error report. */
+    kDSI_InterruptGroup1InvalidDataType      = (1UL << 20U), /*!< DSI data type not recognized. */
+    kDSI_InterruptGroup1InvalidVcId          = (1UL << 21U), /*!< DSI VC ID invalid. */
+    kDSI_InterruptGroup1InvalidTxLength      = (1UL << 22U), /*!< Invalid transmission length. */
+    kDSI_InterruptGroup1ProtocalViolation    = (1UL << 24U), /*!< DSI protocal violation. */
+    kDSI_InterruptGroup1ResetTriggerReceived = (1UL << 25U), /*!< Reset trigger received. */
+    kDSI_InterruptGroup1TearTriggerReceived  = (1UL << 26U), /*!< Tear effect trigger receive. */
+    kDSI_InterruptGroup1AckTriggerReceived   = (1UL << 27U), /*!< Acknowledge trigger message received. */
+    kDSI_InterruptGroup1HtxTo                = (1UL << 29U), /*!< High speed TX timeout. */
+    kDSI_InterruptGroup1LrxTo                = (1UL << 30U), /*!< Low power RX timeout. */
+    kDSI_InterruptGroup1BtaTo                = (1UL << 31U), /*!< Host BTA timeout. */
+    kDSI_InterruptGroup2EccOneBit            = (1UL << 0U),  /*!< Sinle bit ECC error. */
+    kDSI_InterruptGroup2EccMultiBit          = (1UL << 1U),  /*!< Multi bit ECC error. */
+    kDSI_InterruptGroup2CrcError             = (1UL << 2U),  /*!< CRC error. */
 };
 
 /*! @brief DSI TX data type. */
@@ -347,16 +348,16 @@ typedef struct _dsi_handle dsi_handle_t;
  *        @ref DSI_GetAndClearHostStatus to check the error report status.
  * - @ref kStatus_Fail Transfer failed for other reasons.
  */
-typedef void (*dsi_callback_t)(MIPI_DSI_Type *base, dsi_handle_t *handle, status_t status, void *userData);
+typedef void (*dsi_callback_t)(const MIPI_DSI_Type *base, dsi_handle_t *handle, status_t status, void *userData);
 
 /*! @brief MIPI DSI transfer handle structure */
 struct _dsi_handle
 {
-    volatile bool isBusy;    /*!< MIPI DSI is busy with APB data transfer. */
-    dsi_transfer_t xfer;     /*!< Transfer information. */
-    dsi_callback_t callback; /*!< DSI callback */
-    void *userData;          /*!< Callback parameter */
-    MIPI_DSI_Type *dsi;      /*!< Pointer to MIPI DSI peripheral. */
+    volatile bool isBusy;     /*!< MIPI DSI is busy with APB data transfer. */
+    dsi_transfer_t xfer;      /*!< Transfer information. */
+    dsi_callback_t callback;  /*!< DSI callback */
+    void *userData;           /*!< Callback parameter */
+    const MIPI_DSI_Type *dsi; /*!< Pointer to MIPI DSI peripheral. */
 };
 
 /*******************************************************************************
@@ -381,7 +382,7 @@ extern "C" {
  * @param base MIPI DSI host peripheral base address.
  * @param config Pointer to a user-defined configuration structure.
  */
-void DSI_Init(MIPI_DSI_Type *base, const dsi_config_t *config);
+void DSI_Init(const MIPI_DSI_Type *base, const dsi_config_t *config);
 
 /*!
  * @brief Deinitializes an MIPI DSI host.
@@ -390,7 +391,7 @@ void DSI_Init(MIPI_DSI_Type *base, const dsi_config_t *config);
  *
  * @param base MIPI DSI host peripheral base address.
  */
-void DSI_Deinit(MIPI_DSI_Type *base);
+void DSI_Deinit(const MIPI_DSI_Type *base);
 
 /*!
  * @brief Get the default configuration to initialize the MIPI DSI host.
@@ -431,7 +432,7 @@ void DSI_GetDefaultConfig(dsi_config_t *config);
  * @param dsiHsBitClkFreq_Hz The DSI high speed bit clock frequency in Hz. It is
  * the same with DPHY PLL output.
  */
-void DSI_SetDpiConfig(MIPI_DSI_Type *base,
+void DSI_SetDpiConfig(const MIPI_DSI_Type *base,
                       const dsi_dpi_config_t *config,
                       uint8_t numLanes,
                       uint32_t dpiPixelClkFreq_Hz,
@@ -461,7 +462,7 @@ void DSI_SetDpiConfig(MIPI_DSI_Type *base,
  * @return The actual D-PHY PLL output frequency. If could not configure the
  * PLL to the target frequency, the return value is 0.
  */
-uint32_t DSI_InitDphy(MIPI_DSI_Type *base, const dsi_dphy_config_t *config, uint32_t refClkFreq_Hz);
+uint32_t DSI_InitDphy(const MIPI_DSI_Type *base, const dsi_dphy_config_t *config, uint32_t refClkFreq_Hz);
 
 /*!
  * @brief Deinitializes the D-PHY
@@ -470,7 +471,7 @@ uint32_t DSI_InitDphy(MIPI_DSI_Type *base, const dsi_dphy_config_t *config, uint
  *
  * @param base MIPI DSI host peripheral base address.
  */
-void DSI_DeinitDphy(MIPI_DSI_Type *base);
+void DSI_DeinitDphy(const MIPI_DSI_Type *base);
 
 /*!
  * @brief Get the default D-PHY configuration.
@@ -501,7 +502,7 @@ void DSI_GetDphyDefaultConfig(dsi_dphy_config_t *config, uint32_t txHsBitClk_Hz,
  * @param intGroup1 Interrupts to enable in group 1.
  * @param intGroup2 Interrupts to enable in group 2.
  */
-static inline void DSI_EnableInterrupts(MIPI_DSI_Type *base, uint32_t intGroup1, uint32_t intGroup2)
+static inline void DSI_EnableInterrupts(const MIPI_DSI_Type *base, uint32_t intGroup1, uint32_t intGroup2)
 {
     base->apb->IRQ_MASK &= ~intGroup1;
     base->apb->IRQ_MASK2 &= ~intGroup2;
@@ -516,7 +517,7 @@ static inline void DSI_EnableInterrupts(MIPI_DSI_Type *base, uint32_t intGroup1,
  * @param intGroup1 Interrupts to disable in group 1.
  * @param intGroup2 Interrupts to disable in group 2.
  */
-static inline void DSI_DisableInterrupts(MIPI_DSI_Type *base, uint32_t intGroup1, uint32_t intGroup2)
+static inline void DSI_DisableInterrupts(const MIPI_DSI_Type *base, uint32_t intGroup1, uint32_t intGroup2)
 {
     base->apb->IRQ_MASK |= intGroup1;
     base->apb->IRQ_MASK2 |= intGroup2;
@@ -529,7 +530,7 @@ static inline void DSI_DisableInterrupts(MIPI_DSI_Type *base, uint32_t intGroup1
  * @param intGroup1 Group 1 interrupt status.
  * @param intGroup2 Group 2 interrupt status.
  */
-static inline void DSI_GetAndClearInterruptStatus(MIPI_DSI_Type *base, uint32_t *intGroup1, uint32_t *intGroup2)
+static inline void DSI_GetAndClearInterruptStatus(const MIPI_DSI_Type *base, uint32_t *intGroup1, uint32_t *intGroup2)
 {
     *intGroup2 = base->apb->IRQ_STATUS2;
     *intGroup1 = base->apb->IRQ_STATUS;
@@ -558,7 +559,7 @@ static inline void DSI_GetAndClearInterruptStatus(MIPI_DSI_Type *base, uint32_t 
  * @param flags The transfer control flags, see _dsi_transfer_flags.
  */
 void DSI_SetApbPacketControl(
-    MIPI_DSI_Type *base, uint16_t wordCount, uint8_t virtualChannel, dsi_tx_data_type_t dataType, uint8_t flags);
+    const MIPI_DSI_Type *base, uint16_t wordCount, uint8_t virtualChannel, dsi_tx_data_type_t dataType, uint8_t flags);
 
 /*!
  * @brief Fill the long APB packet payload.
@@ -569,7 +570,7 @@ void DSI_SetApbPacketControl(
  * @param payload Pointer to the payload.
  * @param payloadSize Payload size in byte.
  */
-void DSI_WriteApbTxPayload(MIPI_DSI_Type *base, const uint8_t *payload, uint16_t payloadSize);
+void DSI_WriteApbTxPayload(const MIPI_DSI_Type *base, const uint8_t *payload, uint16_t payloadSize);
 
 /*!
  * @brief Extended function to fill the payload to TX FIFO.
@@ -593,7 +594,7 @@ void DSI_WriteApbTxPayload(MIPI_DSI_Type *base, const uint8_t *payload, uint16_t
  * @param dscCmd The DSC command to send, only used when @p sendDscCmd is true.
  */
 void DSI_WriteApbTxPayloadExt(
-    MIPI_DSI_Type *base, const uint8_t *payload, uint16_t payloadSize, bool sendDscCmd, uint8_t dscCmd);
+    const MIPI_DSI_Type *base, const uint8_t *payload, uint16_t payloadSize, bool sendDscCmd, uint8_t dscCmd);
 
 /*!
  * @brief Read the long APB packet payload.
@@ -606,7 +607,7 @@ void DSI_WriteApbTxPayloadExt(
  * @param payload Pointer to the payload.
  * @param payloadSize Payload size in byte.
  */
-void DSI_ReadApbRxPayload(MIPI_DSI_Type *base, uint8_t *payload, uint16_t payloadSize);
+void DSI_ReadApbRxPayload(const MIPI_DSI_Type *base, uint8_t *payload, uint16_t payloadSize);
 
 /*!
  * @brief Trigger the controller to send out APB packet.
@@ -615,7 +616,7 @@ void DSI_ReadApbRxPayload(MIPI_DSI_Type *base, uint8_t *payload, uint16_t payloa
  *
  * @param base MIPI DSI host peripheral base address.
  */
-static inline void DSI_SendApbPacket(MIPI_DSI_Type *base)
+static inline void DSI_SendApbPacket(const MIPI_DSI_Type *base)
 {
     base->apb->SEND_PACKET = 0x1U;
 }
@@ -628,7 +629,7 @@ static inline void DSI_SendApbPacket(MIPI_DSI_Type *base)
  * @param base MIPI DSI host peripheral base address.
  * @return The APB status.
  */
-static inline uint32_t DSI_GetApbStatus(MIPI_DSI_Type *base)
+static inline uint32_t DSI_GetApbStatus(const MIPI_DSI_Type *base)
 {
     return base->apb->PKT_STATUS;
 }
@@ -641,7 +642,7 @@ static inline uint32_t DSI_GetApbStatus(MIPI_DSI_Type *base)
  * @param base MIPI DSI host peripheral base address.
  * @return The error status.
  */
-static inline uint32_t DSI_GetRxErrorStatus(MIPI_DSI_Type *base)
+static inline uint32_t DSI_GetRxErrorStatus(const MIPI_DSI_Type *base)
 {
     return base->host->RX_ERROR_STATUS;
 }
@@ -677,7 +678,7 @@ static inline uint8_t DSI_GetEccRxErrorPosition(uint32_t rxErrorStatus)
  * @param base MIPI DSI host peripheral base address.
  * @return The DSI host status.
  */
-static inline uint32_t DSI_GetAndClearHostStatus(MIPI_DSI_Type *base)
+static inline uint32_t DSI_GetAndClearHostStatus(const MIPI_DSI_Type *base)
 {
     return base->host->CFG_STATUS_OUT;
 }
@@ -688,7 +689,7 @@ static inline uint32_t DSI_GetAndClearHostStatus(MIPI_DSI_Type *base)
  * @param base MIPI DSI host peripheral base address.
  * @return The RX packet header.
  */
-static inline uint32_t DSI_GetRxPacketHeader(MIPI_DSI_Type *base)
+static inline uint32_t DSI_GetRxPacketHeader(const MIPI_DSI_Type *base)
 {
     return base->apb->PKT_RX_PKT_HEADER;
 }
@@ -739,6 +740,9 @@ static inline uint8_t DSI_GetRxPacketVirtualChannel(uint32_t rxPktHeader)
  * Perform APB data transfer using blocking method. This function waits until all
  * data send or received, or timeout happens.
  *
+ * When using this API to read data, the actually read data count could be got
+ * from xfer->rxDataSize.
+ *
  * @param base MIPI DSI host peripheral base address.
  * @param xfer Pointer to the transfer structure.
  * @retval kStatus_Success Data transfer finished with no error.
@@ -750,7 +754,7 @@ static inline uint8_t DSI_GetRxPacketVirtualChannel(uint32_t rxPktHeader)
  * @retval kStatus_DSI_NotSupported Transfer format not supported.
  * @retval kStatus_DSI_Fail Transfer failed for other reasons.
  */
-status_t DSI_TransferBlocking(MIPI_DSI_Type *base, dsi_transfer_t *xfer);
+status_t DSI_TransferBlocking(const MIPI_DSI_Type *base, dsi_transfer_t *xfer);
 
 /*! @} */
 
@@ -769,13 +773,19 @@ status_t DSI_TransferBlocking(MIPI_DSI_Type *base, dsi_transfer_t *xfer);
  * @param callback Callback function.
  * @param userData User data.
  */
-status_t DSI_TransferCreateHandle(MIPI_DSI_Type *base, dsi_handle_t *handle, dsi_callback_t callback, void *userData);
+status_t DSI_TransferCreateHandle(const MIPI_DSI_Type *base,
+                                  dsi_handle_t *handle,
+                                  dsi_callback_t callback,
+                                  void *userData);
 
 /*!
  * @brief APB data transfer using interrupt method.
  *
  * Perform APB data transfer using interrupt method, when transfer finished,
  * upper layer could be informed through callback function.
+ *
+ * When using this API to read data, the actually read data count could be got
+ * from handle->xfer->rxDataSize after read finished.
  *
  * @param base MIPI DSI host peripheral base address.
  * @param handle pointer to dsi_handle_t structure which stores the transfer state.
@@ -785,7 +795,7 @@ status_t DSI_TransferCreateHandle(MIPI_DSI_Type *base, dsi_handle_t *handle, dsi
  * @retval kStatus_DSI_Busy Failed to start transfer because DSI is busy with pervious transfer.
  * @retval kStatus_DSI_NotSupported Transfer format not supported.
  */
-status_t DSI_TransferNonBlocking(MIPI_DSI_Type *base, dsi_handle_t *handle, dsi_transfer_t *xfer);
+status_t DSI_TransferNonBlocking(const MIPI_DSI_Type *base, dsi_handle_t *handle, dsi_transfer_t *xfer);
 
 /*!
  * @brief Abort current APB data transfer.
@@ -793,7 +803,7 @@ status_t DSI_TransferNonBlocking(MIPI_DSI_Type *base, dsi_handle_t *handle, dsi_
  * @param base MIPI DSI host peripheral base address.
  * @param handle pointer to dsi_handle_t structure which stores the transfer state.
  */
-void DSI_TransferAbort(MIPI_DSI_Type *base, dsi_handle_t *handle);
+void DSI_TransferAbort(const MIPI_DSI_Type *base, dsi_handle_t *handle);
 
 /*!
  * @brief Interrupt handler for the DSI.
@@ -801,7 +811,7 @@ void DSI_TransferAbort(MIPI_DSI_Type *base, dsi_handle_t *handle);
  * @param base MIPI DSI host peripheral base address.
  * @param handle pointer to dsi_handle_t structure which stores the transfer state.
  */
-void DSI_TransferHandleIRQ(MIPI_DSI_Type *base, dsi_handle_t *handle);
+void DSI_TransferHandleIRQ(const MIPI_DSI_Type *base, dsi_handle_t *handle);
 
 /*! @} */
 

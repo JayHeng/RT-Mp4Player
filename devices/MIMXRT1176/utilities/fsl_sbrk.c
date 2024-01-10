@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2015, Freescale Semiconductor, Inc.
- * Copyright 2016-2019 NXP
+ * Copyright 2016-2019, 2022 NXP
  * All rights reserved.
  *
  * SPDX-License-Identifier: BSD-3-Clause
@@ -8,6 +8,8 @@
 #if defined(__GNUC__)
 #include <stdio.h>
 #include <errno.h>
+#include <stdint.h>
+#include <sys/types.h>
 #endif
 
 #if defined(__GNUC__)
@@ -35,7 +37,7 @@ caddr_t _sbrk(int incr)
 
     prev_heap_end = heap_end;
 
-    if ((unsigned int)heap_end + (unsigned int)incr > (unsigned int)(&heap_limit))
+    if ((uintptr_t)heap_end + (uintptr_t)incr > (uintptr_t)(&heap_limit))
     {
         errno = ENOMEM;
 
@@ -43,7 +45,7 @@ caddr_t _sbrk(int incr)
     }
     else
     {
-        heap_end = (char *)((unsigned int)heap_end + (unsigned int)incr);
+        heap_end = (char *)((uintptr_t)heap_end + (uintptr_t)incr);
 
         ret = (caddr_t)prev_heap_end;
     }
