@@ -7,6 +7,7 @@
 
 #include "display_support.h"
 #include "fsl_gpio.h"
+#include "mp4.h"
 #include "fsl_mipi_dsi.h"
 #if (DEMO_PANEL_RK055AHD091 == DEMO_PANEL)
 #include "fsl_rm68200.h"
@@ -99,7 +100,7 @@
 
 static void BOARD_PullPanelResetPin(bool pullUp);
 static void BOARD_PullPanelPowerPin(bool pullUp);
-static void BOARD_InitLcdifClock(void);
+void BOARD_InitLcdifClock(void);
 static void BOARD_InitMipiDsiClock(void);
 static status_t BOARD_DSI_Transfer(dsi_transfer_t *xfer);
 
@@ -267,7 +268,7 @@ static status_t BOARD_DSI_Transfer(dsi_transfer_t *xfer)
     return DSI_TransferBlocking(DEMO_MIPI_DSI, xfer);
 }
 
-static void BOARD_InitLcdifClock(void)
+void BOARD_InitLcdifClock(void)
 {
     /*
      * The pixel clock is (height + VSW + VFP + VBP) * (width + HSW + HFP + HBP) * frame rate.
@@ -279,9 +280,21 @@ static void BOARD_InitLcdifClock(void)
         .clockOff = false,
         .mux      = 4, /*!< PLL_528. */
 #if ((DEMO_PANEL == DEMO_PANEL_RK055AHD091) || (DEMO_PANEL_RK055MHD091 == DEMO_PANEL))
-        .div = 9,
+#if VIDEO_LCD_REFRESH_FREG_60Hz == 1
+        .div = 8,
+#elif VIDEO_LCD_REFRESH_FREG_30Hz == 1
+        .div = 17,
+#elif VIDEO_LCD_REFRESH_FREG_25Hz == 1
+        .div = 20,
+#endif
 #else
-        .div = 15,
+#if VIDEO_LCD_REFRESH_FREG_60Hz == 1
+        .div = 14,
+#elif VIDEO_LCD_REFRESH_FREG_30Hz == 1
+        .div = 29,
+#elif VIDEO_LCD_REFRESH_FREG_25Hz == 1
+        .div = 35,
+#endif
 #endif
     };
 

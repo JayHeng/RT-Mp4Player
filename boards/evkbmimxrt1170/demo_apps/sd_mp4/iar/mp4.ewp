@@ -2494,6 +2494,8 @@
                 <debug>1</debug>
                 <option>
                     <name>CCDefines</name>
+                    <state>USE_SDRAM</state>
+                    <state>DATA_SECTION_IS_CACHEABLE=1</state>
                     <state>DEBUG</state>
                     <state>CPU_MIMXRT1176DVMAA_cm7</state>
                     <state>SKIP_SYSCLK_INIT</state>

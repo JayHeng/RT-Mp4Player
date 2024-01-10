@@ -60,6 +60,20 @@ static void set_sai_clock_dividers(uint32_t bitWidth, uint32_t sampleRate_Hz, sa
 /*******************************************************************************
  * Variables
  ******************************************************************************/
+#if defined BOARD_USE_CODEC
+wm8960_config_t wm8960Config = {
+    .i2cConfig = {.codecI2CInstance = BOARD_CODEC_I2C_INSTANCE, .codecI2CSourceClock = BOARD_CODEC_I2C_CLOCK_FREQ},
+    .route     = kWM8960_RoutePlaybackandRecord,
+    .rightInputSource = kWM8960_InputDifferentialMicInput2,
+    .playSource       = kWM8960_PlaySourceDAC,
+    .slaveAddress     = WM8960_I2C_ADDR,
+    .bus              = kWM8960_BusI2S,
+    .format = {.mclk_HZ = 6144000U, .sampleRate = kWM8960_AudioSampleRate16KHz, .bitWidth = kWM8960_AudioBitWidth16bit},
+    .master_slave = false,
+};
+codec_config_t boardCodecConfig = {.codecDevType = kCODEC_WM8960, .codecDevConfig = &wm8960Config};
+#endif
+
 audio_sai_cfg_t g_audioSaiCfg;
 
 AT_NONCACHEABLE_SECTION_INIT(sai_edma_handle_t txHandle) = {0};

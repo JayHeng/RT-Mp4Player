@@ -607,7 +607,7 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
 int main(void)
 {
     BOARD_ConfigMPU();
-    BOARD_InitPins();
+    BOARD_InitBootPins();
     BOARD_BootClockRUN();
     BOARD_InitDebugConsole();
 
