@@ -146,7 +146,7 @@ static uint32_t s_saiTransIndex = 0;
 
 void sai_audio_play(uint8_t *audioData, uint32_t audioBytes)
 {
-#if MP4_FF_TIME_ENABLE == 1
+#if (MP4_FF_TIME_ENABLE == 1) || (MP4_AUDIO_PLAY_OFF == 1)
     return;
 #endif
 

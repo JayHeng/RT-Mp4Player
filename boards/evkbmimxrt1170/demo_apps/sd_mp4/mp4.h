@@ -42,6 +42,8 @@ typedef struct _sai_measure_context
 // The detected error time in ns for one frame
 #define AUDIO_FRAME_ERR_NS  1000000
 
+#define MP4_AUDIO_PLAY_OFF  1
+
 typedef struct _lcd_measure_context
 {
     uint64_t costTimePxp_ns;
