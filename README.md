@@ -6,7 +6,7 @@ An MP4 player based on i.MXRT+emWin+FFmpeg3.0.1 | 一款基于i.MXRT的MP4播放
 #### 1.1 开发板
 　　本应用基于的开发板是恩智浦 MIMXRT1060EVK12，主芯片为i.MXRT1062DVJ6A，主频为600MHz，内置1MB SRAM（最大512KB TCM），开发板原理简图如下：  
 
-<img src="http://henjay724.com/image/github/RT-MPlayer_rt1060evk12_sch.PNG" style="zoom:100%" />  
+![](https://raw.githubusercontent.com/JayHeng/pzhmcu-picture/master/github/RT-MPlayer_rt1060evk12_sch.PNG)  
 
 　　本应用实际性能与板载存储资源性能息息相关，在此列出各存储资源性能表，后面具体分配资源时可作参考：  
 
@@ -49,7 +49,7 @@ An MP4 player based on i.MXRT+emWin+FFmpeg3.0.1 | 一款基于i.MXRT的MP4播放
 
 　　该屏与开发板连接图如下：  
 
-<img src="http://henjay724.com/image/github/RT-MPlayer_LCD_480x272.jpg" style="zoom:100%" />  
+![](https://raw.githubusercontent.com/JayHeng/pzhmcu-picture/master/github/RT-MPlayer_LCD_480x272.jpg)  
 
 ##### 1.3.2 中屏 800*600
 　　中屏是恩智浦合作伙伴ZLG开发的一款8寸LCD屏，具体型号为 LCD-800600W080TR：  
@@ -58,14 +58,14 @@ An MP4 player based on i.MXRT+emWin+FFmpeg3.0.1 | 一款基于i.MXRT的MP4播放
 
 　　该屏与开发板连接图如下（开发板上电阻R67需要移除，直连即可）。注意该屏必须同时连接6pin触摸线，否则显示不正常。  
 
-<img src="http://henjay724.com/image/github/RT-MPlayer_LCD_800x600.jpg" style="zoom:100%" />  
+![](https://raw.githubusercontent.com/JayHeng/pzhmcu-picture/master/github/RT-MPlayer_LCD_800x600.jpg)  
 
 ##### 1.3.3 大屏 1280*800
 　　大屏为型号未知的10.1寸LCD屏：  
 
 　　该屏与开发板连接图如下（开发板上电阻R67需要移除，直连即可）：  
 
-<img src="http://henjay724.com/image/github/RT-MPlayer_LCD_1280x800.jpg" style="zoom:100%" />  
+![](https://raw.githubusercontent.com/JayHeng/pzhmcu-picture/master/github/RT-MPlayer_LCD_1280x800.jpg)  
 
 #### 1.4 音箱/耳机
 　　本应用需要外接音箱/耳机，用于播放音频。  
@@ -189,14 +189,14 @@ An MP4 player based on i.MXRT+emWin+FFmpeg3.0.1 | 一款基于i.MXRT的MP4播放
 
 #### 2.3 下载程序
 ##### 2.3.1 使用外部J-Link
-　　推荐使用J-Link下载sdram和flexram_sdram工程，其中对于SDRAM的初始化配置由 \RT-Mp4Player\boards\evkmimxrt1060\demo_apps\sd_mp4\evkmimxrt1060_sdram_init_166mhz.jlinkscript 脚本完成。  
+　　推荐使用J-Link下载sdram和flexram_sdram工程，其中对于SDRAM的初始化配置由 \RT-Mp4Player\boards\evkmimxrt1060\demo_apps\sd_mp4\evkmimxrt1060_sdram_init_166mhz.jlinkscript 脚本完成。   
 
-<img src="http://henjay724.com/image/github/RT-MPlayer_config_sdram_jlink.PNG" style="zoom:100%" />  
+![](https://raw.githubusercontent.com/JayHeng/pzhmcu-picture/master/github/RT-MPlayer_config_sdram_jlink.PNG)  
 
 ##### 2.3.2 使用板载CMSIS-DAP
 　　推荐使用CMSIS-DAP下载flexspinor_xxx工程（IAR v8.32.2 Flashloader不支持RT1060EVK Hyper NOR Flash），其中对于SDRAM的初始化配置由 \RT-Mp4Player\boards\evkmimxrt1060\demo_apps\sd_mp4\iar\evkmimxrt1060_sdram_init_166mhz.mac 脚本完成。  
 
-<img src="http://henjay724.com/image/github/RT-MPlayer_config_sdram_cmsisdap.PNG" style="zoom:100%" />  
+![](https://raw.githubusercontent.com/JayHeng/pzhmcu-picture/master/github/RT-MPlayer_config_sdram_cmsisdap.PNG)  
 
 ##### 2.3.3 XIP启动配置
 　　XIP启动需要配置FlexSPI NOR Flash和SDRAM，这是由ROM来实现的，应用工程里如下两个源文件里指定了配置参数：  
@@ -224,7 +224,7 @@ An MP4 player based on i.MXRT+emWin+FFmpeg3.0.1 | 一款基于i.MXRT的MP4播放
 
 　　下图为脚本执行结果，共显示4张表，分别是FFmpeg读帧数据时间、解音频帧时间、解视频帧时间、PXP转换视频帧时间（YUV444转RGB565）。  
 
-<img src="http://henjay724.com/image/github/RT-MPlayer_ffmpeg_time_hvga272_to_hvga272_flexram_sdram.PNG" style="zoom:100%" />  
+![](https://raw.githubusercontent.com/JayHeng/pzhmcu-picture/master/github/RT-MPlayer_ffmpeg_time_hvga272_to_hvga272_flexram_sdram.PNG)  
 
 　　如下是flexram_sdram工程在不同源MP4分辨率以及不同LCD屏上实测解码帧率表：  
 
