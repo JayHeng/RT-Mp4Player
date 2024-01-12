@@ -609,6 +609,7 @@ int main(void)
     BOARD_ConfigMPU();
     BOARD_InitBootPins();
     BOARD_BootClockRUN();
+    BOARD_ResetDisplayMix();
     BOARD_InitDebugConsole();
 
     PRINTF("MP4 decode demo start:\r\n");
@@ -629,9 +630,9 @@ int main(void)
     g_audioSaiCfg.sampleWidth_bit = AUDIO_CONV_WIDTH;
     g_videoLcdCfg.isLcdConfigured = false;
 
-    char *filepath_in="/bigBuckBunny_480x272_faststart.mp4";
-    char *filepath_aout="/bigBuckBunny_480x272_faststart.pcm";
-    char *filepath_vout="/bigBuckBunny_480x272_faststart.yuv";
+    char *filepath_in="/bigBuckBunny_400x400_faststart.mp4";
+    char *filepath_aout="/bigBuckBunny_400x400_faststart.pcm";
+    char *filepath_vout="/bigBuckBunny_400x400_faststart.yuv";
 
     while(1)
     {

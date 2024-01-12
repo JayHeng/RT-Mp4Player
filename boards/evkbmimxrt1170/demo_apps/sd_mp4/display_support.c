@@ -15,6 +15,11 @@
 #include "fsl_rm68191.h"
 #elif (DEMO_PANEL_RK055MHD091 == DEMO_PANEL)
 #include "fsl_hx8394.h"
+#elif (DEMO_PANEL_G1120B0MIPI == DEMO_PANEL)
+#include "fsl_dc_fb_dsi_cmd.h"
+#include "fsl_rm67162.h"
+#include "mipi_dsi_aux.h"
+//#include "auo141_display.h"
 #endif
 #include "pin_mux.h"
 #include "board.h"
@@ -60,6 +65,15 @@
 #define DEMO_VFP 16
 #define DEMO_VBP 14
 
+#elif (DEMO_PANEL_G1120B0MIPI == DEMO_PANEL)
+
+#define DEMO_HSW 0
+#define DEMO_HFP 0
+#define DEMO_HBP 0
+#define DEMO_VSW 0
+#define DEMO_VFP 0
+#define DEMO_VBP 0
+
 #endif
 
 #if (DEMO_DISPLAY_CONTROLLER == DEMO_DISPLAY_CONTROLLER_LCDIFV2)
@@ -81,7 +95,12 @@
 
 /* Definitions for MIPI. */
 #define DEMO_MIPI_DSI          (&g_mipiDsi)
+#if (DEMO_PANEL_G1120B0MIPI == DEMO_PANEL)
+#define DEMO_MIPI_DSI_LANE_NUM 1
+#else
 #define DEMO_MIPI_DSI_LANE_NUM 2
+#endif
+
 
 /*
  * The DPHY bit clock must be fast enough to send out the pixels, it should be
@@ -93,6 +112,31 @@
  * it is fast enough.
  */
 #define DEMO_MIPI_DPHY_BIT_CLK_ENLARGE(origin) (((origin) / 8) * 9)
+      
+
+/*
+ * The max TX array size:
+ *
+ * 1. One byte in FIFO is reserved for DSC command
+ * 2. One pixel should not be split to two transfer.
+ */
+#define APP_DSI_TX_ARRAY_MAX   (((FSL_DSI_TX_MAX_PAYLOAD_BYTE - 1U) / DEMO_BUFFER_BYTE_PER_PIXEL) * DEMO_BUFFER_BYTE_PER_PIXEL)
+
+typedef struct _dsi_mem_write_ctx
+{
+    volatile bool onGoing;
+    const uint8_t *txData;
+    uint32_t leftByteLen;
+    uint8_t dscCmd;
+} dsi_mem_write_ctx_t;
+
+void BOARD_InitMipiPanelTEPin(void);
+status_t BOARD_DSI_MemWrite(uint8_t virtualChannel, const uint8_t *data, uint32_t length);
+
+static dsi_mem_write_ctx_t s_dsiMemWriteCtx;
+static dsi_transfer_t      s_dsiMemWriteXfer = {0};
+static dsi_handle_t        s_dsiDriverHandle;
+static uint8_t             s_dsiMemWriteTmpArray[APP_DSI_TX_ARRAY_MAX];
 
 /*******************************************************************************
  * Prototypes
@@ -156,7 +200,7 @@ static display_handle_t hx8394Handle = {
     .ops      = &hx8394_ops,
 };
 
-#else
+#elif (DEMO_PANEL == DEMO_PANEL_RK055IQH091)
 
 static mipi_dsi_device_t dsiDevice = {
     .virtualChannel = 0,
@@ -174,8 +218,57 @@ static display_handle_t rm68191Handle = {
     .ops      = &rm68191_ops,
 };
 
+#elif (DEMO_PANEL == DEMO_PANEL_G1120B0MIPI)
+
+static mipi_dsi_device_t dsiDevice = {
+    .virtualChannel = 0,
+    .xferFunc       = BOARD_DSI_Transfer,
+    .memWriteFunc   = BOARD_DSI_MemWrite,
+};
+
+static const rm67162_resource_t rm67162Resource = {
+    .dsiDevice    = &dsiDevice,
+    .pullResetPin = BOARD_PullPanelResetPin,
+    .pullPowerPin = BOARD_PullPanelPowerPin,
+};
+
+static display_handle_t rm67162Handle = {
+    .resource = &rm67162Resource,
+    .ops      = &rm67162_ops,
+};
+
 #endif
 
+#if (DEMO_PANEL == DEMO_PANEL_G1120B0MIPI)
+
+const dc_fb_dsi_cmd_config_t s_panelConfig = {
+    .commonConfig =
+        {
+            .resolution   = FSL_VIDEO_RESOLUTION(DEMO_PANEL_WIDTH, DEMO_PANEL_HEIGHT),
+            .hsw          = DEMO_HSW,
+            .hfp          = DEMO_HFP,
+            .hbp          = DEMO_HBP,
+            .vsw          = DEMO_VSW,
+            .vfp          = DEMO_VFP,
+            .vbp          = DEMO_VBP,
+            .controlFlags = 0,
+            .dsiLanes     = DEMO_MIPI_DSI_LANE_NUM,
+            .pixelFormat  = APP_VIDEO_PIXEL_FORMAT,
+        },
+    .useTEPin = true,
+};
+
+static dc_fb_dsi_cmd_handle_t s_dcFbDsiCmdHandle = {
+    .dsiDevice   = &dsiDevice,
+    .panelHandle = &rm67162Handle,
+};
+
+const dc_fb_t g_dc = {
+    .ops     = &g_dcFbOpsDsiCmd,
+    .prvData = &s_dcFbDsiCmdHandle,
+    .config  = &s_panelConfig,
+};
+#else
 #if (DEMO_DISPLAY_CONTROLLER == DEMO_DISPLAY_CONTROLLER_LCDIFV2)
 
 static dc_fb_lcdifv2_handle_t s_dcFbLcdifv2Handle = {0};
@@ -233,6 +326,7 @@ const dc_fb_t g_dc = {
     .prvData = &s_dcFbElcdifHandle,
     .config  = &s_dcFbElcdifConfig,
 };
+#endif
 #endif
 
 /*******************************************************************************
@@ -311,6 +405,7 @@ void BOARD_InitLcdifClock(void)
 #endif
 }
 
+#if (DEMO_PANEL == DEMO_PANEL_G1120B0MIPI)
 static void BOARD_InitMipiDsiClock(void)
 {
     uint32_t mipiDsiEscClkFreq_Hz;
@@ -346,48 +441,73 @@ static void BOARD_InitMipiDsiClock(void)
     CLOCK_SetRootClock(kCLOCK_Root_Mipi_Ref, &mipiDphyRefClockConfig);
 
     mipiDsiDphyRefClkFreq_Hz = BOARD_XTAL0_CLK_HZ;
+    mipiDsiDphyBitClkFreq_Hz = BOARD_MIPI_CLK_HZ;
+
 }
 
-static status_t BOARD_InitLcdPanel(void)
+static void BOARD_SetMipiDsiConfig(void)
 {
-    status_t status;
+    dsi_config_t dsiConfig;
+    dsi_dphy_config_t dphyConfig;
 
-    const gpio_pin_config_t pinConfig = {kGPIO_DigitalOutput, 0, kGPIO_NoIntmode};
+    /*
+     * dsiConfig.numLanes = 4;
+     * dsiConfig.enableNonContinuousHsClk = false;
+     * dsiConfig.autoInsertEoTp = true;
+     * dsiConfig.numExtraEoTp = 0;
+     * dsiConfig.htxTo_ByteClk = 0;
+     * dsiConfig.lrxHostTo_ByteClk = 0;
+     * dsiConfig.btaTo_ByteClk = 0;
+     */
+    DSI_GetDefaultConfig(&dsiConfig);
+    dsiConfig.numLanes       = DEMO_MIPI_DSI_LANE_NUM;
+    dsiConfig.autoInsertEoTp = true;
 
-    const display_config_t displayConfig = {
-        .resolution   = FSL_VIDEO_RESOLUTION(DEMO_PANEL_WIDTH, DEMO_PANEL_HEIGHT),
-        .hsw          = DEMO_HSW,
-        .hfp          = DEMO_HFP,
-        .hbp          = DEMO_HBP,
-        .vsw          = DEMO_VSW,
-        .vfp          = DEMO_VFP,
-        .vbp          = DEMO_VBP,
-        .controlFlags = 0,
-        .dsiLanes     = DEMO_MIPI_DSI_LANE_NUM,
-    };
+    DSI_GetDphyDefaultConfig(&dphyConfig, mipiDsiDphyBitClkFreq_Hz, mipiDsiTxEscClkFreq_Hz);
 
-    GPIO_PinInit(BOARD_MIPI_PANEL_POWER_GPIO, BOARD_MIPI_PANEL_POWER_PIN, &pinConfig);
-    GPIO_PinInit(BOARD_MIPI_PANEL_BL_GPIO, BOARD_MIPI_PANEL_BL_PIN, &pinConfig);
-    GPIO_PinInit(BOARD_MIPI_PANEL_RST_GPIO, BOARD_MIPI_PANEL_RST_PIN, &pinConfig);
+    /* Init the DSI module. */
+    DSI_Init(DEMO_MIPI_DSI, &dsiConfig);
 
-#if (DEMO_PANEL == DEMO_PANEL_RK055AHD091)
-    status = RM68200_Init(&rm68200Handle, &displayConfig);
-
-#elif (DEMO_PANEL_RK055MHD091 == DEMO_PANEL)
-
-    status = HX8394_Init(&hx8394Handle, &displayConfig);
-
+    /* Init DPHY */
+    DSI_InitDphy(DEMO_MIPI_DSI, &dphyConfig, mipiDsiDphyRefClkFreq_Hz);
+}
 #else
 
-    status = RM68191_Init(&rm68191Handle, &displayConfig);
-#endif
+static void BOARD_InitMipiDsiClock(void)
+{
+    uint32_t mipiDsiEscClkFreq_Hz;
 
-    if (status == kStatus_Success)
-    {
-        GPIO_PinWrite(BOARD_MIPI_PANEL_BL_GPIO, BOARD_MIPI_PANEL_BL_PIN, 1);
-    }
+    /* RxClkEsc max 60MHz, TxClkEsc 12 to 20MHz. */
+    /* RxClkEsc = 528MHz / 11 = 48MHz. */
+    /* TxClkEsc = 528MHz / 11 / 4 = 16MHz. */
+    const clock_root_config_t mipiEscClockConfig = {
+        .clockOff = false,
+        .mux      = 4, /*!< PLL_528. */
+        .div      = 11,
+    };
 
-    return status;
+    CLOCK_SetRootClock(kCLOCK_Root_Mipi_Esc, &mipiEscClockConfig);
+
+    mipiDsiEscClkFreq_Hz = CLOCK_GetRootClockFreq(kCLOCK_Root_Mipi_Esc);
+
+    const clock_group_config_t mipiEscClockGroupConfig = {
+        .clockOff = false, .resetDiv = 2, .div0 = 2, /* TX esc clock. */
+    };
+
+    CLOCK_SetGroupConfig(kCLOCK_Group_MipiDsi, &mipiEscClockGroupConfig);
+
+    mipiDsiTxEscClkFreq_Hz = mipiDsiEscClkFreq_Hz / 3;
+
+    /* DPHY reference clock, use OSC 24MHz clock. */
+    const clock_root_config_t mipiDphyRefClockConfig = {
+        .clockOff = false,
+        .mux      = 1, /*!< OSC_24M. */
+        .div      = 1,
+    };
+
+    CLOCK_SetRootClock(kCLOCK_Root_Mipi_Ref, &mipiDphyRefClockConfig);
+
+    mipiDsiDphyRefClkFreq_Hz = BOARD_XTAL0_CLK_HZ;
 }
 
 static void BOARD_SetMipiDsiConfig(void)
@@ -449,6 +569,48 @@ static void BOARD_SetMipiDsiConfig(void)
     DSI_SetDpiConfig(DEMO_MIPI_DSI, &dpiConfig, DEMO_MIPI_DSI_LANE_NUM, mipiDsiDpiClkFreq_Hz, mipiDsiDphyBitClkFreq_Hz);
 }
 
+#endif
+
+static status_t BOARD_InitLcdPanel(void)
+{
+    status_t status = kStatus_Success;
+
+    const gpio_pin_config_t pinConfig = {kGPIO_DigitalOutput, 0, kGPIO_NoIntmode};
+
+    const display_config_t displayConfig = {
+        .resolution   = FSL_VIDEO_RESOLUTION(DEMO_PANEL_WIDTH, DEMO_PANEL_HEIGHT),
+        .hsw          = DEMO_HSW,
+        .hfp          = DEMO_HFP,
+        .hbp          = DEMO_HBP,
+        .vsw          = DEMO_VSW,
+        .vfp          = DEMO_VFP,
+        .vbp          = DEMO_VBP,
+        .controlFlags = 0,
+        .dsiLanes     = DEMO_MIPI_DSI_LANE_NUM,
+    };
+
+    GPIO_PinInit(BOARD_MIPI_PANEL_POWER_GPIO, BOARD_MIPI_PANEL_POWER_PIN, &pinConfig);
+    GPIO_PinInit(BOARD_MIPI_PANEL_BL_GPIO, BOARD_MIPI_PANEL_BL_PIN, &pinConfig);
+    GPIO_PinInit(BOARD_MIPI_PANEL_RST_GPIO, BOARD_MIPI_PANEL_RST_PIN, &pinConfig);
+
+#if (DEMO_PANEL == DEMO_PANEL_RK055AHD091)
+    status = RM68200_Init(&rm68200Handle, &displayConfig);
+#elif (DEMO_PANEL_RK055MHD091 == DEMO_PANEL)
+    status = HX8394_Init(&hx8394Handle, &displayConfig);
+#elif (DEMO_PANEL_RK055IQH091 == DEMO_PANEL)
+    status = RM68191_Init(&rm68191Handle, &displayConfig);
+#elif (DEMO_PANEL_G1120B0MIPI == DEMO_PANEL)
+    BOARD_InitMipiPanelTEPin();
+#endif
+
+    if (status == kStatus_Success)
+    {
+        GPIO_PinWrite(BOARD_MIPI_PANEL_BL_GPIO, BOARD_MIPI_PANEL_BL_PIN, 1);
+    }
+
+    return status;
+}
+
 status_t BOARD_InitDisplayInterface(void)
 {
     CLOCK_EnableClock(kCLOCK_Video_Mux);
@@ -486,6 +648,179 @@ status_t BOARD_InitDisplayInterface(void)
     /* 7. Configure the panel. */
     return BOARD_InitLcdPanel();
 }
+
+#if (DEMO_PANEL_G1120B0MIPI == DEMO_PANEL)
+static status_t BOARD_DsiMemWriteSendChunck(void)
+{
+    uint32_t curSendLen;
+    uint32_t i;
+
+    curSendLen =
+        APP_DSI_TX_ARRAY_MAX > s_dsiMemWriteCtx.leftByteLen ? s_dsiMemWriteCtx.leftByteLen : APP_DSI_TX_ARRAY_MAX;
+
+    s_dsiMemWriteXfer.txDataType = kDSI_TxDataDcsLongWr;
+    s_dsiMemWriteXfer.dscCmd     = s_dsiMemWriteCtx.dscCmd;
+    s_dsiMemWriteXfer.txData     = s_dsiMemWriteTmpArray;
+
+    /* For each pixel, the MIPI DSI sends out low byte first, but according to
+     * the MIPI DSC spec, the high byte should be send first, so swap the pixel byte
+     * first.
+     */
+#if (DEMO_RM67162_BUFFER_FORMAT == DEMO_RM67162_BUFFER_RGB565)
+        s_dsiMemWriteXfer.txDataSize = curSendLen;
+    for (i = 0; i < curSendLen; i += 2)
+    {
+        s_dsiMemWriteTmpArray[i]     = *(s_dsiMemWriteCtx.txData + 1);
+        s_dsiMemWriteTmpArray[i + 1] = *(s_dsiMemWriteCtx.txData);
+
+        s_dsiMemWriteCtx.txData += 2;
+    }
+#elif (DEMO_RM67162_BUFFER_FORMAT == DEMO_RM67162_BUFFER_RGB888)
+    s_dsiMemWriteXfer.txDataSize = curSendLen;
+    for (i = 0; i < curSendLen; i += 3)
+    {
+        s_dsiMemWriteTmpArray[i]     = *(s_dsiMemWriteCtx.txData + 2);
+        s_dsiMemWriteTmpArray[i + 1] = *(s_dsiMemWriteCtx.txData + 1);
+        s_dsiMemWriteTmpArray[i + 2] = *(s_dsiMemWriteCtx.txData);
+
+        s_dsiMemWriteCtx.txData += 3;
+    }
+#else
+    s_dsiMemWriteXfer.txDataSize = (curSendLen * 3 / 4);
+    for (i = 0; i < (curSendLen * 3 / 4); i += 3)
+    {
+        s_dsiMemWriteTmpArray[i]     = *(s_dsiMemWriteCtx.txData + 2);
+        s_dsiMemWriteTmpArray[i + 1] = *(s_dsiMemWriteCtx.txData + 1);
+        s_dsiMemWriteTmpArray[i + 2] = *(s_dsiMemWriteCtx.txData);
+
+        s_dsiMemWriteCtx.txData += 4;
+    }
+#endif
+
+    s_dsiMemWriteCtx.leftByteLen -= (curSendLen);
+    s_dsiMemWriteCtx.dscCmd = kMIPI_DCS_WriteMemoryContinue;
+
+    return DSI_TransferNonBlocking(DEMO_MIPI_DSI, &s_dsiDriverHandle, &s_dsiMemWriteXfer);
+}
+
+static void BOARD_DsiMemWriteCallback(const MIPI_DSI_Type *base, dsi_handle_t *handle, status_t status, void *userData)
+{
+    if ((kStatus_Success == status) && (s_dsiMemWriteCtx.leftByteLen > 0))
+    {
+        status = BOARD_DsiMemWriteSendChunck();
+
+        if (kStatus_Success == status)
+        {
+            return;
+        }
+    }
+
+    s_dsiMemWriteCtx.onGoing = false;
+    MIPI_DSI_MemoryDoneDriverCallback(status, &dsiDevice);
+}
+
+status_t BOARD_DSI_MemWrite(uint8_t virtualChannel, const uint8_t *data, uint32_t length)
+{
+    status_t status;
+
+    if (s_dsiMemWriteCtx.onGoing)
+    {
+        return kStatus_Fail;
+    }
+
+    s_dsiMemWriteXfer.virtualChannel = virtualChannel;
+    s_dsiMemWriteXfer.flags          = kDSI_TransferUseHighSpeed;
+    s_dsiMemWriteXfer.sendDscCmd     = true;
+
+    s_dsiMemWriteCtx.onGoing     = true;
+    s_dsiMemWriteCtx.txData      = data;
+    s_dsiMemWriteCtx.leftByteLen = length;
+    s_dsiMemWriteCtx.dscCmd      = kMIPI_DCS_WriteMemoryStart;
+
+    status = BOARD_DsiMemWriteSendChunck();
+
+    if (status != kStatus_Success)
+    {
+        /* Memory write does not start actually. */
+        s_dsiMemWriteCtx.onGoing = false;
+    }
+
+    return status;
+}
+
+void BOARD_InitMipiPanelTEPin(void)
+{
+    const gpio_pin_config_t tePinConfig = {
+        .direction = kGPIO_DigitalInput,
+        .outputLogic  = 0,
+        .interruptMode = kGPIO_IntRisingEdge,
+    };
+
+    /*
+     * TE pin configure method:
+     *
+     * The TE pin interrupt is like this:
+     *
+     *            VSYNC
+     *         +--------+
+     *         |        |
+     *         |        |
+     * --------+        +----------------
+     *
+     * 1. If one frame send time is shorter than one frame refresh time, then set
+     *    TE pin interrupt at the start of VSYNC.
+     * 2. If one frame send time is longer than one frame refresh time, and shorter
+     *    than two frames refresh time, then set TE pin interrupt at the end of VSYNC.
+     * 3. If one frame send time is longer than two frame refresh time, tearing effect
+     *    could not be removed.
+     *
+     * For RM67162 @60Hz frame rate in single core version, frame refresh time is 16.7 ms. After test,
+     * one frame send time is shorter than one frame refresh time. So TE interrupt is
+     * set to start of VSYNC.
+     */
+
+    GPIO_PinInit(BOARD_MIPI_PANEL_TE_GPIO, BOARD_MIPI_PANEL_TE_PIN, &tePinConfig);
+
+    GPIO_PortClearInterruptFlags(BOARD_MIPI_PANEL_TE_GPIO, 1<<BOARD_MIPI_PANEL_TE_PIN);
+    GPIO_PortEnableInterrupts(BOARD_MIPI_PANEL_TE_GPIO, 1<<BOARD_MIPI_PANEL_TE_PIN);
+
+    NVIC_SetPriority(BOARD_MIPI_PANEL_TE_IRQ, 3);
+    NVIC_EnableIRQ(BOARD_MIPI_PANEL_TE_IRQ);
+}
+
+status_t BOARD_PrepareDisplayController(void)
+{
+    status_t status;
+
+    status = BOARD_InitDisplayInterface();
+    if (kStatus_Success == status)
+    {
+        /*
+         * Suggest setting to low priority. Because a new DSI transfer is prepared
+         * in the callback BOARD_DsiMemWriteCallback, so the core spends more time
+         * in ISR. Setting the low priority, then the important ISR won't be blocked.
+         */
+        NVIC_SetPriority(MIPI_DSI_IRQn, 6);
+    }
+    else
+    {
+        return status;
+    }
+
+    memset(&s_dsiMemWriteCtx, 0, sizeof(dsi_mem_write_ctx_t));
+
+    /* Create the MIPI DSI trasnfer handle for non-blocking data trasnfer. */
+    return DSI_TransferCreateHandle(DEMO_MIPI_DSI, &s_dsiDriverHandle, BOARD_DsiMemWriteCallback, NULL);
+}
+
+/* Smart panel TE pin IRQ handler. */
+void BOARD_DisplayTEPinHandler(void)
+{
+    DC_FB_DSI_CMD_TE_IRQHandler(&g_dc);
+}
+
+#else
+////////////////////////////////////////////////////////////////////////
 
 #if (DEMO_DISPLAY_CONTROLLER == DEMO_DISPLAY_CONTROLLER_LCDIFV2)
 void LCDIFv2_IRQHandler(void)
@@ -554,3 +889,4 @@ status_t BOARD_PrepareDisplayController(void)
 
     return kStatus_Success;
 }
+#endif

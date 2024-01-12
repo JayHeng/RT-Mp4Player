@@ -215,6 +215,11 @@ void BOARD_InitMIPI(void) {
   IOMUXC_SetPinMux(
       IOMUXC_GPIO_DISP_B2_15_GPIO11_IO16,     /* GPIO_DISP_B2_15 is configured as GPIO11_IO16 */
       0U);                                    /* Software Input On Field: Input Path is determined by functionality */
+   IOMUXC_SetPinMux(
+      IOMUXC_GPIO_AD_05_GPIO_MUX3_IO04,     /* GPIO_DISP_AD_05 is configured as GPIO_MUX3_IO04 */
+      0U);                                  /* Software Input On Field: Input Path is determined by functionality */
+   IOMUXC_GPR->GPR42 = ((IOMUXC_GPR->GPR42 & (~0x10)) | 0x10); /* select the fast GPIO CM7_GPIO3[4] */
+     
 }
 
 /***********************************************************************************************************************

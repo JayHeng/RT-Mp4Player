@@ -18,6 +18,7 @@
 #include "display_support.h"
 #include "fsl_cache.h"
 #include "fsl_gpio.h"
+#include "fsl_soc_src.h"
 #include "mp4.h"
 /*******************************************************************************
  * Definitions
@@ -26,7 +27,16 @@
 #define APP_ELCDIF_LAYER 0
 #define APP_CORE_ID 0
 
-#if VIDEO_LCD_RESOLUTION_SVGA540 == 1
+#if VIDEO_LCD_RESOLUTION_ROUND400 == 1
+#define APP_IMG_HEIGHT 400
+#define APP_IMG_WIDTH 400
+#define APP_HSW 0
+#define APP_HFP 0
+#define APP_HBP 0
+#define APP_VSW 0
+#define APP_VFP 0
+#define APP_VBP 0
+#elif VIDEO_LCD_RESOLUTION_SVGA540 == 1
 #define APP_IMG_HEIGHT 960
 #define APP_IMG_WIDTH 540
 #define APP_HSW 2
@@ -82,6 +92,7 @@ void BOARD_InitLcdifClock(void);
 /*******************************************************************************
  * Variables
  ******************************************************************************/
+static volatile bool s_newFrameShown = false;
 video_lcd_cfg_t g_videoLcdCfg;
 
 static pxp_output_buffer_config_t s_outputBufferConfig;
@@ -100,6 +111,19 @@ static uint8_t s_psBufferLcd_ocram[1] @ ".psBufferLcdOcram";
 /*******************************************************************************
  * Code
  ******************************************************************************/
+
+void BOARD_ResetDisplayMix(void)
+{
+    /*
+     * Reset the displaymix, otherwise during debugging, the
+     * debugger may not reset the display, then the behavior
+     * is not right.
+     */
+    SRC_AssertSliceSoftwareReset(SRC, kSRC_DisplaySlice);
+    while (kSRC_SliceResetInProcess == SRC_GetSliceResetState(SRC, kSRC_DisplaySlice))
+    {
+    }
+}
 
 void BOARD_InitLcdifPixelClock(void)
 {
@@ -224,13 +248,13 @@ static void lcd_time_measure_utility(lcd_time_type_t type)
 #endif
 }
 
+static uint8_t s_curLcdBufferIdx = 1U;
 void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
 {
 #if (MP4_FF_TIME_ENABLE == 1) || (MP4_LCD_DISP_OFF == 1)
     return;
 #endif
 
-    static uint8_t curLcdBufferIdx = 1U;
     static bool isPxpFirstStart = true;
 #if VIDEO_LCD_DISP_BLOCKING == 0
     static bool isLcdCurFrameDone = true;
@@ -253,10 +277,20 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
         {
 #if VIDEO_LCD_DISP_WAITING == 1
             lcd_time_measure_utility(kLcdTimeType_Start);
+            //////////////////////////////////////////////////////////////////////////////
+            #if (DEMO_PANEL_G1120B0MIPI == DEMO_PANEL)
+            /* Wait for the previous frame buffer is shown, and there is available
+               inactive buffer to fill. */
+            while (s_newFrameShown == false)
+            {
+            }
+            #else
             // Wait util last LCD frame done, then we can show current frame
             while (!(kLCDIFV2_VerticalBlankingInterrupt & LCDIFV2_GetInterruptStatus(APP_ELCDIF, APP_CORE_ID)))
             {
             }
+            #endif
+            //////////////////////////////////////////////////////////////////////////////
             lcd_time_measure_utility(kLcdTimeType_Lcd);
 #endif // #if VIDEO_LCD_DISP_WAITING == 1
         }
@@ -267,22 +301,29 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
 
 #if VIDEO_PXP_CONV_BLOCKING == 0
         // Start to show current frame via LCD
+//////////////////////////////////////////////////////////////////////////////
+#if (DEMO_PANEL_G1120B0MIPI != DEMO_PANEL)
 #if defined(MP4_LCD_BUFFER_OCRAM) && (MP4_LCD_BUFFER_OCRAM == 1)
-        if (curLcdBufferIdx == 1)
+        if (s_curLcdBufferIdx == 1)
         {
             LCDIFV2_SetLayerBufferAddr(APP_ELCDIF, APP_ELCDIF_LAYER, (uint32_t)s_psBufferLcd_ocram[0]);
         }
         else
 #endif
         {
-            LCDIFV2_SetLayerBufferAddr(APP_ELCDIF, APP_ELCDIF_LAYER, (uint32_t)s_psBufferLcd[curLcdBufferIdx]);
+            LCDIFV2_SetLayerBufferAddr(APP_ELCDIF, APP_ELCDIF_LAYER, (uint32_t)s_psBufferLcd[s_curLcdBufferIdx]);
         }
 
         LCDIFV2_TriggerLayerShadowLoad(APP_ELCDIF, APP_ELCDIF_LAYER);
         LCDIFV2_ClearInterruptStatus(APP_ELCDIF, APP_CORE_ID, kLCDIFV2_VerticalBlankingInterrupt);
+#else
+        s_newFrameShown = false;
+        g_dc.ops->setFrameBuffer(&g_dc, 0, (void *)((uint32_t)s_psBufferLcd[s_frameBufferIndex]);
+#endif
+//////////////////////////////////////////////////////////////////////////////
 
-        curLcdBufferIdx++;
-        curLcdBufferIdx %= APP_LCD_FB_NUM;
+        s_curLcdBufferIdx++;
+        s_curLcdBufferIdx %= APP_LCD_FB_NUM;
     }
     else
     {
@@ -331,14 +372,14 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
                                   APP_PS_ULC_Y + APP_IMG_HEIGHT - 1U);
 #endif
 #if defined(MP4_LCD_BUFFER_OCRAM) && (MP4_LCD_BUFFER_OCRAM == 1)
-    if (curLcdBufferIdx == 1)
+    if (s_curLcdBufferIdx == 1)
     {
         s_outputBufferConfig.buffer0Addr = (uint32_t)s_psBufferLcd_ocram[0];
     }
     else
 #endif
     {
-        s_outputBufferConfig.buffer0Addr = (uint32_t)s_psBufferLcd[curLcdBufferIdx];
+        s_outputBufferConfig.buffer0Addr = (uint32_t)s_psBufferLcd[s_curLcdBufferIdx];
     }
     PXP_SetOutputBufferConfig(APP_PXP, &s_outputBufferConfig);
     PXP_Start(APP_PXP);
@@ -362,29 +403,46 @@ void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
         isPxpFirstStart = false;
     }
 #endif // #if VIDEO_PXP_CONV_WAITING == 1
-
+//////////////////////////////////////////////////////////////////////////////
+#if (DEMO_PANEL_G1120B0MIPI != DEMO_PANEL)
 #if defined(MP4_LCD_BUFFER_OCRAM) && (MP4_LCD_BUFFER_OCRAM == 1)
-    if (curLcdBufferIdx == 1)
+    if (s_curLcdBufferIdx == 1)
     {
         LCDIFV2_SetLayerBufferAddr(APP_ELCDIF, APP_ELCDIF_LAYER, (uint32_t)s_psBufferLcd_ocram[0]);
     }
     else
 #endif
     {
-        LCDIFV2_SetLayerBufferAddr(APP_ELCDIF, APP_ELCDIF_LAYER, (uint32_t)s_psBufferLcd[curLcdBufferIdx]);
+        LCDIFV2_SetLayerBufferAddr(APP_ELCDIF, APP_ELCDIF_LAYER, (uint32_t)s_psBufferLcd[s_curLcdBufferIdx]);
     }
     LCDIFV2_TriggerLayerShadowLoad(APP_ELCDIF, APP_ELCDIF_LAYER);
     LCDIFV2_ClearInterruptStatus(APP_ELCDIF, APP_CORE_ID, kLCDIFV2_VerticalBlankingInterrupt);
+#else
+    s_newFrameShown = false;
+    g_dc.ops->setFrameBuffer(&g_dc, 0, (void *)((uint32_t)s_psBufferLcd[s_curLcdBufferIdx]));
+#endif
+//////////////////////////////////////////////////////////////////////////////
 
-    curLcdBufferIdx++;
-    curLcdBufferIdx %= APP_LCD_FB_NUM;
+    s_curLcdBufferIdx++;
+    s_curLcdBufferIdx %= APP_LCD_FB_NUM;
 
 #if VIDEO_LCD_DISP_BLOCKING == 1
 #if VIDEO_LCD_DISP_WAITING == 1
     lcd_time_measure_utility(kLcdTimeType_Start);
+    //////////////////////////////////////////////////////////////////////////////
+    #if (DEMO_PANEL_G1120B0MIPI == DEMO_PANEL)
+    /* Wait for the previous frame buffer is shown, and there is available
+       inactive buffer to fill. */
+    while (s_newFrameShown == false)
+    {
+    }
+    #else
+    // Wait util last LCD frame done, then we can show current frame
     while (!(kLCDIFV2_VerticalBlankingInterrupt & LCDIFV2_GetInterruptStatus(APP_ELCDIF, APP_CORE_ID)))
     {
     }
+    #endif
+    //////////////////////////////////////////////////////////////////////////////
     lcd_time_measure_utility(kLcdTimeType_Lcd);
 #endif // #if VIDEO_LCD_DISP_WAITING == 1
 #endif // #if VIDEO_LCD_DISP_BLOCKING == 1
@@ -407,6 +465,7 @@ void set_lcd_master_priority(uint32_t priority)
     *(uint32_t *)0x41044104 = priority;
 }
 
+#if (DEMO_PANEL_G1120B0MIPI != DEMO_PANEL)
 /*!
  * @brief config_lcd function
  */
@@ -434,4 +493,74 @@ void config_lcd(video_lcd_cfg_t *lcdCfg)
     set_pxp_master_priority(14);
 #endif
 }
+
+#else
+/////////////////////////////////////////////////////////////////////////////
+static dc_fb_info_t s_fbInfo;
+
+void CM7_GPIO2_3_IRQHandler(void)
+{
+    uint32_t intStatus;
+
+    intStatus = GPIO_PortGetInterruptFlags(BOARD_MIPI_PANEL_TE_GPIO);
+
+    GPIO_PortClearInterruptFlags(BOARD_MIPI_PANEL_TE_GPIO, intStatus);
+
+    if (intStatus & (1U << BOARD_MIPI_PANEL_TE_PIN))
+    {
+        BOARD_DisplayTEPinHandler();
+    }
+    SDK_ISR_EXIT_BARRIER;
+}
+
+static void DEMO_BufferSwitchOffCallback(void *param, void *switchOffBuffer)
+{
+    s_newFrameShown = true;
+    s_curLcdBufferIdx++;
+    s_curLcdBufferIdx %= APP_LCD_FB_NUM;
+}
+
+void config_lcd(video_lcd_cfg_t *lcdCfg)
+{
+    if (lcdCfg->srcWidth > lcdCfg->srcHeight)
+    {
+        APP_InitPxp(lcdCfg->srcWidth);
+    }
+    else
+    {
+        APP_InitPxp(lcdCfg->srcHeight);
+    }
+    set_pxp_master_priority(14);
+
+    status_t status;
+    BOARD_PrepareDisplayController();
+    /* Initialize the display controller. */
+    status = g_dc.ops->init(&g_dc);
+    if (kStatus_Success == status)
+    {
+        g_dc.ops->getLayerDefaultConfig(&g_dc, 0, &s_fbInfo);
+        s_fbInfo.pixelFormat = APP_VIDEO_PIXEL_FORMAT;
+        s_fbInfo.width       = DEMO_BUFFER_WIDTH;
+        s_fbInfo.height      = DEMO_BUFFER_HEIGHT;
+        s_fbInfo.startX      = DEMO_BUFFER_START_X;
+        s_fbInfo.startY      = DEMO_BUFFER_START_Y;
+        s_fbInfo.strideBytes = DEMO_BUFFER_STRIDE_BYTE;
+        g_dc.ops->setLayerConfig(&g_dc, 0, &s_fbInfo);
+        g_dc.ops->setCallback(&g_dc, 0, DEMO_BufferSwitchOffCallback, NULL);
+        s_newFrameShown  = false;
+        g_dc.ops->setFrameBuffer(&g_dc, 0, s_psBufferLcd[0]);
+        /* For the DBI interface display, application must wait for the first
+         * frame buffer sent to the panel.
+         */
+        if ((g_dc.ops->getProperty(&g_dc) & kDC_FB_ReserveFrameBuffer) == 0)
+        {
+            while (s_newFrameShown == false)
+            {
+            }
+        }
+        s_newFrameShown = true;
+        g_dc.ops->enableLayer(&g_dc, 0);
+    }
+}
+#endif
 
