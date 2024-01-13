@@ -251,7 +251,7 @@ static void lcd_time_measure_utility(lcd_time_type_t type)
 static uint8_t s_curLcdBufferIdx = 1U;
 void lcd_video_display(uint8_t *buf[], uint32_t xsize, uint32_t ysize)
 {
-#if (MP4_FF_TIME_ENABLE == 1) || (MP4_LCD_DISP_OFF == 1)
+#if (MP4_FF_TIME_ENABLE == 1) && (MP4_LCD_DISP_OFF == 1)
     return;
 #endif
 
