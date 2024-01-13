@@ -15,6 +15,10 @@
  * Definitions
  ******************************************************************************/
 
+#define MP4_SOURCE_FILENAME "/bigBuckBunny_480x272_faststart.mp4";
+#define MP4_DEST_A_FILENAME "/bigBuckBunny_480x272_faststart.pcm";
+#define MP4_DEST_V_FILENAME "/bigBuckBunny_480x272_faststart.yuv";
+
 // Set to save decoded audio data into .wav file
 #define MP4_WAV_ENABLE      0
 
@@ -29,6 +33,8 @@ typedef struct _ff_measure_context
 // Set to measure FFmpeg decode time for each frame
 #define MP4_FF_TIME_ENABLE  0
 
+#define MP4_FF_TIME_FILENAME "/time.txt"
+
 typedef struct _sai_measure_context
 {
     uint32_t transIndex;
@@ -41,7 +47,7 @@ typedef struct _sai_measure_context
 #define MP4_SAI_TIME_ENABLE 0
 // The detected error time in ns for one frame
 #define AUDIO_FRAME_ERR_NS  1000000
-
+// It takes effect no matter what MP4_FF_TIME_ENABLE is
 #define MP4_AUDIO_PLAY_OFF  1
 
 typedef struct _lcd_measure_context
@@ -52,7 +58,8 @@ typedef struct _lcd_measure_context
 
 // Set to measure LCD display time for each frame
 // !!!Note: it can be enabled along with MP4_FF_TIME_ENABLE
-#define MP4_LCD_TIME_ENABLE 0
+#define MP4_LCD_TIME_ENABLE 1
+// It only takes effect when MP4_FF_TIME_ENABLE = 1
 #define MP4_LCD_DISP_OFF    0
 
 ////////////////////////////////////////////////////////////////////////////////

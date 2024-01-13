@@ -412,7 +412,7 @@ static void h264_video_decode(const char *infilename, const char *aoutfilename, 
     AVFrame *frameyuv = av_frame_alloc();
 
 #if MP4_FF_TIME_ENABLE == 1
-    char *toutfilename="/time.txt";
+    char *toutfilename = MP4_FF_TIME_FILENAME;
     c = f_open(&toutputFil, toutfilename, FA_CREATE_ALWAYS | FA_WRITE);
     if (c != FR_OK)
     {
@@ -631,9 +631,9 @@ int main(void)
     g_audioSaiCfg.sampleWidth_bit = AUDIO_CONV_WIDTH;
     g_videoLcdCfg.isLcdConfigured = false;
 
-    char *filepath_in="/bigBuckBunny_400x400_faststart.mp4";
-    char *filepath_aout="/bigBuckBunny_400x400_faststart.pcm";
-    char *filepath_vout="/bigBuckBunny_400x400_faststart.yuv";
+    char *filepath_in   = MP4_SOURCE_FILENAME;
+    char *filepath_aout = MP4_DEST_A_FILENAME;
+    char *filepath_vout = MP4_DEST_V_FILENAME;
 
     while(1)
     {
